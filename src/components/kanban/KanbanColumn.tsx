@@ -19,9 +19,10 @@ type KanbanColumnProps = {
   onColumnDrop: (targetColumnId: string) => void;
   onColumnDragEnd: () => void;
   draggedColumnId: string | null;
+  onTaskClick: (task: Task) => void;
 };
 
-export function KanbanColumn({ column, store, onTaskDragStart, onTaskDragEnd, onColumnDragStart, onColumnDrop, onColumnDragEnd, draggedColumnId }: KanbanColumnProps) {
+export function KanbanColumn({ column, store, onTaskDragStart, onTaskDragEnd, onColumnDragStart, onColumnDrop, onColumnDragEnd, draggedColumnId, onTaskClick }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isTaskDragOver, setIsTaskDragOver] = useState(false);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -148,6 +149,7 @@ export function KanbanColumn({ column, store, onTaskDragStart, onTaskDragEnd, on
             columnId={column.id} 
             onDragStart={onTaskDragStart}
             onDragEnd={onTaskDragEnd}
+            onClick={() => onTaskClick(task)}
           />
         ))}
         {isTaskDragOver && <div className="h-16 rounded-lg bg-primary/20 border-2 border-dashed border-primary"></div>}

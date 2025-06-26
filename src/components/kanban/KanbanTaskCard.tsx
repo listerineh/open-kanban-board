@@ -12,9 +12,10 @@ type KanbanTaskCardProps = {
   columnId: string;
   onDragStart: (task: Task, fromColumnId: string) => void;
   onDragEnd: () => void;
+  onClick: () => void;
 };
 
-export function KanbanTaskCard({ task, columnId, onDragStart, onDragEnd }: KanbanTaskCardProps) {
+export function KanbanTaskCard({ task, columnId, onDragStart, onDragEnd, onClick }: KanbanTaskCardProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
@@ -25,7 +26,8 @@ export function KanbanTaskCard({ task, columnId, onDragStart, onDragEnd }: Kanba
     setIsDragging(true);
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     onDragEnd();
     setIsDragging(false);
   };
@@ -35,9 +37,10 @@ export function KanbanTaskCard({ task, columnId, onDragStart, onDragEnd }: Kanba
       draggable 
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onClick={onClick}
       data-task-id={task.id}
       className={cn(
-        "group cursor-grab active:cursor-grabbing bg-card hover:bg-card/80 transition-opacity",
+        "group cursor-pointer active:cursor-grabbing bg-card hover:bg-card/80 transition-opacity",
         isDragging && "opacity-50"
       )}
     >

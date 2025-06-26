@@ -42,8 +42,6 @@ export default function Home() {
           activeProjectId={store.activeProjectId}
           onSelectProject={store.setActiveProjectId}
           onAddProject={store.addProject}
-          onUpdateProjectName={store.updateProjectName}
-          onDeleteProject={store.deleteProject}
         />
       </header>
       <main className="flex-1 overflow-auto">

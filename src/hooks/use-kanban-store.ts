@@ -52,7 +52,9 @@ export type KanbanStore = {
   moveColumn: (draggedColumnId: string, targetColumnId: string) => void;
   updateProjectName: (projectId: string, newName: string) => void;
   deleteProject: (id: string) => void;
+  updateTask: (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
   deleteTask: (taskId: string, columnId: string) => void;
+  deleteColumn: (columnId: string) => void;
 };
 
 function getActiveProjectName(projects: Project[], activeProjectId: string | null) {
@@ -287,37 +289,56 @@ export function useKanbanStore(): KanbanStore {
 
   const activeProject = projects.find(p => p.id === activeProjectId);
 
-  const deleteProject = useCallback((id: string) => {
-    setProjects(prev => {
-      const updatedProjects = prev.filter(p => p.id !== id);
-      
-      const newActiveId = activeProjectId === id 
-        ? (updatedProjects.length > 0 ? updatedProjects[0].id : null)
-        : activeProjectId;
-        
-      saveData(updatedProjects, newActiveId);
-      
-      if (activeProjectId === id) {
-        setActiveProjectIdState(newActiveId);
-      }
-
-      setToastInfo({
-        id: 'project-deleted',
-        title: 'Project deleted',
-        description: `The project ${getActiveProjectName(projects, activeProjectId)} has been deleted successfully.`,
-        variant: 'default',
-      });
-      
-      return updatedProjects;
+  const deleteProject = (projectId: string) => {
+    const updatedProjects = projects.filter(p => p.id !== projectId);
+    const newActiveId = activeProjectId === projectId 
+      ? (updatedProjects[0]?.id || null) 
+      : activeProjectId;
+    
+    setProjectsState(updatedProjects);
+    setActiveProjectIdState(newActiveId);
+    saveData(updatedProjects, newActiveId);
+    setToastInfo({
+      id: 'project-deleted',
+      title: 'Project deleted',
+      description: `The project ${getActiveProjectName(projects, activeProjectId)} has been deleted successfully.`,
+      variant: 'default',
     });
-  }, [activeProjectId, saveData]);
+  };
 
-  const deleteTask = useCallback((taskId: string, columnId: string) => {
+  const updateTask = (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => {
+    if (!activeProjectId) return;
+    setProjects(prev => prev.map(p => {
+      if (p.id === activeProjectId) {
+        const updatedColumns = p.columns.map(c => {
+          if (c.id === columnId) {
+            const updatedTasks = c.tasks.map(t =>
+              t.id === taskId ? { ...t, ...updatedData } : t
+            );
+            return { ...c, tasks: updatedTasks };
+          }
+          return c;
+        });
+        return { ...p, columns: updatedColumns };
+      }
+      return p;
+    }));
+    setToastInfo({
+      id: 'task-updated',
+      title: 'Task updated',
+      description: `The task ${updatedData.title} has been updated successfully.`,
+      variant: 'default',
+    });
+  };
+
+  const deleteTask = (taskId: string, columnId: string) => {
     if (!activeProjectId) return;
     setProjects(prev => prev.map(p => {
       if (p.id === activeProjectId) {
         const updatedColumns = p.columns.map(c =>
-          c.id === columnId ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId) } : c
+          c.id === columnId
+            ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId) }
+            : c
         );
         return { ...p, columns: updatedColumns };
       }
@@ -326,10 +347,27 @@ export function useKanbanStore(): KanbanStore {
     setToastInfo({
       id: 'task-deleted',
       title: 'Task deleted',
-      description: `The task ${taskId} has been deleted successfully.`,
+      description: `The task  has been deleted successfully.`,
       variant: 'default',
     });
-  }, [activeProjectId, setProjects]);
+  };
 
-  return { projects, activeProjectId, setActiveProjectId, addProject, addColumn, addTask, moveTask, isLoaded, activeProject, setProjects, updateColumnTitle, moveColumn, updateProjectName, deleteProject, deleteTask };
+  const deleteColumn = (columnId: string) => {
+    if (!activeProjectId) return;
+    setProjects(prev => prev.map(p => {
+      if (p.id === activeProjectId) {
+        const updatedColumns = p.columns.filter(c => c.id !== columnId);
+        return { ...p, columns: updatedColumns };
+      }
+      return p;
+    }));
+    setToastInfo({
+      id: 'column-deleted',
+      title: 'Column deleted',
+      description: `The column has been deleted successfully.`,
+      variant: 'default',
+    });
+  };  
+
+  return { projects, activeProjectId, setActiveProjectId, addProject, addColumn, addTask, moveTask, isLoaded, activeProject, setProjects, updateColumnTitle, moveColumn, updateProjectName, deleteProject, deleteTask, updateTask, deleteColumn };
 }
