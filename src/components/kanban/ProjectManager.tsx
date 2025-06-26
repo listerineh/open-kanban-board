@@ -23,7 +23,7 @@ type ProjectManagerProps = {
   projects: Project[];
   activeProjectId: string | null;
   onSelectProject: (id: string | null) => void;
-  onAddProject: (name: string) => void;
+  onAddProject: (name: string) => Promise<void>;
 };
 
 export function ProjectManager({
@@ -34,13 +34,16 @@ export function ProjectManager({
 }: ProjectManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isMobile = useIsMobile();
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
 
-  const handleProjectSubmit = () => {
-    if (newProjectName.trim()) {
-      onAddProject(newProjectName.trim());
+  const handleProjectSubmit = async () => {
+    if (newProjectName.trim() && !isSubmitting) {
+      setIsSubmitting(true);
+      await onAddProject(newProjectName.trim());
+      setIsSubmitting(false);
       closeDialog();
     }
   };
@@ -120,7 +123,9 @@ export function ProjectManager({
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" onClick={handleProjectSubmit}>Create Project</Button>
+            <Button type="submit" onClick={handleProjectSubmit} disabled={isSubmitting}>
+              {isSubmitting ? 'Creating...' : 'Create Project'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

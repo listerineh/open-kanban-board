@@ -1,15 +1,18 @@
 "use client";
 
-import Image from 'next/image';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { ProjectManager } from '@/components/kanban/ProjectManager';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Kanban } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import { UserNav } from '@/components/auth/user-nav';
 
 export default function Home() {
   const store = useKanbanStore();
+  const { user, loading: authLoading } = useAuth();
 
-  if (!store.isLoaded) {
+  if (!store.isLoaded || authLoading) {
     return (
       <div className="h-screen w-full flex flex-col bg-background text-foreground">
         <header className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
@@ -17,7 +20,10 @@ export default function Home() {
             <Skeleton className="h-8 w-8 rounded-lg" />
             <Skeleton className="h-6 w-32" />
           </div>
-          <Skeleton className="h-10 w-48" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
         </header>
         <main className="flex-1 p-6 overflow-x-auto">
           <div className="flex gap-6 h-full">
@@ -34,15 +40,18 @@ export default function Home() {
     <div className="h-screen w-full flex flex-col bg-background text-foreground font-body">
       <header className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-y-3 shrink-0">
         <div className="flex items-center gap-3">
-          <Image src="/icon.svg" width={24} height={24} alt="OpenKanban icon" />
+          <Kanban className="text-primary" size={24}/>
           <h1 className="text-xl font-headline font-bold text-gray-200">OpenKanban</h1>
         </div>
-        <ProjectManager
-          projects={store.projects}
-          activeProjectId={store.activeProjectId}
-          onSelectProject={store.setActiveProjectId}
-          onAddProject={store.addProject}
-        />
+        <div className="flex items-center gap-4">
+          <ProjectManager
+            projects={store.projects}
+            activeProjectId={store.activeProjectId}
+            onSelectProject={store.setActiveProjectId}
+            onAddProject={store.addProject}
+          />
+          <UserNav />
+        </div>
       </header>
       <main className="flex-1 overflow-auto">
         {store.activeProject ? (
@@ -50,8 +59,14 @@ export default function Home() {
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center p-8">
-              <h2 className="text-2xl font-headline font-semibold mb-2">Welcome to OpenKanban</h2>
-              <p className="text-muted-foreground max-w-md mx-auto">Select a project from the dropdown in the top-right corner, or create a new one to begin organizing your tasks.</p>
+              {user ? (
+                <>
+                  <h2 className="text-2xl font-headline font-semibold mb-2">Welcome to OpenKanban</h2>
+                  <p className="text-muted-foreground max-w-md mx-auto">Select a project from the dropdown or create a new one to begin.</p>
+                </>
+              ) : (
+                 <p className="text-muted-foreground">Loading...</p>
+              )}
             </div>
           </div>
         )}

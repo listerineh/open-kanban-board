@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { AuthProvider } from '@/hooks/use-auth';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -62,10 +63,12 @@ export default function RootLayout({
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
       </head>
       <body className="font-body antialiased">
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
-        <Toaster />
+        <AuthProvider>
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

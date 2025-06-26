@@ -30,9 +30,9 @@ export function KanbanColumn({ column, store, onTaskDragStart, onTaskDragEnd, on
   const [title, setTitle] = useState(column.title);
   const isDraggingThisColumn = draggedColumnId === column.id;
 
-  const handleTitleBlur = () => {
+  const handleTitleBlur = async () => {
     if (title.trim() && title.trim() !== column.title) {
-      store.updateColumnTitle(column.id, title.trim());
+      await store.updateColumnTitle(column.id, title.trim());
     } else {
       setTitle(column.title);
     }

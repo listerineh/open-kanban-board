@@ -17,17 +17,20 @@ import type { Task } from '@/types/kanban';
 type NewTaskDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onAddTask: (taskData: Omit<Task, 'id'>) => void;
+  onAddTask: (taskData: Omit<Task, 'id'>) => Promise<void>;
 };
 
 export function NewTaskDialog({ isOpen, onClose, onAddTask }: NewTaskDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assignee, setAssignee] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddTask = () => {
-    if (title.trim()) {
-      onAddTask({ title: title.trim(), description: description.trim(), assignee: assignee.trim() });
+  const handleAddTask = async () => {
+    if (title.trim() && !isSubmitting) {
+      setIsSubmitting(true);
+      await onAddTask({ title: title.trim(), description: description.trim(), assignee: assignee.trim() });
+      setIsSubmitting(false);
       setTitle('');
       setDescription('');
       setAssignee('');
@@ -72,7 +75,9 @@ export function NewTaskDialog({ isOpen, onClose, onAddTask }: NewTaskDialogProps
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" onClick={handleAddTask}>Add Task</Button>
+          <Button type="submit" onClick={handleAddTask} disabled={isSubmitting}>
+            {isSubmitting ? 'Adding...' : 'Add Task'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

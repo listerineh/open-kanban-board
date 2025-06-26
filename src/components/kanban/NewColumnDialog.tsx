@@ -15,16 +15,19 @@ import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
 
 type NewColumnDialogProps = {
-  onAddColumn: (title: string) => void;
+  onAddColumn: (title: string) => Promise<void>;
 };
 
 export function NewColumnDialog({ onAddColumn }: NewColumnDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddColumn = () => {
-    if (title.trim()) {
-      onAddColumn(title.trim());
+  const handleAddColumn = async () => {
+    if (title.trim() && !isSubmitting) {
+      setIsSubmitting(true);
+      await onAddColumn(title.trim());
+      setIsSubmitting(false);
       setTitle('');
       setIsOpen(false);
     }
@@ -58,7 +61,9 @@ export function NewColumnDialog({ onAddColumn }: NewColumnDialogProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit" onClick={handleAddColumn}>Add Column</Button>
+          <Button type="submit" onClick={handleAddColumn} disabled={isSubmitting}>
+              {isSubmitting ? 'Adding...' : 'Add Column'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

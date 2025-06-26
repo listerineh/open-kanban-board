@@ -33,9 +33,9 @@ type TaskDetailsDialogProps = {
   task: Task | null;
   columnId: string | null;
   columns: Column[];
-  onUpdateTask: (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
-  onDeleteTask: (taskId: string, columnId: string) => void;
-  onMoveTask: (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => void;
+  onUpdateTask: (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => Promise<void>;
+  onDeleteTask: (taskId: string, columnId: string) => Promise<void>;
+  onMoveTask: (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => Promise<void>;
 };
 
 export function TaskDetailsDialog({
@@ -53,6 +53,7 @@ export function TaskDetailsDialog({
   const [assignee, setAssignee] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (task && isOpen) {
@@ -63,30 +64,38 @@ export function TaskDetailsDialog({
     }
   }, [task, columnId, isOpen]);
 
-  const handleSave = () => {
-    if (!task || !columnId || !status) return;
+  const handleSave = async () => {
+    if (!task || !columnId || !status || isSaving) return;
 
+    setIsSaving(true);
+    
     const updatedData: Partial<Omit<Task, 'id'>> = {};
     if (title.trim() !== task.title) updatedData.title = title.trim();
     if (description.trim() !== (task.description || '')) updatedData.description = description.trim();
     if (assignee.trim() !== (task.assignee || '')) updatedData.assignee = assignee.trim();
 
-    if (Object.keys(updatedData).length > 0) {
-      onUpdateTask(task.id, columnId, updatedData);
-    }
+    const updatePromise = Object.keys(updatedData).length > 0 
+      ? onUpdateTask(task.id, columnId, updatedData)
+      : Promise.resolve();
 
-    if (status !== columnId) {
-      const destinationColumn = columns.find(c => c.id === status);
-      const toIndex = destinationColumn ? destinationColumn.tasks.length : 0;
-      onMoveTask(task.id, columnId, status, toIndex);
-    }
-    
+    const movePromise = status !== columnId
+      ? () => {
+        const destinationColumn = columns.find(c => c.id === status);
+        const toIndex = destinationColumn ? destinationColumn.tasks.length : 0;
+        return onMoveTask(task.id, columnId, status, toIndex);
+      }
+      : () => Promise.resolve();
+      
+    await updatePromise;
+    await movePromise();
+
+    setIsSaving(false);
     onClose();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!task || !columnId) return;
-    onDeleteTask(task.id, columnId);
+    await onDeleteTask(task.id, columnId);
     setIsDeleteDialogOpen(false);
     onClose();
   };
@@ -151,13 +160,15 @@ export function TaskDetailsDialog({
             </div>
           </div>
           <DialogFooter className="justify-between sm:justify-between">
-            <Button variant="ghost" size="default" onClick={() => setIsDeleteDialogOpen(true)}>
-              <Trash2 className="h-4 w-4 text-destructive" /> Delete Task
+            <Button variant="ghost" size="icon" onClick={() => setIsDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
               <span className="sr-only">Delete Task</span>
             </Button>
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button type="submit" onClick={handleSave}>Save Changes</Button>
+              <Button type="submit" onClick={handleSave} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
           </DialogFooter>
         </DialogContent>
