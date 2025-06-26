@@ -12,7 +12,7 @@ type KanbanBoardProps = {
 };
 
 export function KanbanBoard({ project, store }: KanbanBoardProps) {
-  const [draggedTask, setDraggedTask] = useState<{ task: Task; fromColumnId: string } | null>(null);
+  const [_, setDraggedTask] = useState<{ task: Task; fromColumnId: string } | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
 
   const handleTaskDragStart = (task: Task, fromColumnId: string) => {

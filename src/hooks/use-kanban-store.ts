@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Project, Column, Task } from '@/types/kanban';
-import { useToast } from "@/hooks/use-toast";
+import { ToasterToast, useToast } from "@/hooks/use-toast";
 
 const KANBAN_STORAGE_KEY = 'openkanban-data';
 
@@ -52,13 +52,27 @@ export type KanbanStore = {
   moveColumn: (draggedColumnId: string, targetColumnId: string) => void;
   updateProjectName: (projectId: string, newName: string) => void;
   deleteProject: (id: string) => void;
+  deleteTask: (taskId: string, columnId: string) => void;
 };
+
+function getActiveProjectName(projects: Project[], activeProjectId: string | null) {
+  const activeProject = projects.find(project => project.id === activeProjectId);
+  return activeProject?.name || 'none';
+}
 
 export function useKanbanStore(): KanbanStore {
   const [projects, setProjectsState] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectIdState] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [toastInfo, setToastInfo] = useState<ToasterToast | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (toastInfo) {
+      toast(toastInfo);
+      setToastInfo(null);
+    }
+  }, [toastInfo, toast]);
 
   useEffect(() => {
     try {
@@ -67,27 +81,12 @@ export function useKanbanStore(): KanbanStore {
         const { projects: storedProjects, activeProjectId: storedActiveId } = JSON.parse(storedData);
         setProjectsState(storedProjects || initialData);
         setActiveProjectIdState(storedActiveId || (storedProjects && storedProjects.length > 0 ? storedProjects[0].id : initialData[0].id));
-        toast({
-          title: 'Data loaded',
-          description: 'Data loaded from localStorage',
-          variant: 'default',
-        });
       } else {
         setProjectsState(initialData);
         setActiveProjectIdState(initialData[0]?.id || null);
-        toast({
-          title: 'No data found',
-          description: 'No data found in localStorage, using default data',
-          variant: 'default',
-        });
       }
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
-      toast({
-        title: 'Failed to load data',
-        description: 'Could not load data from localStorage',
-        variant: 'destructive',
-      });
       setProjectsState(initialData);
       setActiveProjectIdState(initialData[0]?.id || null);
     } finally {
@@ -100,16 +99,12 @@ export function useKanbanStore(): KanbanStore {
       try {
         const dataToStore = JSON.stringify({ projects: projectsData, activeProjectId: activeId });
         localStorage.setItem(KANBAN_STORAGE_KEY, dataToStore);
-        toast({
-          title: 'Data saved',
-          description: 'Data saved successfully to localStorage!',
-          variant: 'default',
-        });
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
-        toast({
-          title: 'Failed to save data',
-          description: 'Could not save data to localStorage',
+        setToastInfo({
+          id: 'data-save-failed',
+          title: 'Data save failed',
+          description: 'The data could not be saved to localStorage.',
           variant: 'destructive',
         });
       }
@@ -123,10 +118,16 @@ export function useKanbanStore(): KanbanStore {
         return updatedProjects;
     });
   }, [activeProjectId, saveData]);
-  
+
   const setActiveProjectId = useCallback((id: string | null) => {
     setActiveProjectIdState(id);
     saveData(projects, id);
+    setToastInfo({
+      id: 'project-changed',
+      title: 'Project changed',
+      description: `The active project has been changed to ${getActiveProjectName(projects, id)} successfully.`,
+      variant: 'default',
+    });
   }, [projects, saveData]);
 
   const addProject = (name: string) => {
@@ -141,9 +142,10 @@ export function useKanbanStore(): KanbanStore {
     };
     setProjects(prev => [...prev, newProject]);
     setActiveProjectId(newProject.id);
-    toast({
-      title: 'Project created',
-      description: `Project ${newProject.name} created`,
+    setToastInfo({
+      id: 'project-added',
+      title: 'Project added',
+      description: `The project ${newProject.name} has been added successfully.`,
       variant: 'default',
     });
   };
@@ -154,9 +156,10 @@ export function useKanbanStore(): KanbanStore {
       setProjects(prev => prev.map(p => 
           p.id === activeProjectId ? { ...p, columns: [...p.columns, newColumn] } : p
       ));
-      toast({
-        title: 'Column created',
-        description: `Column ${newColumn.title} created`,
+      setToastInfo({
+        id: 'column-added',
+        title: 'Column added',
+        description: `The column ${newColumn.title} has been added successfully.`,
         variant: 'default',
       });
   };
@@ -173,9 +176,10 @@ export function useKanbanStore(): KanbanStore {
           }
           return p;
       }));
-      toast({
-        title: 'Task created',
-        description: `Task ${newTask.title} created`,
+      setToastInfo({
+        id: 'task-added',
+        title: 'Task added',
+        description: `The task ${newTask.title} has been added successfully.`,
         variant: 'default',
       });
   };
@@ -202,9 +206,10 @@ export function useKanbanStore(): KanbanStore {
             destCol.tasks.splice(toIndex, 0, task);
         }
 
-        toast({
+        setToastInfo({
+          id: 'task-moved',
           title: 'Task moved',
-          description: `Task ${task.title} moved to ${destCol?.title}`,
+          description: `The task ${task.title} has been moved to ${destCol?.title} state successfully.`,
           variant: 'default',
         });
 
@@ -218,11 +223,6 @@ export function useKanbanStore(): KanbanStore {
     setProjects(prev => {
       const projectIndex = prev.findIndex(p => p.id === activeProjectId);
       if (projectIndex === -1) {
-        toast({
-          title: 'Could not move column',
-          description: 'Could not move column to target position',
-          variant: 'destructive',
-        });
         return prev;
       }
 
@@ -233,11 +233,6 @@ export function useKanbanStore(): KanbanStore {
       const targetIndex = columns.findIndex(c => c.id === targetColumnId);
 
       if (draggedIndex === -1 || targetIndex === -1) {
-        toast({
-          title: 'Could not move column',
-          description: 'Could not move column to target position',
-          variant: 'destructive',
-        });
         return prev;
       }
 
@@ -247,9 +242,10 @@ export function useKanbanStore(): KanbanStore {
       const newProjects = [...prev];
       newProjects[projectIndex] = { ...project, columns };
 
-      toast({
+      setToastInfo({
+        id: 'column-moved',
         title: 'Column moved',
-        description: `Column ${draggedColumn.title} moved to position ${targetIndex + 1}`,
+        description: `The column ${draggedColumn.title} has been moved to ${targetIndex + 1} position successfully.`,
         variant: 'default',
       });
 
@@ -268,9 +264,10 @@ export function useKanbanStore(): KanbanStore {
       }
       return p;
     }));
-    toast({
-      title: 'Column updated',
-      description: `Column ${title} updated`,
+    setToastInfo({
+      id: 'column-title-updated',
+      title: 'Column title updated',
+      description: `The column ${title} has been updated successfully.`,
       variant: 'default',
     });
   };
@@ -280,9 +277,10 @@ export function useKanbanStore(): KanbanStore {
     setProjects(prev => prev.map(p =>
       p.id === projectId ? { ...p, name: newName.trim() } : p
     ));
-    toast({
-      title: 'Project updated',
-      description: `Project ${newName.trim()} updated`,
+    setToastInfo({
+      id: 'project-name-updated',
+      title: 'Project name updated',
+      description: `The project ${newName.trim()} has been updated successfully.`,
       variant: 'default',
     });
   };
@@ -302,10 +300,11 @@ export function useKanbanStore(): KanbanStore {
       if (activeProjectId === id) {
         setActiveProjectIdState(newActiveId);
       }
-      
-      toast({
+
+      setToastInfo({
+        id: 'project-deleted',
         title: 'Project deleted',
-        description: 'Project has been successfully deleted',
+        description: `The project ${getActiveProjectName(projects, activeProjectId)} has been deleted successfully.`,
         variant: 'default',
       });
       
@@ -313,5 +312,24 @@ export function useKanbanStore(): KanbanStore {
     });
   }, [activeProjectId, saveData]);
 
-  return { projects, activeProjectId, setActiveProjectId, addProject, addColumn, addTask, moveTask, isLoaded, activeProject, setProjects, updateColumnTitle, moveColumn, updateProjectName, deleteProject };
+  const deleteTask = useCallback((taskId: string, columnId: string) => {
+    if (!activeProjectId) return;
+    setProjects(prev => prev.map(p => {
+      if (p.id === activeProjectId) {
+        const updatedColumns = p.columns.map(c =>
+          c.id === columnId ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId) } : c
+        );
+        return { ...p, columns: updatedColumns };
+      }
+      return p;
+    }));
+    setToastInfo({
+      id: 'task-deleted',
+      title: 'Task deleted',
+      description: `The task ${taskId} has been deleted successfully.`,
+      variant: 'default',
+    });
+  }, [activeProjectId, setProjects]);
+
+  return { projects, activeProjectId, setActiveProjectId, addProject, addColumn, addTask, moveTask, isLoaded, activeProject, setProjects, updateColumnTitle, moveColumn, updateProjectName, deleteProject, deleteTask };
 }
