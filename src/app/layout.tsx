@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'OpenKanban Board',
     description: 'Manage your projects with this free-to-use Kanban Board. Create, edit, and delete projects, as well as add, move, and delete tasks.',
-    url: '',
+    url: 'https://open-kanban.vercel.app',
     siteName: 'OpenKanban Board',
     images: [
       {
