@@ -13,21 +13,22 @@ import { Suspense } from 'react';
 function KanbanPageSkeleton() {
   return (
     <div className="h-screen w-full flex flex-col bg-background text-foreground">
-      <header className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-8 rounded-lg" />
+      <header className="px-4 py-3 border-b border-border flex flex-col sm:flex-row flex-wrap items-center justify-between gap-y-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-6 w-6" />
           <Skeleton className="h-6 w-32" />
         </div>
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-8 w-8 rounded-full" />
+        <div className="flex w-full sm:w-auto items-center gap-4">
+          <Skeleton className="h-10 w-full sm:w-48" />
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <Skeleton className="h-10 w-10 rounded-full" />
         </div>
       </header>
-      <main className="flex-1 p-6 overflow-x-auto">
-        <div className="flex gap-6 h-full">
+      <main className="flex-1 p-4 overflow-x-auto">
+        <div className="flex gap-4 h-full">
           <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
-          <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
-          <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
+          <Skeleton className="w-72 sm:w-80 h-full rounded-lg hidden md:block" />
+          <Skeleton className="w-72 sm:w-80 h-full rounded-lg hidden lg:block" />
         </div>
       </main>
     </div>
@@ -44,7 +45,7 @@ function HomeContent() {
 
   return (
     <div className="h-screen w-full flex flex-col bg-background text-foreground font-body">
-      <header className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-y-3 shrink-0">
+      <header className="px-4 py-3 border-b border-border flex flex-col sm:flex-row flex-wrap items-center justify-between gap-y-3 shrink-0">
         <div className="flex items-center gap-3">
           <Kanban className="text-primary" size={24}/>
           <h1 className="text-xl font-headline font-bold text-gray-200">OpenKanban</h1>
