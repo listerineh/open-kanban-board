@@ -18,6 +18,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
 export type KanbanStore = {
   projects: Project[];
@@ -48,6 +49,11 @@ export function useKanbanStore(): KanbanStore {
   const [isLoaded, setIsLoaded] = useState(false);
   const [toastMessage, setToastMessage] = useState<ToasterToast | null>(null);
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const urlProjectId = searchParams.get('projectId');
+
   useEffect(() => {
     if (toastMessage) {
       toast(toastMessage);
@@ -70,14 +76,6 @@ export function useKanbanStore(): KanbanStore {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const userProjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
       setProjects(userProjects);
-      
-      if (userProjects.length > 0) {
-        if (!activeProjectId || !userProjects.some(p => p.id === activeProjectId)) {
-          setActiveProjectId(userProjects[0].id);
-        }
-      } else {
-        setActiveProjectId(null);
-      }
       setIsLoaded(true);
     }, (error) => {
         console.error("Error fetching projects:", error);
@@ -91,7 +89,40 @@ export function useKanbanStore(): KanbanStore {
     });
 
     return () => unsubscribe();
-  }, [user, activeProjectId]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!isLoaded || pathname.startsWith('/config/')) {
+      return;
+    }
+
+    const urlProjectIsValid = urlProjectId && projects.some(p => p.id === urlProjectId);
+    if (urlProjectIsValid) {
+        if (activeProjectId !== urlProjectId) {
+            setActiveProjectId(urlProjectId);
+        }
+        return;
+    }
+
+    const activeProjectInStateIsValid = activeProjectId && projects.some(p => p.id === activeProjectId);
+    if (activeProjectInStateIsValid) {
+        router.replace(`/?projectId=${activeProjectId}`);
+        return;
+    }
+
+    if (projects.length > 0) {
+        router.replace(`/?projectId=${projects[0].id}`);
+        return;
+    }
+
+    if (urlProjectId) {
+        router.replace('/');
+    }
+  }, [isLoaded, projects, urlProjectId, activeProjectId, pathname, router]);
+
+  const selectProject = (id: string | null) => {
+    router.push(id ? `/?projectId=${id}` : '/');
+  };
 
   const getProjectDoc = useCallback((projectId: string | null) => {
       if (!projectId) throw new Error("No active project");
@@ -121,7 +152,7 @@ export function useKanbanStore(): KanbanStore {
       ],
     };
     const docRef = await addDoc(collection(db, 'projects'), newProjectData);
-    setActiveProjectId(docRef.id);
+    selectProject(docRef.id);
     setToastMessage({
       id: 'project-created',
       title: 'Project created',
@@ -303,7 +334,7 @@ export function useKanbanStore(): KanbanStore {
     const projectRef = getProjectDoc(projectId);
     await deleteDoc(projectRef);
     if(activeProjectId === projectId) {
-        setActiveProjectId(projects.length > 1 ? projects.filter(p=>p.id !== projectId)[0].id : null);
+        selectProject(projects.length > 1 ? projects.filter(p=>p.id !== projectId)[0].id : null);
     }
     setToastMessage({
       id: 'project-deleted',
@@ -314,7 +345,6 @@ export function useKanbanStore(): KanbanStore {
   };
 
   const inviteUserToProject = async (projectId: string, email: string) => {
-    const project = getProjectById(projectId);
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('email', '==', email.toLowerCase()));
     const querySnapshot = await getDocs(q);
@@ -361,7 +391,7 @@ export function useKanbanStore(): KanbanStore {
   const activeProject = projects.find(p => p.id === activeProjectId);
 
   return { 
-    projects, activeProjectId, setActiveProjectId, addProject, addColumn, addTask, 
+    projects, activeProjectId, setActiveProjectId: selectProject, addProject, addColumn, addTask, 
     moveTask, isLoaded, activeProject, updateColumnTitle, moveColumn, updateProjectName, 
     updateTask, deleteTask, deleteColumn, deleteProject, inviteUserToProject, getProjectMembers, removeUserFromProject
   };
