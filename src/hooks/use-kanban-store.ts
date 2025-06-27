@@ -329,7 +329,7 @@ export function useKanbanStore(): KanbanStore {
   };
 
   const deleteProject = async (projectId: string) => {
-    const project = getActiveProject();
+    const project = getProjectById(projectId);
     if (!project) return;
     const projectRef = getProjectDoc(projectId);
     await deleteDoc(projectRef);
