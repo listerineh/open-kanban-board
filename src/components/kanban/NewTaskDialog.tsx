@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { KanbanUser, Task } from '@/types/kanban';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 type NewTaskDialogProps = {
   isOpen: boolean;
@@ -74,7 +75,15 @@ export function NewTaskDialog({ isOpen, onClose, onAddTask, members }: NewTaskDi
                 <SelectContent>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {members.map(member => (
-                        <SelectItem key={member.uid} value={member.uid}>{member.displayName ?? member.email}</SelectItem>
+                      <SelectItem key={member.uid} value={member.uid}>
+                        <div className='flex flex-row justify-between items-center gap-2'>
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
+                            <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+                          </Avatar>
+                          {member.displayName ?? member.email}
+                        </div>
+                      </SelectItem>
                     ))}
                 </SelectContent>
             </Select>
