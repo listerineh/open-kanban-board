@@ -46,7 +46,7 @@ export default function ProjectConfigPage() {
       const foundProject = store.projects.find(p => p.id === projectId);
       if (foundProject) {
         setProject(foundProject);
-        setProjectName(foundProject.name);
+        setProjectName(projectName || foundProject.name);
         setColumns(foundProject.columns);
         store.getProjectMembers(projectId).then(setMembers);
       } else if (!authLoading) {

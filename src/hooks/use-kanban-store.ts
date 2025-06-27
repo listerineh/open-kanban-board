@@ -224,14 +224,25 @@ export function useKanbanStore(): KanbanStore {
   
   const updateProjectName = async (projectId: string, newName: string) => {
     if (!projectId || !newName.trim()) return;
-    const projectRef = getProjectDoc(projectId);
-    await updateDoc(projectRef, { name: newName.trim() });
-    setToastMessage({
-      id: 'project-updated',
-      title: 'Project updated',
-      description: `${newName.trim()}'s name updated successfully!`,
-      variant: 'default',
-    });
+
+    try {
+      const projectRef = getProjectDoc(projectId);
+      await updateDoc(projectRef, { name: newName.trim() });
+      setToastMessage({
+        id: 'project-updated',
+        title: 'Project updated',
+        description: `${newName.trim()}'s name updated successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error updating project name:", error);
+      setToastMessage({
+        id: 'project-update-error',
+        title: 'Project update failed',
+        description: `Couldn't update project name. Please try again.`,
+        variant: 'destructive',
+      });
+    }
   };
 
   const updateTask = async (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => {
