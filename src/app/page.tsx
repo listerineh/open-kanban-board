@@ -49,7 +49,7 @@ function HomeContent() {
           <Kanban className="text-primary" size={24}/>
           <h1 className="text-xl font-headline font-bold text-gray-200">OpenKanban</h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex w-full sm:w-auto items-center gap-4">
           <ProjectManager
             projects={store.projects}
             activeProjectId={store.activeProjectId}
