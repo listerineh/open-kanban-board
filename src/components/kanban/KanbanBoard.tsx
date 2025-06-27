@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import type { Project, Task, Column } from '@/types/kanban';
+import { useEffect, useState } from 'react';
+import type { Project, Task, Column, KanbanUser } from '@/types/kanban';
 import { KanbanColumn } from './KanbanColumn';
 import { NewColumnDialog } from './NewColumnDialog';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
@@ -13,9 +13,16 @@ type KanbanBoardProps = {
 };
 
 export function KanbanBoard({ project, store }: KanbanBoardProps) {
-  const [draggedTask, setDraggedTask] = useState<{ task: Task; fromColumnId: string } | null>(null);
+  const [_, setDraggedTask] = useState<{ task: Task; fromColumnId: string } | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<{ task: Task; columnId: string } | null>(null);
+  const [members, setMembers] = useState<KanbanUser[]>([]);
+
+  useEffect(() => {
+    if (project.id) {
+        store.getProjectMembers(project.id).then(setMembers);
+    }
+  }, [project.id, store]);
 
   const handleTaskDragStart = (task: Task, fromColumnId: string) => {
     setDraggedTask({ task, fromColumnId });
@@ -47,6 +54,7 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
             key={column.id}
             column={column}
             store={store}
+            members={members}
             onTaskDragStart={handleTaskDragStart}
             onTaskDragEnd={handleTaskDragEnd}
             onColumnDragStart={handleColumnDragStart}
@@ -66,6 +74,7 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
         task={editingTask?.task ?? null}
         columnId={editingTask?.columnId ?? null}
         columns={project.columns}
+        members={members}
         onUpdateTask={store.updateTask}
         onDeleteTask={store.deleteTask}
         onMoveTask={store.moveTask}

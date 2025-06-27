@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import type { Column, Task } from '@/types/kanban';
+import type { Column, KanbanUser, Task } from '@/types/kanban';
 import { KanbanTaskCard } from './KanbanTaskCard';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 type KanbanColumnProps = {
   column: Column;
   store: KanbanStore;
+  members: KanbanUser[];
   onTaskDragStart: (task: Task, fromColumnId: string) => void;
   onTaskDragEnd: () => void;
   onColumnDragStart: (columnId: string) => void;
@@ -22,7 +23,7 @@ type KanbanColumnProps = {
   onTaskClick: (task: Task) => void;
 };
 
-export function KanbanColumn({ column, store, onTaskDragStart, onTaskDragEnd, onColumnDragStart, onColumnDrop, onColumnDragEnd, draggedColumnId, onTaskClick }: KanbanColumnProps) {
+export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDragEnd, onColumnDragStart, onColumnDrop, onColumnDragEnd, draggedColumnId, onTaskClick }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isTaskDragOver, setIsTaskDragOver] = useState(false);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -147,6 +148,7 @@ export function KanbanColumn({ column, store, onTaskDragStart, onTaskDragEnd, on
             key={task.id} 
             task={task} 
             columnId={column.id} 
+            members={members}
             onDragStart={onTaskDragStart}
             onDragEnd={onTaskDragEnd}
             onClick={() => onTaskClick(task)}
@@ -164,6 +166,7 @@ export function KanbanColumn({ column, store, onTaskDragStart, onTaskDragEnd, on
         isOpen={isAddingTask}
         onClose={() => setIsAddingTask(false)}
         onAddTask={(taskData) => store.addTask(column.id, taskData)}
+        members={members}
       />
     </div>
   );

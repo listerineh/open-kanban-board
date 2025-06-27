@@ -1,21 +1,24 @@
 "use client";
 
-import type { Task } from '@/types/kanban';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { KanbanUser, Task } from '@/types/kanban';
+import { Card, CardContent } from '@/components/ui/card';
 import { GripVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+
 
 type KanbanTaskCardProps = {
   task: Task;
   columnId: string;
+  members: KanbanUser[];
   onDragStart: (task: Task, fromColumnId: string) => void;
   onDragEnd: () => void;
   onClick: () => void;
 };
 
-export function KanbanTaskCard({ task, columnId, onDragStart, onDragEnd, onClick }: KanbanTaskCardProps) {
+export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd, onClick }: KanbanTaskCardProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
@@ -31,6 +34,8 @@ export function KanbanTaskCard({ task, columnId, onDragStart, onDragEnd, onClick
     onDragEnd();
     setIsDragging(false);
   };
+
+  const assignee = members.find(m => m.uid === task.assignee);
   
   return (
     <Card 
@@ -48,10 +53,14 @@ export function KanbanTaskCard({ task, columnId, onDragStart, onDragEnd, onClick
          <GripVertical className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0 group-hover:text-foreground" />
         <div className="flex-grow">
           <p className="font-medium">{task.title}</p>
-          {task.description && <p className="text-sm text-muted-foreground mt-1">{task.description}</p>}
-          {task.assignee && (
-            <div className="mt-3">
-              <Badge variant="secondary">{task.assignee}</Badge>
+          {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
+          {assignee && (
+            <div className="mt-3 flex items-center gap-2">
+               <Avatar className="h-6 w-6">
+                  <AvatarImage src={assignee.photoURL ?? ''} alt={assignee.displayName ?? 'User'} />
+                  <AvatarFallback>{assignee.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-muted-foreground">{assignee.displayName}</span>
             </div>
           )}
         </div>

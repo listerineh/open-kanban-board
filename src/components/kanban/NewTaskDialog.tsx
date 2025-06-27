@@ -12,28 +12,30 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import type { Task } from '@/types/kanban';
+import type { KanbanUser, Task } from '@/types/kanban';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type NewTaskDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   onAddTask: (taskData: Omit<Task, 'id'>) => Promise<void>;
+  members: KanbanUser[];
 };
 
-export function NewTaskDialog({ isOpen, onClose, onAddTask }: NewTaskDialogProps) {
+export function NewTaskDialog({ isOpen, onClose, onAddTask, members }: NewTaskDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assignee, setAssignee] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddTask = async () => {
     if (title.trim() && !isSubmitting) {
       setIsSubmitting(true);
-      await onAddTask({ title: title.trim(), description: description.trim(), assignee: assignee.trim() });
+      await onAddTask({ title: title.trim(), description: description.trim(), assignee: assigneeId === 'unassigned' ? '' : assigneeId });
       setIsSubmitting(false);
       setTitle('');
       setDescription('');
-      setAssignee('');
+      setAssigneeId('');
       onClose();
     }
   };
@@ -65,12 +67,17 @@ export function NewTaskDialog({ isOpen, onClose, onAddTask }: NewTaskDialogProps
           </div>
           <div className="space-y-2">
             <Label htmlFor="task-assignee">Assignee (optional)</Label>
-            <Input
-              id="task-assignee"
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
-              placeholder="Enter assignee's name or initial"
-            />
+            <Select value={assigneeId} onValueChange={setAssigneeId}>
+                <SelectTrigger id="task-assignee">
+                    <SelectValue placeholder="Select an assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {members.map(member => (
+                        <SelectItem key={member.uid} value={member.uid}>{member.displayName ?? member.email}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>

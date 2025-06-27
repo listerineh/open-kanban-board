@@ -25,7 +25,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Trash2 } from 'lucide-react';
-import type { Task, Column } from '@/types/kanban';
+import type { Task, Column, KanbanUser } from '@/types/kanban';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 type TaskDetailsDialogProps = {
   isOpen: boolean;
@@ -33,6 +34,7 @@ type TaskDetailsDialogProps = {
   task: Task | null;
   columnId: string | null;
   columns: Column[];
+  members: KanbanUser[];
   onUpdateTask: (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => Promise<void>;
   onDeleteTask: (taskId: string, columnId: string) => Promise<void>;
   onMoveTask: (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => Promise<void>;
@@ -44,13 +46,14 @@ export function TaskDetailsDialog({
   task,
   columnId,
   columns,
+  members,
   onUpdateTask,
   onDeleteTask,
   onMoveTask,
 }: TaskDetailsDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assignee, setAssignee] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,7 +62,7 @@ export function TaskDetailsDialog({
     if (task && isOpen) {
       setTitle(task.title);
       setDescription(task.description || '');
-      setAssignee(task.assignee || '');
+      setAssigneeId(task.assignee || '');
       setStatus(columnId);
     }
   }, [task, columnId, isOpen]);
@@ -70,9 +73,10 @@ export function TaskDetailsDialog({
     setIsSaving(true);
     
     const updatedData: Partial<Omit<Task, 'id'>> = {};
+    const finalAssigneeId = assigneeId === 'unassigned' ? '' : assigneeId;
     if (title.trim() !== task.title) updatedData.title = title.trim();
     if (description.trim() !== (task.description || '')) updatedData.description = description.trim();
-    if (assignee.trim() !== (task.assignee || '')) updatedData.assignee = assignee.trim();
+    if (finalAssigneeId !== (task.assignee || '')) updatedData.assignee = finalAssigneeId;
 
     const updatePromise = Object.keys(updatedData).length > 0 
       ? onUpdateTask(task.id, columnId, updatedData)
@@ -137,12 +141,25 @@ export function TaskDetailsDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-assignee">Assignee</Label>
-                <Input
-                  id="task-assignee"
-                  value={assignee}
-                  onChange={(e) => setAssignee(e.target.value)}
-                  placeholder="Enter assignee's name"
-                />
+                <Select value={assigneeId} onValueChange={setAssigneeId}>
+                    <SelectTrigger id="task-assignee">
+                        <SelectValue placeholder="Select an assignee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {members.map(member => ( 
+                          <SelectItem key={member.uid} value={member.uid}>
+                              <div className='flex flex-row justify-between items-center gap-2'>
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
+                                  <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+                                </Avatar>
+                                {member.displayName ?? member.email}
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="task-status">Status</Label>
