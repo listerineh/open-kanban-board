@@ -160,8 +160,8 @@ export function TaskDetailsDialog({
             </div>
           </div>
           <DialogFooter className="justify-between sm:justify-between">
-            <Button variant="ghost" size="icon" onClick={() => setIsDeleteDialogOpen(true)}>
-              <Trash2 className="h-4 w-4 text-destructive" />
+            <Button variant="destructive" size="default" onClick={() => setIsDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4" /> Delete task
               <span className="sr-only">Delete Task</span>
             </Button>
             <div className="flex gap-2">
@@ -184,7 +184,7 @@ export function TaskDetailsDialog({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-white">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
