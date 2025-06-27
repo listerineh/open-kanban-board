@@ -44,7 +44,9 @@ Deployed on Vercel with automatic CI/CD from the `main` branch.
 
 ✅ Tasks creation, moving, and deletion
 
-✅ Easy to use
+✅ User authentication
+
+✅ Teams generation for collaborative tasks
 
 ---
 
