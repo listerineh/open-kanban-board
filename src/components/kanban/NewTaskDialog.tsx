@@ -77,11 +77,11 @@ export function NewTaskDialog({ isOpen, onClose, onAddTask, members }: NewTaskDi
                     {members.map(member => (
                       <SelectItem key={member.uid} value={member.uid}>
                         <div className='flex flex-row justify-between items-center gap-2'>
-                          <Avatar className="h-8 w-8">
+                          <Avatar className="h-8 w-8 sm:h-4 sm:w-4">
                             <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
                             <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                           </Avatar>
-                          {member.displayName ?? member.email}
+                          <p className='text-sm sm:text-xs'>{member.displayName ?? member.email}</p>
                         </div>
                       </SelectItem>
                     ))}

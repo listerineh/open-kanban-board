@@ -138,7 +138,7 @@ export function TaskDetailsDialog({
                 rows={4}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-assignee">Assignee</Label>
                 <Select value={assigneeId} onValueChange={setAssigneeId}>
@@ -149,12 +149,12 @@ export function TaskDetailsDialog({
                         <SelectItem value="unassigned">Unassigned</SelectItem>
                         {members.map(member => ( 
                           <SelectItem key={member.uid} value={member.uid}>
-                              <div className='flex flex-row justify-between items-center gap-2'>
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
-                                  <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
-                                </Avatar>
-                                {member.displayName ?? member.email}
+                            <div className='flex flex-row justify-between items-center gap-2'>
+                              <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
+                                <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
+                                <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+                              </Avatar>
+                              <p className='sm:text-md text-sm'>{member.displayName ?? member.email}</p>
                             </div>
                           </SelectItem>
                         ))}
@@ -176,14 +176,14 @@ export function TaskDetailsDialog({
               </div>
             </div>
           </div>
-          <DialogFooter className="justify-between sm:justify-between">
+          <DialogFooter className="justify-between sm:justify-between gap-2 flex-col">
             <Button variant="destructive" size="default" onClick={() => setIsDeleteDialogOpen(true)}>
               <Trash2 className="h-4 w-4" /> Delete task
               <span className="sr-only">Delete Task</span>
             </Button>
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-between">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button type="submit" onClick={handleSave} disabled={isSaving}>
+              <Button type="submit" onClick={handleSave} disabled={isSaving} className='w-full'>
                 {isSaving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
