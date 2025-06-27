@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { FullPageLoader } from '@/components/common/loader';
 
 export default function LoginPage() {
     const { user, loading } = useAuth();
@@ -29,11 +30,7 @@ export default function LoginPage() {
     };
 
     if (loading || user) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-background text-foreground">
-                <p>Loading...</p>
-            </div>
-        );
+        return <FullPageLoader />;
     }
 
     return (

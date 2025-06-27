@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Kanban } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
+import { Loader } from '@/components/common/loader';
 
 export default function Home() {
   const store = useKanbanStore();
@@ -65,7 +66,7 @@ export default function Home() {
                   <p className="text-muted-foreground max-w-md mx-auto">Select a project from the dropdown or create a new one to begin.</p>
                 </>
               ) : (
-                 <p className="text-muted-foreground">Loading...</p>
+                 <Loader text="Loading..." />
               )}
             </div>
           </div>

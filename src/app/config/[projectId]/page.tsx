@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { FullPageLoader } from '@/components/common/loader';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
 
@@ -57,7 +58,6 @@ export default function ProjectConfigPage() {
   const handleProjectNameSave = async () => {
     if (project && projectName.trim()) {
       await store.updateProjectName(project.id, projectName.trim());
-      toast({ title: "Success", description: "Project name updated." });
     }
   };
 
@@ -71,7 +71,6 @@ export default function ProjectConfigPage() {
     const originalColumn = project?.columns.find(c => c.id === columnId);
     if (title.trim() && title.trim() !== originalColumn?.title) {
         await store.updateColumnTitle(columnId, title.trim());
-        toast({ title: "Success", description: `Column "${title}" updated.` });
     } else if (originalColumn) {
         setColumns(current => current.map(c => c.id === columnId ? originalColumn : c));
     }
@@ -92,7 +91,6 @@ export default function ProjectConfigPage() {
   const confirmDeleteColumn = async () => {
     if (columnToDelete) {
       await store.deleteColumn(columnToDelete.id);
-      toast({ title: "Success", description: `Column "${columnToDelete.title}" deleted.` });
       setColumnToDelete(null);
     }
   };
@@ -100,7 +98,6 @@ export default function ProjectConfigPage() {
   const handleConfirmDeleteProject = async () => {
     if (project) {
         await store.deleteProject(project.id);
-        toast({ title: "Project deleted", description: `The project "${project.name}" has been removed.` });
         router.push('/');
     }
     setIsDeleteProjectDialogOpen(false);
@@ -126,11 +123,7 @@ export default function ProjectConfigPage() {
   const isOwner = project && currentUser && project.ownerId === currentUser.uid;
 
   if (authLoading || !store.isLoaded || !project) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-foreground">
-        <p>Loading project settings...</p>
-      </div>
-    );
+    return <FullPageLoader text="Loading project settings..." />;
   }
 
   return (

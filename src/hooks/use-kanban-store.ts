@@ -309,12 +309,6 @@ export function useKanbanStore(): KanbanStore {
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
-        setToastMessage({
-            id: 'user-not-found',
-            title: 'User not found',
-            description: `User ${email} not found in the database.`,
-            variant: 'default',
-        });
         return { success: false, message: "User not found." };
     }
     
@@ -323,13 +317,6 @@ export function useKanbanStore(): KanbanStore {
     
     await updateDoc(projectRef, {
         members: arrayUnion(userToInvite.uid)
-    });
-
-    setToastMessage({
-        id: 'user-invited',
-        title: 'User invited',
-        description: `User ${email} invited to project ${project?.name.trim()} successfully!`,
-        variant: 'default',
     });
     
     return { success: true, message: `User ${email} invited.` };
