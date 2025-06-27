@@ -8,33 +8,38 @@ import { Kanban } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
 import { Loader } from '@/components/common/loader';
+import { Suspense } from 'react';
 
-export default function Home() {
+function KanbanPageSkeleton() {
+  return (
+    <div className="h-screen w-full flex flex-col bg-background text-foreground">
+      <header className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-8 w-8 rounded-lg" />
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-8 w-8 rounded-full" />
+        </div>
+      </header>
+      <main className="flex-1 p-6 overflow-x-auto">
+        <div className="flex gap-6 h-full">
+          <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
+          <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
+          <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function HomeContent() {
   const store = useKanbanStore();
   const { user, loading: authLoading } = useAuth();
 
   if (!store.isLoaded || authLoading) {
-    return (
-      <div className="h-screen w-full flex flex-col bg-background text-foreground">
-        <header className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-8 w-8 rounded-lg" />
-            <Skeleton className="h-6 w-32" />
-          </div>
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-8 w-8 rounded-full" />
-          </div>
-        </header>
-        <main className="flex-1 p-6 overflow-x-auto">
-          <div className="flex gap-6 h-full">
-            <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
-            <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
-            <Skeleton className="w-72 sm:w-80 h-full rounded-lg" />
-          </div>
-        </main>
-      </div>
-    );
+    return <KanbanPageSkeleton />;
   }
 
   return (
@@ -74,4 +79,12 @@ export default function Home() {
       </main>
     </div>
   );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<KanbanPageSkeleton />}>
+      <HomeContent />
+    </Suspense>
+  )
 }
