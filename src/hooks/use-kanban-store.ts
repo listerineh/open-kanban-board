@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Project, Column, Task, KanbanUser } from '@/types/kanban';
 import { useAuth } from './use-auth';
+import { toast, ToasterToast } from './use-toast';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -40,12 +41,19 @@ export type KanbanStore = {
   removeUserFromProject: (projectId: string, userId: string) => Promise<void>;
 };
 
-// This store is now a placeholder until the user logs in
 export function useKanbanStore(): KanbanStore {
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [toastMessage, setToastMessage] = useState<ToasterToast | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      toast(toastMessage);
+      setToastMessage(null);
+    }
+  }, [toastMessage]);
 
   useEffect(() => {
     if (!user) {
@@ -73,6 +81,12 @@ export function useKanbanStore(): KanbanStore {
       setIsLoaded(true);
     }, (error) => {
         console.error("Error fetching projects:", error);
+        setToastMessage({
+          id: 'projects-loaded-error',
+          title: 'Error loading projects',
+          description: 'There was an error loading your projects, try again later.',
+          variant: 'destructive',
+        });
         setIsLoaded(true);
     });
 
@@ -83,6 +97,10 @@ export function useKanbanStore(): KanbanStore {
       if (!projectId) throw new Error("No active project");
       return doc(db, 'projects', projectId);
   }, []);
+
+  const getProjectById = useCallback((projectId: string | null) => {
+    return projects.find(p => p.id === projectId);
+  }, [projects]);
 
   const getActiveProject = useCallback(() => {
     const project = projects.find(p => p.id === activeProjectId);
@@ -104,6 +122,12 @@ export function useKanbanStore(): KanbanStore {
     };
     const docRef = await addDoc(collection(db, 'projects'), newProjectData);
     setActiveProjectId(docRef.id);
+    setToastMessage({
+      id: 'project-created',
+      title: 'Project created',
+      description: `Project ${newProjectData.name.trim()} created successfully!`,
+      variant: 'default',
+    });
   };
 
   const addColumn = async (title: string) => {
@@ -112,6 +136,12 @@ export function useKanbanStore(): KanbanStore {
     const projectRef = getProjectDoc(activeProjectId);
     await updateDoc(projectRef, {
       columns: [...project.columns, newColumn]
+    });
+    setToastMessage({
+      id: 'column-created',
+      title: 'Column created',
+      description: `Column ${newColumn.title.trim()} created successfully!`,
+      variant: 'default',
     });
   };
 
@@ -128,6 +158,12 @@ export function useKanbanStore(): KanbanStore {
         c.id === columnId ? { ...c, tasks: [...c.tasks, newTask] } : c
     );
     await updateProjectInDb({ ...project, columns: updatedColumns });
+    setToastMessage({
+      id: 'task-created',
+      title: 'Task created',
+      description: `Task ${newTask.title.trim()} created successfully!`,
+      variant: 'default',
+    });
   };
   
   const moveTask = async (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => {
@@ -144,6 +180,12 @@ export function useKanbanStore(): KanbanStore {
     if(destCol) destCol.tasks.splice(toIndex, 0, task);
     
     await updateProjectInDb({ ...project, columns: newColumns });
+    setToastMessage({
+      id: 'task-moved',
+      title: 'Task moved',
+      description: `Task ${task.title.trim()} moved successfully!`,
+      variant: 'default',
+    });
   };
 
   const moveColumn = async (draggedColumnId: string, targetColumnId: string) => {
@@ -158,6 +200,12 @@ export function useKanbanStore(): KanbanStore {
     const [draggedColumn] = columns.splice(draggedIndex, 1);
     columns.splice(targetIndex, 0, draggedColumn);
     await updateProjectInDb({ ...project, columns });
+    setToastMessage({
+      id: 'column-moved',
+      title: 'Column moved',
+      description: `Column ${draggedColumn.title.trim()} moved successfully!`,
+      variant: 'default',
+    });
   };
   
   const updateColumnTitle = async (columnId: string, title: string) => {
@@ -166,12 +214,24 @@ export function useKanbanStore(): KanbanStore {
         c.id === columnId ? { ...c, title } : c
     );
     await updateProjectInDb({ ...project, columns: updatedColumns });
+    setToastMessage({
+      id: 'column-updated',
+      title: 'Column updated',
+      description: `${title.trim()}'s title updated successfully!`,
+      variant: 'default',
+    });
   };
   
   const updateProjectName = async (projectId: string, newName: string) => {
     if (!projectId || !newName.trim()) return;
     const projectRef = getProjectDoc(projectId);
     await updateDoc(projectRef, { name: newName.trim() });
+    setToastMessage({
+      id: 'project-updated',
+      title: 'Project updated',
+      description: `${newName.trim()}'s name updated successfully!`,
+      variant: 'default',
+    });
   };
 
   const updateTask = async (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => {
@@ -186,38 +246,75 @@ export function useKanbanStore(): KanbanStore {
         return c;
     });
     await updateProjectInDb({ ...project, columns: updatedColumns });
+    setToastMessage({
+      id: 'task-updated',
+      title: 'Task updated',
+      description: `${updatedData.title?.trim()}'s info updated successfully!`,
+      variant: 'default',
+    });
   };
 
   const deleteTask = async (taskId: string, columnId: string) => {
     const project = getActiveProject();
+    const task = project.columns.flatMap(c => c.tasks).find(t => t.id === taskId);
+    if (!task) return;
     const updatedColumns = project.columns.map(c =>
         c.id === columnId
             ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId) }
             : c
     );
     await updateProjectInDb({ ...project, columns: updatedColumns });
+    setToastMessage({
+      id: 'task-deleted',
+      title: 'Task deleted',
+      description: `Task ${task.title.trim()} deleted successfully!`,
+      variant: 'default',
+    });
   };
 
   const deleteColumn = async (columnId: string) => {
     const project = getActiveProject();
+    const column = project.columns.find(c => c.id === columnId);
+    if (!column) return;
     const updatedColumns = project.columns.filter(c => c.id !== columnId);
     await updateProjectInDb({ ...project, columns: updatedColumns });
+    setToastMessage({
+      id: 'column-deleted',
+      title: 'Column deleted',
+      description: `Column ${column.title.trim()} deleted successfully!`,
+      variant: 'default',
+    });
   };
 
   const deleteProject = async (projectId: string) => {
+    const project = getActiveProject();
+    if (!project) return;
     const projectRef = getProjectDoc(projectId);
     await deleteDoc(projectRef);
     if(activeProjectId === projectId) {
         setActiveProjectId(projects.length > 1 ? projects.filter(p=>p.id !== projectId)[0].id : null);
     }
+    setToastMessage({
+      id: 'project-deleted',
+      title: 'Project deleted',
+      description: `Project ${project.name.trim()} deleted successfully!`,
+      variant: 'default',
+    });
   };
 
   const inviteUserToProject = async (projectId: string, email: string) => {
+    const project = getProjectById(projectId);
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('email', '==', email.toLowerCase()));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
+        setToastMessage({
+            id: 'user-not-found',
+            title: 'User not found',
+            description: `User ${email} not found in the database.`,
+            variant: 'default',
+        });
         return { success: false, message: "User not found." };
     }
     
@@ -226,6 +323,13 @@ export function useKanbanStore(): KanbanStore {
     
     await updateDoc(projectRef, {
         members: arrayUnion(userToInvite.uid)
+    });
+
+    setToastMessage({
+        id: 'user-invited',
+        title: 'User invited',
+        description: `User ${email} invited to project ${project?.name.trim()} successfully!`,
+        variant: 'default',
     });
     
     return { success: true, message: `User ${email} invited.` };
@@ -243,9 +347,16 @@ export function useKanbanStore(): KanbanStore {
   };
   
   const removeUserFromProject = async (projectId: string, userId: string) => {
+    const project = getProjectById(projectId);
     const projectRef = getProjectDoc(projectId);
     await updateDoc(projectRef, {
         members: arrayRemove(userId)
+    });
+    setToastMessage({
+        id: 'user-removed',
+        title: 'User removed',
+        description: `User ${userId} removed from project ${project?.name.trim()} successfully!`,
+        variant: 'default',
     });
   };
 
