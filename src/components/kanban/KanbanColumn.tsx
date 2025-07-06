@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import type { Column, KanbanUser, Task } from '@/types/kanban';
 import { KanbanTaskCard } from './KanbanTaskCard';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NewTaskDialog } from './NewTaskDialog';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,26 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(column.title);
   const isDraggingThisColumn = draggedColumnId === column.id;
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const priorityOrder: Record<Task['priority'] & string, number> = {
+    'Urgent': 4,
+    'High': 3,
+    'Medium': 2,
+    'Low': 1,
+  };
+
+  const getPriority = (task: Task) => priorityOrder[task.priority ?? 'Medium'] ?? 2;
+
+  const sortedTasks = [...column.tasks].sort((a, b) => {
+    const priorityA = getPriority(a);
+    const priorityB = getPriority(b);
+    if (sortOrder === 'desc') {
+        return priorityB - priorityA;
+    } else {
+        return priorityA - priorityB;
+    }
+  });
 
   const handleTitleBlur = async () => {
     if (title.trim() && title.trim() !== column.title) {
@@ -79,7 +99,7 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
     }
     
     if (fromColumnId === column.id) {
-        const originalIndex = column.tasks.findIndex(t => t.id === taskId);
+        const originalIndex = sortedTasks.findIndex(t => t.id === taskId);
         if (originalIndex !== -1 && originalIndex < targetIndex) {
             targetIndex--;
         }
@@ -140,10 +160,16 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
             {column.title}
           </h3>
         )}
-        <span className="text-sm text-muted-foreground">{column.tasks.length}</span>
+        <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">{sortedTasks.length}</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                {sortOrder === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+                <span className="sr-only">Toggle sort order</span>
+            </Button>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {column.tasks.map((task) => (
+        {sortedTasks.map((task) => (
           <KanbanTaskCard 
             key={task.id} 
             task={task} 

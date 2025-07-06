@@ -3,6 +3,7 @@ export interface Task {
   title: string;
   description?: string;
   assignee?: string;
+  priority?: 'Urgent' | 'High' | 'Medium' | 'Low';
 }
 
 export interface Column {

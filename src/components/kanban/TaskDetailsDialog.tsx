@@ -55,6 +55,7 @@ export function TaskDetailsDialog({
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [status, setStatus] = useState<string | null>(null);
+  const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -62,7 +63,8 @@ export function TaskDetailsDialog({
     if (task && isOpen) {
       setTitle(task.title);
       setDescription(task.description || '');
-      setAssigneeId(task.assignee || '');
+      setAssigneeId(task.assignee || 'unassigned');
+      setPriority(task.priority || 'Medium');
       setStatus(columnId);
     }
   }, [task, columnId, isOpen]);
@@ -77,6 +79,7 @@ export function TaskDetailsDialog({
     if (title.trim() !== task.title) updatedData.title = title.trim();
     if (description.trim() !== (task.description || '')) updatedData.description = description.trim();
     if (finalAssigneeId !== (task.assignee || '')) updatedData.assignee = finalAssigneeId;
+    if (priority !== (task.priority || 'Medium')) updatedData.priority = priority;
 
     const updatePromise = Object.keys(updatedData).length > 0 
       ? onUpdateTask(task.id, columnId, updatedData)
@@ -137,6 +140,20 @@ export function TaskDetailsDialog({
                 placeholder="Add more details about the task"
                 rows={4}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-priority">Priority</Label>
+              <Select value={priority ?? 'Medium'} onValueChange={(value) => setPriority(value as Task['priority'])}>
+                <SelectTrigger id="task-priority">
+                  <SelectValue placeholder="Select a priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
               <div className="space-y-2">
