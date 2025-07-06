@@ -173,9 +173,16 @@ export function useKanbanStore(): KanbanStore {
     const project = getActiveProject();
     const now = new Date().toISOString();
     const newColumn: Column = { id: `col-${Date.now()}`, title, tasks: [], createdAt: now, updatedAt: now };
-    await updateProjectData(project.id, {
-      columns: [...project.columns, newColumn]
-    });
+    const columns = [...project.columns];
+    const doneColumnIndex = columns.findIndex(c => c.title === 'Done');
+
+    if (doneColumnIndex !== -1) {
+      columns.splice(doneColumnIndex, 0, newColumn);
+    } else {
+      columns.push(newColumn);
+    }
+
+    await updateProjectData(project.id, { columns });
     setToastMessage({
       id: 'column-created',
       title: 'Column created',
@@ -259,11 +266,14 @@ export function useKanbanStore(): KanbanStore {
     const project = getActiveProject();
     const columns = [...project.columns];
     const draggedIndex = columns.findIndex(c => c.id === draggedColumnId);
-    const targetIndex = columns.findIndex(c => c.id === targetColumnId);
+    let targetIndex = columns.findIndex(c => c.id === targetColumnId);
 
     if (draggedIndex === -1 || targetIndex === -1) return;
 
     const [draggedColumn] = columns.splice(draggedIndex, 1);
+    if (draggedIndex < targetIndex) {
+      targetIndex--;
+    }
     columns.splice(targetIndex, 0, draggedColumn);
     await updateProjectData(project.id, { columns });
     setToastMessage({
