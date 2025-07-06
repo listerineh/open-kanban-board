@@ -28,14 +28,14 @@ export type KanbanStore = {
   addProject: (name: string) => Promise<void>;
   setActiveProjectId: (id: string | null) => void;
   addColumn: (title: string) => Promise<void>;
-  addTask: (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addTask: (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>) => Promise<void>;
   moveTask: (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => Promise<void>;
-  updateColumnTitle: (columnId: string, title: string) => Promise<void>;
+  updateColumnTitle: (projectId: string, columnId: string, title: string) => Promise<void>;
   moveColumn: (draggedColumnId: string, targetColumnId: string) => Promise<void>;
   updateProjectName: (projectId: string, newName: string) => Promise<void>;
   updateTask: (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => Promise<void>;
   deleteTask: (taskId: string, columnId: string) => Promise<void>;
-  deleteColumn: (columnId: string) => Promise<void>;
+  deleteColumn: (projectId: string, columnId: string) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   inviteUserToProject: (projectId: string, email: string) => Promise<{ success: boolean; message: string }>;
   getProjectMembers: (projectId: string) => Promise<KanbanUser[]>;
@@ -173,9 +173,16 @@ export function useKanbanStore(): KanbanStore {
     const project = getActiveProject();
     const now = new Date().toISOString();
     const newColumn: Column = { id: `col-${Date.now()}`, title, tasks: [], createdAt: now, updatedAt: now };
-    await updateProjectData(project.id, {
-      columns: [...project.columns, newColumn]
-    });
+    const columns = [...project.columns];
+    const doneColumnIndex = columns.findIndex(c => c.title === 'Done');
+
+    if (doneColumnIndex !== -1) {
+      columns.splice(doneColumnIndex, 0, newColumn);
+    } else {
+      columns.push(newColumn);
+    }
+
+    await updateProjectData(project.id, { columns });
     setToastMessage({
       id: 'column-created',
       title: 'Column created',
@@ -184,10 +191,14 @@ export function useKanbanStore(): KanbanStore {
     });
   };
   
-  const addTask = async (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addTask = async (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>) => {
     const project = getActiveProject();
     const now = new Date().toISOString();
     const newTask: Task = { ...taskData, id: `task-${Date.now()}`, createdAt: now, updatedAt: now };
+    const column = project.columns.find(c => c.id === columnId);
+    if (column && column.title === 'Done') {
+        newTask.completedAt = now;
+    }
     const updatedColumns = project.columns.map(c => 
         c.id === columnId ? { ...c, tasks: [...c.tasks, newTask] } : c
     );
@@ -199,25 +210,53 @@ export function useKanbanStore(): KanbanStore {
       variant: 'default',
     });
   };
-  
+
   const moveTask = async (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => {
-    let project = getActiveProject();
-    const task = project.columns.flatMap(c => c.tasks).find(t => t.id === taskId);
-    if (!task) return;
-
-    let newColumns = JSON.parse(JSON.stringify(project.columns));
+    const project = getActiveProject();
+    const fromCol = project.columns.find(c => c.id === fromColumnId);
+    const originalTask = fromCol?.tasks.find(t => t.id === taskId);
     
-    const sourceCol = newColumns.find((c: Column) => c.id === fromColumnId);
-    if(sourceCol) sourceCol.tasks = sourceCol.tasks.filter((t: Task) => t.id !== taskId);
-
-    const destCol = newColumns.find((c: Column) => c.id === toColumnId);
-    if(destCol) destCol.tasks.splice(toIndex, 0, task);
+    if (!originalTask) return;
     
-    await updateProjectData(project.id, { columns: newColumns });
+    const toCol = project.columns.find(c => c.id === toColumnId);
+    
+    const taskToMove: Task = { ...originalTask, updatedAt: new Date().toISOString() };
+    
+    if (toCol?.title === 'Done') {
+      if (!taskToMove.completedAt) {
+        taskToMove.completedAt = new Date().toISOString();
+      }
+    } else {
+      if (taskToMove.completedAt) {
+        delete (taskToMove as Partial<Task>).completedAt;
+      }
+    }
+    
+    const updatedColumns = [...project.columns];
+    
+    const sourceColIndex = updatedColumns.findIndex(c => c.id === fromColumnId);
+    if (sourceColIndex > -1) {
+      updatedColumns[sourceColIndex] = {
+        ...updatedColumns[sourceColIndex],
+        tasks: updatedColumns[sourceColIndex].tasks.filter(t => t.id !== taskId)
+      };
+    }
+    
+    const destColIndex = updatedColumns.findIndex(c => c.id === toColumnId);
+    if (destColIndex > -1) {
+      const destTasks = [...updatedColumns[destColIndex].tasks];
+      destTasks.splice(toIndex, 0, taskToMove);
+      updatedColumns[destColIndex] = {
+        ...updatedColumns[destColIndex],
+        tasks: destTasks
+      };
+    }
+
+    await updateProjectData(project.id, { columns: updatedColumns });
     setToastMessage({
-      id: 'task-moved',
-      title: 'Task moved',
-      description: `Task ${task.title.trim()} moved successfully!`,
+      id: 'column-moved',
+      title: 'Column moved',
+      description: `Column ${taskToMove.title.trim()} moved successfully!`,
       variant: 'default',
     });
   };
@@ -227,12 +266,21 @@ export function useKanbanStore(): KanbanStore {
     const project = getActiveProject();
     const columns = [...project.columns];
     const draggedIndex = columns.findIndex(c => c.id === draggedColumnId);
-    const targetIndex = columns.findIndex(c => c.id === targetColumnId);
+    let targetIndex = columns.findIndex(c => c.id === targetColumnId);
 
     if (draggedIndex === -1 || targetIndex === -1) return;
 
     const [draggedColumn] = columns.splice(draggedIndex, 1);
-    columns.splice(targetIndex, 0, draggedColumn);
+    const doneColumn = columns.find(c => c.title === 'Done');
+    if (doneColumn && targetColumnId === doneColumn.id) {
+        const doneIndex = columns.findIndex(c => c.id === doneColumn.id);
+        columns.splice(doneIndex, 0, draggedColumn);
+    } else {
+        if (draggedIndex < targetIndex) {
+            targetIndex--;
+        }
+        columns.splice(targetIndex, 0, draggedColumn);
+    }
     await updateProjectData(project.id, { columns });
     setToastMessage({
       id: 'column-moved',
@@ -242,8 +290,9 @@ export function useKanbanStore(): KanbanStore {
     });
   };
   
-  const updateColumnTitle = async (columnId: string, title: string) => {
-    const project = getActiveProject();
+  const updateColumnTitle = async (projectId: string, columnId: string, title: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) throw new Error("Project not found");
     const now = new Date().toISOString();
     const updatedColumns = project.columns.map(c =>
         c.id === columnId ? { ...c, title, updatedAt: now } : c
@@ -317,8 +366,9 @@ export function useKanbanStore(): KanbanStore {
     });
   };
 
-  const deleteColumn = async (columnId: string) => {
-    const project = getActiveProject();
+  const deleteColumn = async (projectId: string, columnId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) throw new Error("Project not found");
     const column = project.columns.find(c => c.id === columnId);
     if (!column) return;
     const updatedColumns = project.columns.filter(c => c.id !== columnId);

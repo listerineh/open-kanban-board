@@ -48,6 +48,8 @@ Deployed on Vercel with automatic CI/CD from the `main` branch.
 
 ✅ Teams generation for collaborative tasks
 
+✅ Deadlines for tasks
+
 ---
 
 ## 🏁 Getting Started

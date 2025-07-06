@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 type NewTaskDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onAddTask: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  onAddTask: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>) => Promise<void>;
   members: KanbanUser[];
 };
 

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '../ui/separator';
 
 type KanbanColumnProps = {
+  projectId: string;
   column: Column;
   store: KanbanStore;
   members: KanbanUser[];
@@ -24,7 +25,7 @@ type KanbanColumnProps = {
   onTaskClick: (task: Task) => void;
 };
 
-export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDragEnd, onColumnDragStart, onColumnDrop, onColumnDragEnd, draggedColumnId, onTaskClick }: KanbanColumnProps) {
+export function KanbanColumn({ projectId, column, store, members, onTaskDragStart, onTaskDragEnd, onColumnDragStart, onColumnDrop, onColumnDragEnd, draggedColumnId, onTaskClick }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isTaskDragOver, setIsTaskDragOver] = useState(false);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -32,6 +33,8 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
   const [title, setTitle] = useState(column.title);
   const isDraggingThisColumn = draggedColumnId === column.id;
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const isDoneColumn = column.title === 'Done';
 
   const priorityOrder: Record<Task['priority'] & string, number> = {
     'Urgent': 4,
@@ -56,8 +59,13 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
   const tasksWithoutDeadline = sortedTasks.filter(t => !t.deadline);
 
   const handleTitleBlur = async () => {
+    if (isDoneColumn) {
+        setIsEditingTitle(false);
+        setTitle(column.title);
+        return;
+    }
     if (title.trim() && title.trim() !== column.title) {
-      await store.updateColumnTitle(column.id, title.trim());
+      await store.updateColumnTitle(projectId, column.id, title.trim());
     } else {
       setTitle(column.title);
     }
@@ -145,8 +153,12 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
   return (
     <div
       ref={columnRef}
-      draggable={true}
+      draggable={!isDoneColumn}
       onDragStart={(e) => {
+        if (isDoneColumn) {
+          e.preventDefault();
+          return;
+        }
         e.dataTransfer.setData('application/kanban-column', column.id);
         e.dataTransfer.effectAllowed = 'move';
         onColumnDragStart(column.id);
@@ -162,7 +174,10 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
         draggedColumnId && !isDraggingThisColumn && "hover:ring-2 hover:ring-primary/50"
       )}
     >
-      <div className="p-3 border-b border-border flex justify-between items-center gap-2 cursor-grab active:cursor-grabbing">
+      <div className={cn(
+        "p-3 border-b border-border flex justify-between items-center gap-2",
+        !isDoneColumn && "cursor-grab active:cursor-grabbing"
+      )}>        
         {isEditingTitle ? (
           <Input
             value={title}
@@ -171,11 +186,15 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
             onKeyDown={handleTitleKeyDown}
             autoFocus
             className="h-8 border-transparent focus-visible:border-input focus-visible:ring-ring focus-visible:ring-1 bg-transparent text-lg font-headline font-semibold p-1 -m-1 w-full"
+            disabled={isDoneColumn}
           />
         ) : (
           <h3
-            onClick={() => setIsEditingTitle(true)}
-            className="font-headline font-semibold text-lg cursor-pointer p-1 -m-1 rounded hover:bg-muted/50 w-full"
+            onClick={() => !isDoneColumn && setIsEditingTitle(true)}
+            className={cn(
+                "font-headline font-semibold text-lg w-full p-1 -m-1 rounded",
+                !isDoneColumn ? "cursor-text hover:bg-muted/50" : "cursor-default"
+            )}
           >
             {column.title}
           </h3>

@@ -70,7 +70,7 @@ export default function ProjectConfigPage() {
   const handleColumnTitleBlur = async (columnId: string, title: string) => {
     const originalColumn = project?.columns.find(c => c.id === columnId);
     if (title.trim() && title.trim() !== originalColumn?.title) {
-        await store.updateColumnTitle(columnId, title.trim());
+        await store.updateColumnTitle(projectId, columnId, title.trim());
     } else if (originalColumn) {
         setColumns(current => current.map(c => c.id === columnId ? originalColumn : c));
     }
@@ -90,7 +90,7 @@ export default function ProjectConfigPage() {
 
   const confirmDeleteColumn = async () => {
     if (columnToDelete) {
-      await store.deleteColumn(columnToDelete.id);
+      await store.deleteColumn(projectId, columnToDelete.id);
       setColumnToDelete(null);
     }
   };
@@ -169,23 +169,26 @@ export default function ProjectConfigPage() {
               <CardDescription>Rename or delete columns for this project's board.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {columns.map(column => (
-                <div key={column.id} className="flex items-center gap-2 p-2 rounded-md border bg-card/50">
-                  <Input
-                    value={column.title}
-                    onChange={(e) => handleColumnTitleChange(column.id, e.target.value)}
-                    onBlur={(e) => handleColumnTitleBlur(column.id, e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                    className="flex-grow bg-transparent border-0 focus-visible:ring-1 focus-visible:ring-ring"
-                    disabled={!isOwner}
-                  />
-                  {isOwner && (
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteColumn(column)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+              {columns.map(column => {
+                const isDoneColumn = column.title === 'Done';
+                return (
+                  <div key={column.id} className="flex items-center gap-2 p-2 rounded-md border bg-card/50">
+                    <Input
+                      value={column.title}
+                      onChange={(e) => handleColumnTitleChange(column.id, e.target.value)}
+                      onBlur={(e) => handleColumnTitleBlur(column.id, e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                      className="flex-grow bg-transparent border-0 focus-visible:ring-1 focus-visible:ring-ring"
+                      disabled={!isOwner || isDoneColumn}
+                    />
+                    {isOwner && !isDoneColumn && (
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteColumn(column)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                )
+              })}
             </CardContent>
           </Card>
           
@@ -262,7 +265,7 @@ export default function ProjectConfigPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setColumnToDelete(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeleteColumn} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction onClick={confirmDeleteColumn} className="bg-destructive hover:bg-destructive/90 text-white">
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
