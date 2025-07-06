@@ -5,12 +5,14 @@
   "background_color": "#0f172a",
   "theme_color": "#2cc8a9",
   "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
   "start_url": "/",
   "icons": [
-    {
+     {
       "src": "/icon.svg",
-      "sizes": "800x800",
-      "type": "image/svg"
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }
