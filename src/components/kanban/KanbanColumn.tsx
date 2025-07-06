@@ -33,6 +33,8 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
   const isDraggingThisColumn = draggedColumnId === column.id;
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  const isDoneColumn = column.title === 'Done';
+
   const priorityOrder: Record<Task['priority'] & string, number> = {
     'Urgent': 4,
     'High': 3,
@@ -56,6 +58,11 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
   const tasksWithoutDeadline = sortedTasks.filter(t => !t.deadline);
 
   const handleTitleBlur = async () => {
+    if (isDoneColumn) {
+        setIsEditingTitle(false);
+        setTitle(column.title);
+        return;
+    }
     if (title.trim() && title.trim() !== column.title) {
       await store.updateColumnTitle(column.id, title.trim());
     } else {
@@ -145,8 +152,12 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
   return (
     <div
       ref={columnRef}
-      draggable={true}
+      draggable={!isDoneColumn}
       onDragStart={(e) => {
+        if (isDoneColumn) {
+          e.preventDefault();
+          return;
+        }
         e.dataTransfer.setData('application/kanban-column', column.id);
         e.dataTransfer.effectAllowed = 'move';
         onColumnDragStart(column.id);
@@ -162,7 +173,10 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
         draggedColumnId && !isDraggingThisColumn && "hover:ring-2 hover:ring-primary/50"
       )}
     >
-      <div className="p-3 border-b border-border flex justify-between items-center gap-2 cursor-grab active:cursor-grabbing">
+      <div className={cn(
+        "p-3 border-b border-border flex justify-between items-center gap-2",
+        !isDoneColumn && "cursor-grab active:cursor-grabbing"
+      )}>        
         {isEditingTitle ? (
           <Input
             value={title}
@@ -174,8 +188,11 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
           />
         ) : (
           <h3
-            onClick={() => setIsEditingTitle(true)}
-            className="font-headline font-semibold text-lg cursor-pointer p-1 -m-1 rounded hover:bg-muted/50 w-full"
+            onClick={() => !isDoneColumn && setIsEditingTitle(true)}
+            className={cn(
+                "font-headline font-semibold text-lg w-full p-1 -m-1 rounded",
+                !isDoneColumn ? "cursor-text hover:bg-muted/50" : "cursor-default"
+            )}
           >
             {column.title}
           </h3>

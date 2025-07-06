@@ -28,7 +28,7 @@ export type KanbanStore = {
   addProject: (name: string) => Promise<void>;
   setActiveProjectId: (id: string | null) => void;
   addColumn: (title: string) => Promise<void>;
-  addTask: (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addTask: (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>) => Promise<void>;
   moveTask: (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => Promise<void>;
   updateColumnTitle: (columnId: string, title: string) => Promise<void>;
   moveColumn: (draggedColumnId: string, targetColumnId: string) => Promise<void>;
@@ -184,10 +184,14 @@ export function useKanbanStore(): KanbanStore {
     });
   };
   
-  const addTask = async (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addTask = async (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>) => {
     const project = getActiveProject();
     const now = new Date().toISOString();
     const newTask: Task = { ...taskData, id: `task-${Date.now()}`, createdAt: now, updatedAt: now };
+    const column = project.columns.find(c => c.id === columnId);
+    if (column && column.title === 'Done') {
+        newTask.completedAt = now;
+    }
     const updatedColumns = project.columns.map(c => 
         c.id === columnId ? { ...c, tasks: [...c.tasks, newTask] } : c
     );
@@ -199,25 +203,53 @@ export function useKanbanStore(): KanbanStore {
       variant: 'default',
     });
   };
-  
+
   const moveTask = async (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => {
-    let project = getActiveProject();
-    const task = project.columns.flatMap(c => c.tasks).find(t => t.id === taskId);
-    if (!task) return;
-
-    let newColumns = JSON.parse(JSON.stringify(project.columns));
+    const project = getActiveProject();
+    const fromCol = project.columns.find(c => c.id === fromColumnId);
+    const originalTask = fromCol?.tasks.find(t => t.id === taskId);
     
-    const sourceCol = newColumns.find((c: Column) => c.id === fromColumnId);
-    if(sourceCol) sourceCol.tasks = sourceCol.tasks.filter((t: Task) => t.id !== taskId);
-
-    const destCol = newColumns.find((c: Column) => c.id === toColumnId);
-    if(destCol) destCol.tasks.splice(toIndex, 0, task);
+    if (!originalTask) return;
     
-    await updateProjectData(project.id, { columns: newColumns });
+    const toCol = project.columns.find(c => c.id === toColumnId);
+    
+    const taskToMove: Task = { ...originalTask, updatedAt: new Date().toISOString() };
+    
+    if (toCol?.title === 'Done') {
+      if (!taskToMove.completedAt) {
+        taskToMove.completedAt = new Date().toISOString();
+      }
+    } else {
+      if (taskToMove.completedAt) {
+        delete (taskToMove as Partial<Task>).completedAt;
+      }
+    }
+    
+    const updatedColumns = [...project.columns];
+    
+    const sourceColIndex = updatedColumns.findIndex(c => c.id === fromColumnId);
+    if (sourceColIndex > -1) {
+      updatedColumns[sourceColIndex] = {
+        ...updatedColumns[sourceColIndex],
+        tasks: updatedColumns[sourceColIndex].tasks.filter(t => t.id !== taskId)
+      };
+    }
+    
+    const destColIndex = updatedColumns.findIndex(c => c.id === toColumnId);
+    if (destColIndex > -1) {
+      const destTasks = [...updatedColumns[destColIndex].tasks];
+      destTasks.splice(toIndex, 0, taskToMove);
+      updatedColumns[destColIndex] = {
+        ...updatedColumns[destColIndex],
+        tasks: destTasks
+      };
+    }
+
+    await updateProjectData(project.id, { columns: updatedColumns });
     setToastMessage({
-      id: 'task-moved',
-      title: 'Task moved',
-      description: `Task ${task.title.trim()} moved successfully!`,
+      id: 'column-moved',
+      title: 'Column moved',
+      description: `Column ${taskToMove.title.trim()} moved successfully!`,
       variant: 'default',
     });
   };

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import type { Project, Task, Column, KanbanUser } from '@/types/kanban';
+import { useEffect, useState, useRef } from 'react';
+import type { Project, Task, KanbanUser } from '@/types/kanban';
 import { KanbanColumn } from './KanbanColumn';
 import { NewColumnDialog } from './NewColumnDialog';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
 import type { KanbanStore } from '@/hooks/use-kanban-store';
+import Confetti from 'react-confetti';
 
 type KanbanBoardProps = {
   project: Project;
@@ -17,6 +18,35 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<{ task: Task; columnId: string } | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const prevProjectRef = useRef<Project>();
+
+  useEffect(() => {
+    function handleResize() {
+        setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    }
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const prevProject = prevProjectRef.current;
+
+    if (prevProject && project) {
+        const prevCompletedTasks = new Set(prevProject.columns.flatMap(c => c.tasks).filter(t => t.completedAt).map(t => t.id));
+        const currentCompletedTasks = project.columns.flatMap(c => c.tasks).filter(t => t.completedAt);
+
+        const newlyCompletedTask = currentCompletedTasks.find(t => !prevCompletedTasks.has(t.id));
+
+        if (newlyCompletedTask) {
+            setShowConfetti(true);
+        }
+    }
+
+    prevProjectRef.current = project;
+  }, [project]);
 
   useEffect(() => {
     if (project.id) {
@@ -48,6 +78,7 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
   
   return (
     <>
+      {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} onConfettiComplete={() => setShowConfetti(false)} />}
       <div className="flex-1 p-2 sm:p-4 md:p-6 flex gap-4 overflow-x-auto h-full">
         {project.columns.map((column) => (
           <KanbanColumn

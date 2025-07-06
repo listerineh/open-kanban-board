@@ -2,7 +2,7 @@
 
 import type { KanbanUser, Task } from '@/types/kanban';
 import { Card, CardContent } from '@/components/ui/card';
-import { GripVertical, Calendar } from 'lucide-react';
+import { GripVertical, Calendar, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -26,6 +26,13 @@ export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd
   const [deadlineText, setDeadlineText] = useState('');
 
   useEffect(() => {
+    if (task.completedAt) {
+      setProgress(100);
+      setDeadlineText('');
+      setIsOverdue(false);
+      return;
+    }
+
     if (!task.deadline) {
       setProgress(0);
       setIsOverdue(false);
@@ -76,7 +83,7 @@ export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd
     const intervalId = setInterval(updateDeadlineInfo, 60000);
 
     return () => clearInterval(intervalId);
-  }, [task.createdAt, task.deadline]);
+  }, [task.createdAt, task.deadline, task.completedAt]);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -114,7 +121,7 @@ export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd
       className={cn(
         "group cursor-pointer active:cursor-grabbing bg-card hover:bg-card/80 transition-all border-l-4",
         isDragging && "opacity-50",
-        borderClass
+        task.completedAt ? 'border-l-green-500' : borderClass
       )}
     >
       <CardContent className="p-3 flex items-start gap-2">
@@ -135,18 +142,31 @@ export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd
                         <span className="text-sm text-muted-foreground">{assignee.displayName}</span>
                     </div>
                 ) : <div />}
-                {task.deadline && (
-                    <div className={cn(
-                        "flex items-center gap-1.5 text-xs",
-                        isOverdue ? "text-destructive" : "text-muted-foreground"
-                    )}>
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span>{deadlineText}</span>
-                    </div>
-                )}
+                {(() => {
+                    if (task.completedAt) {
+                        return (
+                            <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>Completed</span>
+                            </div>
+                        )
+                    }
+                    if (task.deadline) {
+                        return (
+                            <div className={cn(
+                                "flex items-center gap-1.5 text-xs",
+                                isOverdue ? "text-destructive" : "text-muted-foreground"
+                            )}>
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>{deadlineText}</span>
+                            </div>
+                        )
+                    }
+                    return null;
+                })()}
             </div>
 
-            {task.deadline && task.createdAt && (
+            {task.deadline && task.createdAt && !task.completedAt && (
                 <div className="pt-1">
                     <Progress value={progress} className={cn("h-1.5", isOverdue && "[&>div]:bg-destructive")} />
                 </div>

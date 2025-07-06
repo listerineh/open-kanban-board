@@ -7,6 +7,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   deadline?: string;
+  completedAt?: string;
 }
 
 export interface Column {
