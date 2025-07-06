@@ -159,14 +159,14 @@ export function TaskDetailsDialog({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-4 flex-shrink-0">
             <DialogTitle>Edit Task</DialogTitle>
             <DialogDescription>
               Make changes to your task here. Click save when you're done.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 px-6 pb-4 flex-grow overflow-y-auto">
             <div className="space-y-2">
               <Label htmlFor="task-title">Title</Label>
               <Input
@@ -290,7 +290,7 @@ export function TaskDetailsDialog({
                 </div>
               </div>
           </div>
-          <DialogFooter className="justify-between sm:justify-between gap-2 flex-col">
+          <DialogFooter className="justify-between sm:justify-between p-6 pt-4 border-t flex-shrink-0">
             <Button variant="destructive" size="default" onClick={() => setIsDeleteDialogOpen(true)}>
               <Trash2 className="h-4 w-4" /> Delete task
               <span className="sr-only">Delete Task</span>

@@ -12,7 +12,7 @@ import { Suspense } from 'react';
 
 function KanbanPageSkeleton() {
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-background text-foreground">
+    <div className="h-dvh w-full flex flex-col bg-background text-foreground">
       <header className="px-4 py-3 border-b border-border flex flex-col sm:flex-row flex-wrap items-center justify-between gap-y-3 shrink-0">
         <div className="flex items-center gap-3">
           <Skeleton className="h-6 w-6" />

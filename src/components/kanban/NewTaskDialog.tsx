@@ -91,11 +91,11 @@ export function NewTaskDialog({ isOpen, onClose, onAddTask, members }: NewTaskDi
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if(!open) resetForm(); onClose();}}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh] p-0">
+        <DialogHeader className="p-6 pb-4 flex-shrink-0">
           <DialogTitle>Add New Task</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 px-6 pb-4 flex-grow overflow-y-auto">
           <div className="space-y-2">
             <Label htmlFor="task-title">Title</Label>
             <Input
@@ -217,7 +217,7 @@ export function NewTaskDialog({ isOpen, onClose, onAddTask, members }: NewTaskDi
             </Select>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="p-6 border-t flex-shrink-0">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="submit" onClick={handleAddTask} disabled={!title.trim() || isSubmitting}>
             {isSubmitting ? 'Adding...' : 'Add Task'}
