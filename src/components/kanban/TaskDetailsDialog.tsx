@@ -290,7 +290,7 @@ export function TaskDetailsDialog({
                 </div>
               </div>
           </div>
-          <DialogFooter className="justify-between sm:justify-between p-6 pt-4 border-t flex-shrink-0">
+          <DialogFooter className="justify-between sm:justify-between p-6 pt-4 border-t flex-shrink-0 gap-2">
             <Button variant="destructive" size="default" onClick={() => setIsDeleteDialogOpen(true)}>
               <Trash2 className="h-4 w-4" /> Delete task
               <span className="sr-only">Delete Task</span>
