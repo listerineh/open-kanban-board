@@ -20,7 +20,7 @@ export function Loader({ className, text }: LoaderProps) {
 
 export function FullPageLoader({ className, text = "Loading..." }: LoaderProps) {
   return (
-    <div className={cn("flex h-screen w-full flex-col items-center justify-center gap-4 bg-background text-foreground", className)}>
+    <div className={cn("flex h-dvh w-full flex-col items-center justify-center gap-4 bg-background text-foreground", className)}>
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
       <p className="text-muted-foreground">{text}</p>
     </div>
