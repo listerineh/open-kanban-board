@@ -83,6 +83,7 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
         {project.columns.map((column) => (
           <KanbanColumn
             key={column.id}
+            projectId={project.id}
             column={column}
             store={store}
             members={members}

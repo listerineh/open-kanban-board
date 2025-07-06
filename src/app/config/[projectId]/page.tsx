@@ -70,7 +70,7 @@ export default function ProjectConfigPage() {
   const handleColumnTitleBlur = async (columnId: string, title: string) => {
     const originalColumn = project?.columns.find(c => c.id === columnId);
     if (title.trim() && title.trim() !== originalColumn?.title) {
-        await store.updateColumnTitle(columnId, title.trim());
+        await store.updateColumnTitle(projectId, columnId, title.trim());
     } else if (originalColumn) {
         setColumns(current => current.map(c => c.id === columnId ? originalColumn : c));
     }
@@ -90,7 +90,7 @@ export default function ProjectConfigPage() {
 
   const confirmDeleteColumn = async () => {
     if (columnToDelete) {
-      await store.deleteColumn(columnToDelete.id);
+      await store.deleteColumn(projectId, columnToDelete.id);
       setColumnToDelete(null);
     }
   };

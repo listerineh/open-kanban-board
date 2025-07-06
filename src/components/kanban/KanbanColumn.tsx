@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '../ui/separator';
 
 type KanbanColumnProps = {
+  projectId: string;
   column: Column;
   store: KanbanStore;
   members: KanbanUser[];
@@ -24,7 +25,7 @@ type KanbanColumnProps = {
   onTaskClick: (task: Task) => void;
 };
 
-export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDragEnd, onColumnDragStart, onColumnDrop, onColumnDragEnd, draggedColumnId, onTaskClick }: KanbanColumnProps) {
+export function KanbanColumn({ projectId, column, store, members, onTaskDragStart, onTaskDragEnd, onColumnDragStart, onColumnDrop, onColumnDragEnd, draggedColumnId, onTaskClick }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isTaskDragOver, setIsTaskDragOver] = useState(false);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -64,7 +65,7 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
         return;
     }
     if (title.trim() && title.trim() !== column.title) {
-      await store.updateColumnTitle(column.id, title.trim());
+      await store.updateColumnTitle(projectId, column.id, title.trim());
     } else {
       setTitle(column.title);
     }
@@ -185,6 +186,7 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
             onKeyDown={handleTitleKeyDown}
             autoFocus
             className="h-8 border-transparent focus-visible:border-input focus-visible:ring-ring focus-visible:ring-1 bg-transparent text-lg font-headline font-semibold p-1 -m-1 w-full"
+            disabled={isDoneColumn}
           />
         ) : (
           <h3
