@@ -4,12 +4,17 @@ export interface Task {
   description?: string;
   assignee?: string;
   priority?: 'Urgent' | 'High' | 'Medium' | 'Low';
+  createdAt: string;
+  updatedAt: string;
+  deadline?: string;
 }
 
 export interface Column {
   id: string;
   title: string;
   tasks: Task[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Project {
@@ -18,6 +23,8 @@ export interface Project {
   columns: Column[];
   ownerId: string;
   members: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface KanbanUser {
