@@ -9,6 +9,7 @@ import { NewTaskDialog } from './NewTaskDialog';
 import { cn } from '@/lib/utils';
 import type { KanbanStore } from '@/hooks/use-kanban-store';
 import { Input } from '@/components/ui/input';
+import { Separator } from '../ui/separator';
 
 type KanbanColumnProps = {
   column: Column;
@@ -50,6 +51,9 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
         return priorityA - priorityB;
     }
   });
+
+  const tasksWithDeadline = sortedTasks.filter(t => !!t.deadline);
+  const tasksWithoutDeadline = sortedTasks.filter(t => !t.deadline);
 
   const handleTitleBlur = async () => {
     if (title.trim() && title.trim() !== column.title) {
@@ -122,6 +126,22 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
     }
   };
 
+  const renderTaskList = (tasks: Task[]) => (
+    <>
+      {tasks.map((task) => (
+        <KanbanTaskCard 
+          key={task.id} 
+          task={task} 
+          columnId={column.id}
+          members={members}
+          onDragStart={onTaskDragStart}
+          onDragEnd={onTaskDragEnd}
+          onClick={() => onTaskClick(task)}
+        />
+      ))}
+    </>
+  );
+
   return (
     <div
       ref={columnRef}
@@ -169,17 +189,23 @@ export function KanbanColumn({ column, store, members, onTaskDragStart, onTaskDr
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {sortedTasks.map((task) => (
-          <KanbanTaskCard 
-            key={task.id} 
-            task={task} 
-            columnId={column.id} 
-            members={members}
-            onDragStart={onTaskDragStart}
-            onDragEnd={onTaskDragEnd}
-            onClick={() => onTaskClick(task)}
-          />
-        ))}
+        {tasksWithDeadline.length > 0 && (
+          <div className='space-y-3'>
+            <div className="px-1 text-xs text-muted-foreground font-semibold">WITH DEADLINE</div>
+            {renderTaskList(tasksWithDeadline)}
+          </div>
+        )}
+        
+        {tasksWithDeadline.length > 0 && tasksWithoutDeadline.length > 0 && (
+            <Separator />
+        )}
+        
+        {tasksWithoutDeadline.length > 0 && (
+          <div className='space-y-3'>
+            {tasksWithDeadline.length > 0 && <div className="px-1 text-xs text-muted-foreground font-semibold">OTHER TASKS</div>}
+            {renderTaskList(tasksWithoutDeadline)}
+          </div>
+        )}
         {isTaskDragOver && <div className="h-16 rounded-lg bg-primary/20 border-2 border-dashed border-primary"></div>}
       </div>
       <div className="p-3 mt-auto">

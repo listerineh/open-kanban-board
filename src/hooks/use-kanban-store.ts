@@ -28,7 +28,7 @@ export type KanbanStore = {
   addProject: (name: string) => Promise<void>;
   setActiveProjectId: (id: string | null) => void;
   addColumn: (title: string) => Promise<void>;
-  addTask: (columnId: string, taskData: Omit<Task, 'id'>) => Promise<void>;
+  addTask: (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   moveTask: (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => Promise<void>;
   updateColumnTitle: (columnId: string, title: string) => Promise<void>;
   moveColumn: (draggedColumnId: string, targetColumnId: string) => Promise<void>;
@@ -139,16 +139,24 @@ export function useKanbanStore(): KanbanStore {
     return project;
   }, [projects, activeProjectId]);
 
+  const updateProjectData = async (projectId: string, data: Partial<Omit<Project, 'id'>>) => {
+      const projectRef = doc(db, 'projects', projectId);
+      await updateDoc(projectRef, { ...data, updatedAt: new Date().toISOString() });
+  }
+
   const addProject = async (name: string) => {
     if (!user) return;
+    const now = new Date().toISOString();
     const newProjectData: Omit<Project, 'id'> = {
       name,
       ownerId: user.uid,
       members: [user.uid],
+      createdAt: now,
+      updatedAt: now,
       columns: [
-        { id: `col-${Date.now()}-1`, title: 'To Do', tasks: [] },
-        { id: `col-${Date.now()}-2`, title: 'In Progress', tasks: [] },
-        { id: `col-${Date.now()}-3`, title: 'Done', tasks: [] },
+        { id: `col-${Date.now()}-1`, title: 'To Do', tasks: [], createdAt: now, updatedAt: now },
+        { id: `col-${Date.now()}-2`, title: 'In Progress', tasks: [], createdAt: now, updatedAt: now },
+        { id: `col-${Date.now()}-3`, title: 'Done', tasks: [], createdAt: now, updatedAt: now },
       ],
     };
     const docRef = await addDoc(collection(db, 'projects'), newProjectData);
@@ -163,9 +171,9 @@ export function useKanbanStore(): KanbanStore {
 
   const addColumn = async (title: string) => {
     const project = getActiveProject();
-    const newColumn: Column = { id: `col-${Date.now()}`, title, tasks: [] };
-    const projectRef = getProjectDoc(activeProjectId);
-    await updateDoc(projectRef, {
+    const now = new Date().toISOString();
+    const newColumn: Column = { id: `col-${Date.now()}`, title, tasks: [], createdAt: now, updatedAt: now };
+    await updateProjectData(project.id, {
       columns: [...project.columns, newColumn]
     });
     setToastMessage({
@@ -175,20 +183,15 @@ export function useKanbanStore(): KanbanStore {
       variant: 'default',
     });
   };
-
-  const updateProjectInDb = async (updatedProject: Project) => {
-      const { id, ...projectData } = updatedProject;
-      const projectRef = getProjectDoc(id);
-      await updateDoc(projectRef, projectData as any);
-  }
   
-  const addTask = async (columnId: string, taskData: Omit<Task, 'id'>) => {
+  const addTask = async (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     const project = getActiveProject();
-    const newTask: Task = { ...taskData, id: `task-${Date.now()}` };
+    const now = new Date().toISOString();
+    const newTask: Task = { ...taskData, id: `task-${Date.now()}`, createdAt: now, updatedAt: now };
     const updatedColumns = project.columns.map(c => 
         c.id === columnId ? { ...c, tasks: [...c.tasks, newTask] } : c
     );
-    await updateProjectInDb({ ...project, columns: updatedColumns });
+    await updateProjectData(project.id, { columns: updatedColumns });
     setToastMessage({
       id: 'task-created',
       title: 'Task created',
@@ -210,7 +213,7 @@ export function useKanbanStore(): KanbanStore {
     const destCol = newColumns.find((c: Column) => c.id === toColumnId);
     if(destCol) destCol.tasks.splice(toIndex, 0, task);
     
-    await updateProjectInDb({ ...project, columns: newColumns });
+    await updateProjectData(project.id, { columns: newColumns });
     setToastMessage({
       id: 'task-moved',
       title: 'Task moved',
@@ -230,7 +233,7 @@ export function useKanbanStore(): KanbanStore {
 
     const [draggedColumn] = columns.splice(draggedIndex, 1);
     columns.splice(targetIndex, 0, draggedColumn);
-    await updateProjectInDb({ ...project, columns });
+    await updateProjectData(project.id, { columns });
     setToastMessage({
       id: 'column-moved',
       title: 'Column moved',
@@ -241,10 +244,11 @@ export function useKanbanStore(): KanbanStore {
   
   const updateColumnTitle = async (columnId: string, title: string) => {
     const project = getActiveProject();
+    const now = new Date().toISOString();
     const updatedColumns = project.columns.map(c =>
-        c.id === columnId ? { ...c, title } : c
+        c.id === columnId ? { ...c, title, updatedAt: now } : c
     );
-    await updateProjectInDb({ ...project, columns: updatedColumns });
+    await updateProjectData(project.id, { columns: updatedColumns });
     setToastMessage({
       id: 'column-updated',
       title: 'Column updated',
@@ -257,8 +261,7 @@ export function useKanbanStore(): KanbanStore {
     if (!projectId || !newName.trim()) return;
 
     try {
-      const projectRef = getProjectDoc(projectId);
-      await updateDoc(projectRef, { name: newName.trim() });
+      await updateProjectData(projectId, { name: newName.trim() });
       setToastMessage({
         id: 'project-updated',
         title: 'Project updated',
@@ -281,13 +284,13 @@ export function useKanbanStore(): KanbanStore {
     const updatedColumns = project.columns.map(c => {
         if (c.id === columnId) {
             const updatedTasks = c.tasks.map(t =>
-                t.id === taskId ? { ...t, ...updatedData } : t
+                t.id === taskId ? { ...t, ...updatedData, updatedAt: new Date().toISOString() } : t
             );
-            return { ...c, tasks: updatedTasks };
+            return { ...c, tasks: updatedTasks, updatedAt: new Date().toISOString() };
         }
         return c;
     });
-    await updateProjectInDb({ ...project, columns: updatedColumns });
+    await updateProjectData(project.id, { columns: updatedColumns });
     setToastMessage({
       id: 'task-updated',
       title: 'Task updated',
@@ -302,10 +305,10 @@ export function useKanbanStore(): KanbanStore {
     if (!task) return;
     const updatedColumns = project.columns.map(c =>
         c.id === columnId
-            ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId) }
+            ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId), updatedAt: new Date().toISOString() }
             : c
     );
-    await updateProjectInDb({ ...project, columns: updatedColumns });
+    await updateProjectData(project.id, { columns: updatedColumns });
     setToastMessage({
       id: 'task-deleted',
       title: 'Task deleted',
@@ -319,7 +322,7 @@ export function useKanbanStore(): KanbanStore {
     const column = project.columns.find(c => c.id === columnId);
     if (!column) return;
     const updatedColumns = project.columns.filter(c => c.id !== columnId);
-    await updateProjectInDb({ ...project, columns: updatedColumns });
+    await updateProjectData(project.id, { columns: updatedColumns });
     setToastMessage({
       id: 'column-deleted',
       title: 'Column deleted',
@@ -354,10 +357,9 @@ export function useKanbanStore(): KanbanStore {
     }
     
     const userToInvite = querySnapshot.docs[0].data() as KanbanUser;
-    const projectRef = getProjectDoc(projectId);
     
-    await updateDoc(projectRef, {
-        members: arrayUnion(userToInvite.uid)
+    await updateProjectData(projectId, {
+        members: arrayUnion(userToInvite.uid) as any
     });
     
     return { success: true, message: `User ${email} invited.` };
@@ -376,9 +378,8 @@ export function useKanbanStore(): KanbanStore {
   
   const removeUserFromProject = async (projectId: string, userId: string) => {
     const project = getProjectById(projectId);
-    const projectRef = getProjectDoc(projectId);
-    await updateDoc(projectRef, {
-        members: arrayRemove(userId)
+    await updateProjectData(projectId, {
+        members: arrayRemove(userId) as any
     });
     setToastMessage({
         id: 'user-removed',
