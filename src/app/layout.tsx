@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   description: 'Manage your projects with this free-to-use Kanban Board. Create, edit, and delete projects, as well as add, move, and delete tasks.',
   keywords: ['Kanban', 'Project Management', 'Task Management', 'Free Kanban Board', 'Open Source Kanban'],
   generator: "Next.js",
+  manifest: '/manifest.json',
   referrer: "origin",
   publisher: "Vercel",
   authors: [
@@ -56,6 +57,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <link rel="apple-touch-icon" href="/icon.svg"></link>
+        <meta name="theme-color" content="#2cc8a9" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
