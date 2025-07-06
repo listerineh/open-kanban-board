@@ -282,7 +282,7 @@ export default function ProjectConfigPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDeleteProject} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction onClick={handleConfirmDeleteProject} className="bg-destructive hover:bg-destructive/90 text-white">
                 Delete Project
               </AlertDialogAction>
             </AlertDialogFooter>
