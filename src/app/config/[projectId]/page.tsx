@@ -265,7 +265,7 @@ export default function ProjectConfigPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setColumnToDelete(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeleteColumn} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction onClick={confirmDeleteColumn} className="bg-destructive hover:bg-destructive/90 text-white">
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
