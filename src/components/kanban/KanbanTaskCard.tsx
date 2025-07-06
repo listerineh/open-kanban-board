@@ -26,7 +26,7 @@ export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd
   const [deadlineText, setDeadlineText] = useState('');
 
   useEffect(() => {
-    if (!task.deadline || !task.createdAt) {
+    if (!task.deadline) {
       setProgress(0);
       setIsOverdue(false);
       setDeadlineText('');
@@ -146,7 +146,7 @@ export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd
                 )}
             </div>
 
-            {task.deadline && (
+            {task.deadline && task.createdAt && (
                 <div className="pt-1">
                     <Progress value={progress} className={cn("h-1.5", isOverdue && "[&>div]:bg-destructive")} />
                 </div>
