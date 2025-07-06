@@ -3,7 +3,6 @@
 import type { KanbanUser, Task } from '@/types/kanban';
 import { Card, CardContent } from '@/components/ui/card';
 import { GripVertical } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -36,6 +35,16 @@ export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd
   };
 
   const assignee = members.find(m => m.uid === task.assignee);
+
+  const priorityStyles: Record<string, string> = {
+    Urgent: 'border-l-red-500',
+    High: 'border-l-orange-400',
+    Medium: 'border-l-blue-400',
+    Low: 'border-l-zinc-500',
+  };
+
+  const priority = task.priority ?? 'Medium';
+  const borderClass = priorityStyles[priority];
   
   return (
     <Card 
@@ -45,8 +54,9 @@ export function KanbanTaskCard({ task, columnId, members, onDragStart, onDragEnd
       onClick={onClick}
       data-task-id={task.id}
       className={cn(
-        "group cursor-pointer active:cursor-grabbing bg-card hover:bg-card/80 transition-opacity",
-        isDragging && "opacity-50"
+        "group cursor-pointer active:cursor-grabbing bg-card hover:bg-card/80 transition-all border-l-4",
+        isDragging && "opacity-50",
+        borderClass
       )}
     >
       <CardContent className="p-3 flex items-start gap-2">

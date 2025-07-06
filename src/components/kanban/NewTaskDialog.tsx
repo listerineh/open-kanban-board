@@ -27,16 +27,23 @@ export function NewTaskDialog({ isOpen, onClose, onAddTask, members }: NewTaskDi
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
+  const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddTask = async () => {
     if (title.trim() && !isSubmitting) {
       setIsSubmitting(true);
-      await onAddTask({ title: title.trim(), description: description.trim(), assignee: assigneeId === 'unassigned' ? '' : assigneeId });
+      await onAddTask({ 
+        title: title.trim(), 
+        description: description.trim(), 
+        assignee: assigneeId === 'unassigned' ? '' : assigneeId,
+        priority 
+      });
       setIsSubmitting(false);
       setTitle('');
       setDescription('');
       setAssigneeId('');
+      setPriority('Medium');
       onClose();
     }
   };
@@ -65,6 +72,20 @@ export function NewTaskDialog({ isOpen, onClose, onAddTask, members }: NewTaskDi
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add more details about the task"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="task-priority">Priority</Label>
+             <Select value={priority} onValueChange={(value) => setPriority(value as Task['priority'])}>
+                <SelectTrigger id="task-priority">
+                    <SelectValue placeholder="Select a priority" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Urgent">Urgent</SelectItem>
+                </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="task-assignee">Assignee (optional)</Label>
