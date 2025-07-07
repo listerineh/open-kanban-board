@@ -44,7 +44,7 @@ function HomeContent() {
   }
 
   return (
-    <div className="h-dvh w-full flex flex-col bg-background text-foreground font-body overflow-hidden">
+    <div className="h-dvh w-screen flex flex-col bg-background text-foreground font-body">
       <header className="px-4 py-3 border-b border-border flex flex-col sm:flex-row flex-wrap items-center justify-between gap-y-3 shrink-0">
         <div className="flex items-center gap-3">
           <Kanban className="text-primary" size={24}/>
@@ -60,7 +60,7 @@ function HomeContent() {
           <UserNav />
         </div>
       </header>
-      <main className="flex-1 overflow-hidden min-w-0">
+      <main className="flex-1 min-w-0 w-screen overflow-auto">
         {store.activeProject ? (
           <KanbanBoard key={store.activeProject.id} project={store.activeProject} store={store} />
         ) : (
