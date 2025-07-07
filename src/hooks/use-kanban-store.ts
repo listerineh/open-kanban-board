@@ -333,15 +333,16 @@ export function useKanbanStore(): KanbanStore {
 
   const updateTask = async (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => {
     const project = getActiveProject();
+    let updatedTask: Task | undefined;
     const updatedColumns = project.columns.map(c => {
         if (c.id === columnId) {
             const updatedTasks = c.tasks.map(t => {
                 if (t.id === taskId) {
                     const taskToUpdate = { ...t, ...updatedData, updatedAt: new Date().toISOString() };
-                    
                     if (updatedData.hasOwnProperty('deadline') && updatedData.deadline === undefined) {
                         delete (taskToUpdate as Partial<Task>).deadline;
                     }
+                    updatedTask = taskToUpdate;
 
                     return taskToUpdate;
                 }
@@ -355,7 +356,7 @@ export function useKanbanStore(): KanbanStore {
     setToastMessage({
       id: 'task-updated',
       title: 'Task updated',
-      description: `${updatedData.title?.trim()}'s info updated successfully!`,
+      description: `${updatedTask?.title?.trim()}'s info updated successfully!`,
       variant: 'default',
     });
   };
