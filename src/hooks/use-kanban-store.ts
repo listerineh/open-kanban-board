@@ -195,6 +195,9 @@ export function useKanbanStore(): KanbanStore {
     const project = getActiveProject();
     const now = new Date().toISOString();
     const newTask: Task = { ...taskData, id: `task-${Date.now()}`, createdAt: now, updatedAt: now };
+    if (newTask.deadline === undefined) {
+        delete (newTask as Partial<Task>).deadline;
+    }
     const column = project.columns.find(c => c.id === columnId);
     if (column && column.title === 'Done') {
         newTask.completedAt = now;
@@ -332,9 +335,18 @@ export function useKanbanStore(): KanbanStore {
     const project = getActiveProject();
     const updatedColumns = project.columns.map(c => {
         if (c.id === columnId) {
-            const updatedTasks = c.tasks.map(t =>
-                t.id === taskId ? { ...t, ...updatedData, updatedAt: new Date().toISOString() } : t
-            );
+            const updatedTasks = c.tasks.map(t => {
+                if (t.id === taskId) {
+                    const taskToUpdate = { ...t, ...updatedData, updatedAt: new Date().toISOString() };
+                    
+                    if (updatedData.hasOwnProperty('deadline') && updatedData.deadline === undefined) {
+                        delete (taskToUpdate as Partial<Task>).deadline;
+                    }
+
+                    return taskToUpdate;
+                }
+                return t;
+            });
             return { ...c, tasks: updatedTasks, updatedAt: new Date().toISOString() };
         }
         return c;
