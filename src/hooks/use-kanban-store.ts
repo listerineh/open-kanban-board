@@ -159,14 +159,24 @@ export function useKanbanStore(): KanbanStore {
         { id: `col-${Date.now()}-3`, title: 'Done', tasks: [], createdAt: now, updatedAt: now },
       ],
     };
-    const docRef = await addDoc(collection(db, 'projects'), newProjectData);
-    selectProject(docRef.id);
-    setToastMessage({
-      id: 'project-created',
-      title: 'Project created',
-      description: `Project ${newProjectData.name.trim()} created successfully!`,
-      variant: 'default',
-    });
+    try {
+        const docRef = await addDoc(collection(db, 'projects'), newProjectData);
+        selectProject(docRef.id);
+        setToastMessage({
+          id: 'project-created',
+          title: 'Project created',
+          description: `Project ${newProjectData.name.trim()} created successfully!`,
+          variant: 'default',
+        });
+    } catch (error) {
+        console.error("Error adding project:", error);
+        setToastMessage({
+          id: 'project-created-error',
+          title: 'Error creating project',
+          description: 'There was an error creating your project, try again later.',
+          variant: 'destructive',
+        });
+    }
   };
 
   const addColumn = async (title: string) => {
@@ -182,13 +192,23 @@ export function useKanbanStore(): KanbanStore {
       columns.push(newColumn);
     }
 
-    await updateProjectData(project.id, { columns });
-    setToastMessage({
-      id: 'column-created',
-      title: 'Column created',
-      description: `Column ${newColumn.title.trim()} created successfully!`,
-      variant: 'default',
-    });
+    try {
+      await updateProjectData(project.id, { columns });
+      setToastMessage({
+        id: 'column-created',
+        title: 'Column created',
+        description: `Column ${newColumn.title.trim()} created successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error adding column:", error);
+      setToastMessage({
+        id: 'column-created-error',
+        title: 'Error creating column',
+        description: 'There was an error creating your column, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
   
   const addTask = async (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>) => {
@@ -205,13 +225,23 @@ export function useKanbanStore(): KanbanStore {
     const updatedColumns = project.columns.map(c => 
         c.id === columnId ? { ...c, tasks: [...c.tasks, newTask] } : c
     );
-    await updateProjectData(project.id, { columns: updatedColumns });
-    setToastMessage({
-      id: 'task-created',
-      title: 'Task created',
-      description: `Task ${newTask.title.trim()} created successfully!`,
-      variant: 'default',
-    });
+    try {
+      await updateProjectData(project.id, { columns: updatedColumns });
+      setToastMessage({
+        id: 'task-created',
+        title: 'Task created',
+        description: `Task ${newTask.title.trim()} created successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error adding task:", error);
+      setToastMessage({
+        id: 'task-created-error',
+        title: 'Error creating task',
+        description: 'There was an error creating your task, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const moveTask = async (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => {
@@ -255,13 +285,23 @@ export function useKanbanStore(): KanbanStore {
       };
     }
 
-    await updateProjectData(project.id, { columns: updatedColumns });
-    setToastMessage({
-      id: 'column-moved',
-      title: 'Column moved',
-      description: `Column ${taskToMove.title.trim()} moved successfully!`,
-      variant: 'default',
-    });
+    try {
+      await updateProjectData(project.id, { columns: updatedColumns });
+      setToastMessage({
+        id: 'column-moved',
+        title: 'Column moved',
+        description: `Column ${taskToMove.title.trim()} moved successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error moving task:", error);
+      setToastMessage({
+        id: 'column-moved-error',
+        title: 'Error moving column',
+        description: 'There was an error moving your column, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const moveColumn = async (draggedColumnId: string, targetColumnId: string) => {
@@ -284,13 +324,23 @@ export function useKanbanStore(): KanbanStore {
         }
         columns.splice(targetIndex, 0, draggedColumn);
     }
-    await updateProjectData(project.id, { columns });
-    setToastMessage({
-      id: 'column-moved',
-      title: 'Column moved',
-      description: `Column ${draggedColumn.title.trim()} moved successfully!`,
-      variant: 'default',
-    });
+    try {
+      await updateProjectData(project.id, { columns });
+      setToastMessage({
+        id: 'column-moved',
+        title: 'Column moved',
+        description: `Column ${draggedColumn.title.trim()} moved successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error moving column:", error);
+      setToastMessage({
+        id: 'column-moved-error',
+        title: 'Error moving column',
+        description: 'There was an error moving your column, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
   
   const updateColumnTitle = async (projectId: string, columnId: string, title: string) => {
@@ -300,13 +350,23 @@ export function useKanbanStore(): KanbanStore {
     const updatedColumns = project.columns.map(c =>
         c.id === columnId ? { ...c, title, updatedAt: now } : c
     );
-    await updateProjectData(project.id, { columns: updatedColumns });
-    setToastMessage({
-      id: 'column-updated',
-      title: 'Column updated',
-      description: `${title.trim()}'s title updated successfully!`,
-      variant: 'default',
-    });
+    try {
+      await updateProjectData(project.id, { columns: updatedColumns });
+      setToastMessage({
+        id: 'column-updated',
+        title: 'Column updated',
+        description: `${title.trim()}'s title updated successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error updating column title:", error);
+      setToastMessage({
+        id: 'column-updated-error',
+        title: 'Error updating column title',
+        description: 'There was an error updating your column title, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
   
   const updateProjectName = async (projectId: string, newName: string) => {
@@ -352,13 +412,23 @@ export function useKanbanStore(): KanbanStore {
         }
         return c;
     });
-    await updateProjectData(project.id, { columns: updatedColumns });
-    setToastMessage({
-      id: 'task-updated',
-      title: 'Task updated',
-      description: `${updatedTask?.title?.trim()}'s info updated successfully!`,
-      variant: 'default',
-    });
+    try {
+      await updateProjectData(project.id, { columns: updatedColumns });
+      setToastMessage({
+        id: 'task-updated',
+        title: 'Task updated',
+        description: `${updatedTask?.title?.trim()}'s info updated successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error updating task:", error);
+      setToastMessage({
+        id: 'task-updated-error',
+        title: 'Error updating task',
+        description: 'There was an error updating your task, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const deleteTask = async (taskId: string, columnId: string) => {
@@ -370,13 +440,23 @@ export function useKanbanStore(): KanbanStore {
             ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId), updatedAt: new Date().toISOString() }
             : c
     );
-    await updateProjectData(project.id, { columns: updatedColumns });
-    setToastMessage({
-      id: 'task-deleted',
-      title: 'Task deleted',
-      description: `Task ${task.title.trim()} deleted successfully!`,
-      variant: 'default',
-    });
+    try {
+      await updateProjectData(project.id, { columns: updatedColumns });
+      setToastMessage({
+        id: 'task-deleted',
+        title: 'Task deleted',
+        description: `Task ${task.title.trim()} deleted successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      setToastMessage({
+        id: 'task-deleted-error',
+        title: 'Error deleting task',
+        description: 'There was an error deleting your task, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const deleteColumn = async (projectId: string, columnId: string) => {
@@ -385,29 +465,49 @@ export function useKanbanStore(): KanbanStore {
     const column = project.columns.find(c => c.id === columnId);
     if (!column) return;
     const updatedColumns = project.columns.filter(c => c.id !== columnId);
-    await updateProjectData(project.id, { columns: updatedColumns });
-    setToastMessage({
-      id: 'column-deleted',
-      title: 'Column deleted',
-      description: `Column ${column.title.trim()} deleted successfully!`,
-      variant: 'default',
-    });
+    try {
+      await updateProjectData(project.id, { columns: updatedColumns });
+      setToastMessage({
+        id: 'column-deleted',
+        title: 'Column deleted',
+        description: `Column ${column.title.trim()} deleted successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error deleting column:", error);
+      setToastMessage({
+        id: 'column-deleted-error',
+        title: 'Error deleting column',
+        description: 'There was an error deleting your column, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const deleteProject = async (projectId: string) => {
     const project = getProjectById(projectId);
     if (!project) return;
     const projectRef = getProjectDoc(projectId);
-    await deleteDoc(projectRef);
-    if(activeProjectId === projectId) {
-        selectProject(projects.length > 1 ? projects.filter(p=>p.id !== projectId)[0].id : null);
+    try {
+      await deleteDoc(projectRef);
+      if(activeProjectId === projectId) {
+          selectProject(projects.length > 1 ? projects.filter(p=>p.id !== projectId)[0].id : null);
+      }
+      setToastMessage({
+        id: 'project-deleted',
+        title: 'Project deleted',
+        description: `Project ${project.name.trim()} deleted successfully!`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      setToastMessage({
+        id: 'project-deleted-error',
+        title: 'Error deleting project',
+        description: 'There was an error deleting your project, try again later.',
+        variant: 'destructive',
+      });
     }
-    setToastMessage({
-      id: 'project-deleted',
-      title: 'Project deleted',
-      description: `Project ${project.name.trim()} deleted successfully!`,
-      variant: 'default',
-    });
   };
 
   const inviteUserToProject = async (projectId: string, email: string) => {
@@ -421,11 +521,27 @@ export function useKanbanStore(): KanbanStore {
     
     const userToInvite = querySnapshot.docs[0].data() as KanbanUser;
     
-    await updateProjectData(projectId, {
-        members: arrayUnion(userToInvite.uid) as any
-    });
-    
-    return { success: true, message: `User ${email} invited.` };
+    try {
+      await updateProjectData(projectId, {
+          members: arrayUnion(userToInvite.uid) as any
+      });
+      setToastMessage({
+        id: 'user-invited',
+        title: 'User invited',
+        description: `User ${email} invited successfully!`,
+        variant: 'default',
+      });
+      return { success: true, message: `User ${email} invited.` };
+    } catch (error) {
+      console.error("Error inviting user:", error);
+      setToastMessage({
+        id: 'user-invited-error',
+        title: 'Error inviting user',
+        description: 'There was an error inviting your user, try again later.',
+        variant: 'destructive',
+      });
+      return { success: false, message: "Error inviting user." };
+    }
   };
   
   const getProjectMembers = async (projectId: string): Promise<KanbanUser[]> => {
@@ -441,15 +557,25 @@ export function useKanbanStore(): KanbanStore {
   
   const removeUserFromProject = async (projectId: string, userId: string) => {
     const project = getProjectById(projectId);
-    await updateProjectData(projectId, {
-        members: arrayRemove(userId) as any
-    });
-    setToastMessage({
-        id: 'user-removed',
-        title: 'User removed',
-        description: `User ${userId} removed from project ${project?.name.trim()} successfully!`,
-        variant: 'default',
-    });
+    try {
+      await updateProjectData(projectId, {
+          members: arrayRemove(userId) as any
+      });
+      setToastMessage({
+          id: 'user-removed',
+          title: 'User removed',
+          description: `User ${userId} removed from project ${project?.name.trim()} successfully!`,
+          variant: 'default',
+      });
+    } catch (error) {
+      console.error("Error removing user:", error);
+      setToastMessage({
+        id: 'user-removed-error',
+        title: 'Error removing user',
+        description: 'There was an error removing your user from project, try again later.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const activeProject = projects.find(p => p.id === activeProjectId);
