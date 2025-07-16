@@ -81,7 +81,12 @@ body {
 @layer base {
   * {
     @apply border-border;
+  }
+  html, body {
+    box-sizing: border-box;
     overflow-x: hidden;
+    overflow-y: hidden;
+    height: 100dvh;
   }
   body {
     @apply bg-background text-foreground;

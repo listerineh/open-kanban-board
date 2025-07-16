@@ -79,7 +79,7 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
   return (
     <>
       {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} onConfettiComplete={() => setShowConfetti(false)} />}
-      <div className="flex-1 p-2 sm:p-4 md:p-6 flex gap-4 overflow-x-auto h-full">
+      <div className="w-full sm:flex-1 sm:w-auto p-2 sm:p-4 md:p-6 flex flex-col sm:flex-row gap-4 overflow-x-auto max-w-screen min-w-0 min-h-0 h-full max-h-screen">
         {project.columns.map((column) => (
           <KanbanColumn
             key={column.id}
@@ -96,7 +96,7 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
             onTaskClick={(task) => setEditingTask({ task, columnId: column.id })}
           />
         ))}
-        <div className="flex-shrink-0 w-72 md:w-80">
+        <div className="flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[100px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow">
           <NewColumnDialog onAddColumn={store.addColumn} />
         </div>
       </div>

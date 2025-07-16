@@ -168,7 +168,7 @@ export function KanbanColumn({ projectId, column, store, members, onTaskDragStar
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       className={cn(
-        "flex-shrink-0 w-72 md:w-80 h-full flex flex-col rounded-lg bg-card/50 transition-all",
+        "flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[200px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow",
         isTaskDragOver && !draggedColumnId && "bg-primary/10",
         isDraggingThisColumn && "opacity-50 ring-2 ring-primary ring-offset-2 ring-offset-background",
         draggedColumnId && !isDraggingThisColumn && "hover:ring-2 hover:ring-primary/50"
