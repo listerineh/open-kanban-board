@@ -44,7 +44,7 @@ function HomeContent() {
   }
 
   return (
-    <div className="w-full flex flex-col bg-background text-foreground font-body min-h-0 h-screen max-h-screen">
+    <div className="w-full flex flex-col bg-background text-foreground font-body min-h-0 h-dvh max-h-dvh">
       <header className="px-4 py-3 border-b border-border flex flex-col sm:flex-row flex-wrap items-center justify-between gap-y-3 shrink-0">
         <div className="flex items-center gap-3">
           <Kanban className="text-primary" size={24}/>
@@ -72,7 +72,7 @@ function HomeContent() {
                   <p className="text-muted-foreground max-w-md mx-auto">Select a project from the dropdown or create a new one to begin.</p>
                 </>
               ) : (
-                 <Loader text="Loading..." />
+                  <Loader text="Loading..." />
               )}
             </div>
           </div>
