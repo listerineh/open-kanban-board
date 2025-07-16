@@ -127,7 +127,7 @@ export default function ProjectConfigPage() {
   }
 
   return (
-    <div className="max-h-dvh h-dvh bg-background text-foreground">
+    <div className="h-dvh bg-background text-foreground overflow-y-auto">
       <div className="container mx-auto max-w-4xl py-8 px-4">
         <header className="flex items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-4">
