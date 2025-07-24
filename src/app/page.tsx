@@ -123,7 +123,7 @@ export default function RootPage() {
       </header>
       <main className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-8 overflow-y-auto">
         <div className="w-full max-w-4xl">
-          <div className="mb-8 text-center mt-32 sm:mt-0">
+          <div className="mb-8 text-center mt-10 sm:mt-0">
             <h2 className="text-3xl font-headline font-bold">
               Welcome, {user?.displayName ?? "User"}!
             </h2>

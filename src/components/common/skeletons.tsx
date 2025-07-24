@@ -20,7 +20,7 @@ export function DashboardSkeleton() {
         </div>
       </header>
       <main className="flex-1 w-full flex flex-col items-center p-4 sm:p-8 overflow-y-auto">
-        <div className="w-full max-w-4xl sm:mt-44 -mt-10">
+        <div className="w-full max-w-4xl sm:mt-44 -mt-20">
           <div className="mb-8 text-center mt-32 sm:mt-0">
             <Skeleton className="h-9 w-64 mx-auto" />
             <Skeleton className="h-5 w-96 mx-auto mt-3" />
