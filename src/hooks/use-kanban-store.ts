@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import type { Project, Column, Task, KanbanUser } from '@/types/kanban';
-import { useAuth } from './use-auth';
-import { toast, ToasterToast } from './use-toast';
-import { db } from '@/lib/firebase';
+import { useState, useEffect, useCallback } from "react";
+import type { Project, Column, Task, KanbanUser } from "@/types/kanban";
+import { useAuth } from "./use-auth";
+import { toast, ToasterToast } from "./use-toast";
+import { db } from "@/lib/firebase";
 import {
   collection,
   query,
@@ -17,27 +17,54 @@ import {
   getDocs,
   arrayUnion,
   arrayRemove,
-} from 'firebase/firestore';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+  writeBatch,
+} from "firebase/firestore";
 
 export type KanbanStore = {
   projects: Project[];
-  activeProjectId: string | null;
   isLoaded: boolean;
-  activeProject: Project | undefined;
-  addProject: (name: string) => Promise<void>;
-  setActiveProjectId: (id: string | null) => void;
-  addColumn: (title: string) => Promise<void>;
-  addTask: (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>) => Promise<void>;
-  moveTask: (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => Promise<void>;
-  updateColumnTitle: (projectId: string, columnId: string, title: string) => Promise<void>;
-  moveColumn: (draggedColumnId: string, targetColumnId: string) => Promise<void>;
+  addProject: (name: string) => Promise<string | null>;
+  addColumn: (projectId: string, title: string) => Promise<void>;
+  addTask: (
+    projectId: string,
+    columnId: string,
+    taskData: Omit<Task, "id" | "createdAt" | "updatedAt" | "completedAt">,
+  ) => Promise<void>;
+  moveTask: (
+    projectId: string,
+    taskId: string,
+    fromColumnId: string,
+    toColumnId: string,
+    toIndex: number,
+  ) => Promise<void>;
+  updateColumnTitle: (
+    projectId: string,
+    columnId: string,
+    title: string,
+  ) => Promise<void>;
+  moveColumn: (
+    projectId: string,
+    draggedColumnId: string,
+    targetColumnId: string,
+  ) => Promise<void>;
   updateProjectName: (projectId: string, newName: string) => Promise<void>;
-  updateTask: (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => Promise<void>;
-  deleteTask: (taskId: string, columnId: string) => Promise<void>;
+  updateTask: (
+    projectId: string,
+    taskId: string,
+    columnId: string,
+    updatedData: Partial<Omit<Task, "id">>,
+  ) => Promise<void>;
+  deleteTask: (
+    projectId: string,
+    taskId: string,
+    columnId: string,
+  ) => Promise<void>;
   deleteColumn: (projectId: string, columnId: string) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
-  inviteUserToProject: (projectId: string, email: string) => Promise<{ success: boolean; message: string }>;
+  inviteUserToProject: (
+    projectId: string,
+    email: string,
+  ) => Promise<{ success: boolean; message: string }>;
   getProjectMembers: (projectId: string) => Promise<KanbanUser[]>;
   removeUserFromProject: (projectId: string, userId: string) => Promise<void>;
 };
@@ -45,544 +72,668 @@ export type KanbanStore = {
 export function useKanbanStore(): KanbanStore {
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [toastMessage, setToastMessage] = useState<ToasterToast | null>(null);
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const urlProjectId = searchParams.get('projectId');
-
-  useEffect(() => {
-    if (toastMessage) {
-      toast(toastMessage);
-      setToastMessage(null);
-    }
-  }, [toastMessage]);
+  const getCacheKey = useCallback(
+    () => (user ? `kanban-cache-${user.uid}` : null),
+    [user],
+  );
 
   useEffect(() => {
     if (!user) {
+      const cacheKey = getCacheKey();
+      if (cacheKey) {
+        try {
+          localStorage.removeItem(cacheKey);
+        } catch (e) {
+          console.error("Could not clear cache", e);
+        }
+      }
       setProjects([]);
-      setActiveProjectId(null);
       setIsLoaded(true);
       return;
     }
 
+    const cacheKey = getCacheKey();
+    if (cacheKey) {
+      try {
+        const cachedData = localStorage.getItem(cacheKey);
+        if (cachedData) {
+          setProjects(JSON.parse(cachedData));
+        }
+      } catch (e) {
+        console.error("Could not load from cache", e);
+      }
+    }
     setIsLoaded(false);
-    const projectsRef = collection(db, 'projects');
-    const q = query(projectsRef, where('members', 'array-contains', user.uid));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const userProjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
-      setProjects(userProjects);
-      setIsLoaded(true);
-    }, (error) => {
+    const projectsRef = collection(db, "projects");
+    const q = query(projectsRef, where("members", "array-contains", user.uid));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const userProjects = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() }) as Project,
+        );
+        setProjects(userProjects);
+        setIsLoaded(true);
+
+        const cacheKey = getCacheKey();
+        if (cacheKey) {
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(userProjects));
+          } catch (e) {
+            console.error("Could not save to cache", e);
+          }
+        }
+      },
+      (error) => {
         console.error("Error fetching projects:", error);
-        setToastMessage({
-          id: 'projects-loaded-error',
-          title: 'Error loading projects',
-          description: 'There was an error loading your projects, try again later.',
-          variant: 'destructive',
+        toast({
+          id: "projects-loaded-error",
+          title: "Error Loading Projects",
+          description:
+            "There was an error loading your projects. Please try again later.",
+          variant: "destructive",
         });
         setIsLoaded(true);
-    });
+      },
+    );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, getCacheKey]);
 
-  useEffect(() => {
-    if (!isLoaded || pathname.startsWith('/config/')) {
-      return;
-    }
+  const updateProjectData = useCallback(
+    async (projectId: string, data: Partial<Omit<Project, "id">>) => {
+      const projectRef = doc(db, "projects", projectId);
+      await updateDoc(projectRef, {
+        ...data,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    [],
+  );
 
-    const urlProjectIsValid = urlProjectId && projects.some(p => p.id === urlProjectId);
-    if (urlProjectIsValid) {
-        if (activeProjectId !== urlProjectId) {
-            setActiveProjectId(urlProjectId);
-        }
-        return;
-    }
-
-    const activeProjectInStateIsValid = activeProjectId && projects.some(p => p.id === activeProjectId);
-    if (activeProjectInStateIsValid) {
-        router.replace(`/?projectId=${activeProjectId}`);
-        return;
-    }
-
-    if (projects.length > 0) {
-        router.replace(`/?projectId=${projects[0].id}`);
-        return;
-    }
-
-    if (urlProjectId) {
-        router.replace('/');
-    }
-  }, [isLoaded, projects, urlProjectId, activeProjectId, pathname, router]);
-
-  const selectProject = (id: string | null) => {
-    router.push(id ? `/?projectId=${id}` : '/');
-  };
-
-  const getProjectDoc = useCallback((projectId: string | null) => {
-      if (!projectId) throw new Error("No active project");
-      return doc(db, 'projects', projectId);
-  }, []);
-
-  const getProjectById = useCallback((projectId: string | null) => {
-    return projects.find(p => p.id === projectId);
-  }, [projects]);
-
-  const getActiveProject = useCallback(() => {
-    const project = projects.find(p => p.id === activeProjectId);
-    if (!project) throw new Error("Active project not found");
-    return project;
-  }, [projects, activeProjectId]);
-
-  const updateProjectData = async (projectId: string, data: Partial<Omit<Project, 'id'>>) => {
-      const projectRef = doc(db, 'projects', projectId);
-      await updateDoc(projectRef, { ...data, updatedAt: new Date().toISOString() });
-  }
-
-  const addProject = async (name: string) => {
-    if (!user) return;
-    const now = new Date().toISOString();
-    const newProjectData: Omit<Project, 'id'> = {
-      name,
-      ownerId: user.uid,
-      members: [user.uid],
-      createdAt: now,
-      updatedAt: now,
-      columns: [
-        { id: `col-${Date.now()}-1`, title: 'To Do', tasks: [], createdAt: now, updatedAt: now },
-        { id: `col-${Date.now()}-2`, title: 'In Progress', tasks: [], createdAt: now, updatedAt: now },
-        { id: `col-${Date.now()}-3`, title: 'Done', tasks: [], createdAt: now, updatedAt: now },
-      ],
-    };
-    try {
-        const docRef = await addDoc(collection(db, 'projects'), newProjectData);
-        selectProject(docRef.id);
-        setToastMessage({
-          id: 'project-created',
-          title: 'Project created',
-          description: `Project ${newProjectData.name.trim()} created successfully!`,
-          variant: 'default',
+  const addProject = useCallback(
+    async (name: string) => {
+      if (!user) return null;
+      const now = new Date().toISOString();
+      const newProjectData: Omit<Project, "id"> = {
+        name,
+        ownerId: user.uid,
+        members: [user.uid],
+        createdAt: now,
+        updatedAt: now,
+        columns: [
+          {
+            id: `col-${Date.now()}-1`,
+            title: "To Do",
+            tasks: [],
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            id: `col-${Date.now()}-2`,
+            title: "In Progress",
+            tasks: [],
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            id: `col-${Date.now()}-3`,
+            title: "Done",
+            tasks: [],
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+      };
+      try {
+        const docRef = await addDoc(collection(db, "projects"), newProjectData);
+        toast({
+          id: "project-created",
+          title: "Project Created",
+          description: `The project "${name.trim()}" has been created successfully.`,
+          variant: "default",
         });
-    } catch (error) {
+        return docRef.id;
+      } catch (error) {
         console.error("Error adding project:", error);
-        setToastMessage({
-          id: 'project-created-error',
-          title: 'Error creating project',
-          description: 'There was an error creating your project, try again later.',
-          variant: 'destructive',
+        toast({
+          id: "project-created-error",
+          title: "Error Creating Project",
+          description:
+            "There was an error creating your project. Please try again.",
+          variant: "destructive",
         });
-    }
-  };
+        return null;
+      }
+    },
+    [user],
+  );
 
-  const addColumn = async (title: string) => {
-    const project = getActiveProject();
-    const now = new Date().toISOString();
-    const newColumn: Column = { id: `col-${Date.now()}`, title, tasks: [], createdAt: now, updatedAt: now };
-    const columns = [...project.columns];
-    const doneColumnIndex = columns.findIndex(c => c.title === 'Done');
+  const addColumn = useCallback(
+    async (projectId: string, title: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+      const now = new Date().toISOString();
+      const newColumn: Column = {
+        id: `col-${Date.now()}`,
+        title,
+        tasks: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const columns = [...project.columns];
+      const doneColumnIndex = columns.findIndex((c) => c.title === "Done");
 
-    if (doneColumnIndex !== -1) {
-      columns.splice(doneColumnIndex, 0, newColumn);
-    } else {
-      columns.push(newColumn);
-    }
+      if (doneColumnIndex !== -1) {
+        columns.splice(doneColumnIndex, 0, newColumn);
+      } else {
+        columns.push(newColumn);
+      }
 
-    try {
-      await updateProjectData(project.id, { columns });
-      setToastMessage({
-        id: 'column-created',
-        title: 'Column created',
-        description: `Column ${newColumn.title.trim()} created successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error adding column:", error);
-      setToastMessage({
-        id: 'column-created-error',
-        title: 'Error creating column',
-        description: 'There was an error creating your column, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
-  
-  const addTask = async (columnId: string, taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>) => {
-    const project = getActiveProject();
-    const now = new Date().toISOString();
-    const newTask: Task = { ...taskData, id: `task-${Date.now()}`, createdAt: now, updatedAt: now };
-    if (newTask.deadline === undefined) {
-        delete (newTask as Partial<Task>).deadline;
-    }
-    const column = project.columns.find(c => c.id === columnId);
-    if (column && column.title === 'Done') {
+      try {
+        await updateProjectData(project.id, { columns });
+        toast({
+          id: "column-created",
+          title: "Column Created",
+          description: `Column "${title.trim()}" has been created.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error adding column:", error);
+        toast({
+          id: "column-created-error",
+          title: "Error Creating Column",
+          description:
+            "There was an error creating the column. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects, updateProjectData],
+  );
+
+  const addTask = useCallback(
+    async (
+      projectId: string,
+      columnId: string,
+      taskData: Omit<Task, "id" | "createdAt" | "updatedAt" | "completedAt">,
+    ) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+
+      const now = new Date().toISOString();
+      const newTask: Task = {
+        ...taskData,
+        id: `task-${Date.now()}`,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: null,
+      };
+
+      const column = project.columns.find((c) => c.id === columnId);
+      if (column && column.title === "Done") {
         newTask.completedAt = now;
-    }
-    const updatedColumns = project.columns.map(c => 
-        c.id === columnId ? { ...c, tasks: [...c.tasks, newTask] } : c
-    );
-    try {
-      await updateProjectData(project.id, { columns: updatedColumns });
-      setToastMessage({
-        id: 'task-created',
-        title: 'Task created',
-        description: `Task ${newTask.title.trim()} created successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error adding task:", error);
-      setToastMessage({
-        id: 'task-created-error',
-        title: 'Error creating task',
-        description: 'There was an error creating your task, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
+      }
 
-  const moveTask = async (taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => {
-    const project = getActiveProject();
-    const fromCol = project.columns.find(c => c.id === fromColumnId);
-    const originalTask = fromCol?.tasks.find(t => t.id === taskId);
-    
-    if (!originalTask) return;
-    
-    const toCol = project.columns.find(c => c.id === toColumnId);
-    
-    const taskToMove: Task = { ...originalTask, updatedAt: new Date().toISOString() };
-    
-    if (toCol?.title === 'Done') {
-      if (!taskToMove.completedAt) {
+      const updatedColumns = project.columns.map((c) =>
+        c.id === columnId ? { ...c, tasks: [newTask, ...c.tasks] } : c,
+      );
+
+      try {
+        await updateProjectData(project.id, { columns: updatedColumns });
+        toast({
+          id: "task-created",
+          title: "Task Created",
+          description: `Task "${newTask.title.trim()}" has been added.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error adding task:", error);
+        toast({
+          id: "task-created-error",
+          title: "Error Creating Task",
+          description: "There was an error adding the task. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects, updateProjectData],
+  );
+
+  const moveTask = useCallback(
+    async (
+      projectId: string,
+      taskId: string,
+      fromColumnId: string,
+      toColumnId: string,
+      toIndex: number,
+    ) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+
+      const fromColumn = project.columns.find((c) => c.id === fromColumnId);
+      const toColumn = project.columns.find((c) => c.id === toColumnId);
+      if (!fromColumn || !toColumn) return;
+
+      const taskToMove = fromColumn.tasks.find((t) => t.id === taskId);
+      if (!taskToMove) return;
+
+      const allTasks = project.columns.flatMap((c) => c.tasks);
+      const subtasks = allTasks.filter((t) => t.parentId === taskId);
+
+      if (toColumn.title === "Done") {
+        if (subtasks.length > 0 && subtasks.some((st) => !st.completedAt)) {
+          toast({
+            variant: "warning",
+            title: "Action Required",
+            description:
+              "Please complete all sub-tasks before moving this task to 'Done'.",
+          });
+          return;
+        }
         taskToMove.completedAt = new Date().toISOString();
+      } else {
+        taskToMove.completedAt = null;
       }
-    } else {
-      if (taskToMove.completedAt) {
-        delete (taskToMove as Partial<Task>).completedAt;
-      }
-    }
-    
-    const updatedColumns = [...project.columns];
-    
-    const sourceColIndex = updatedColumns.findIndex(c => c.id === fromColumnId);
-    if (sourceColIndex > -1) {
-      updatedColumns[sourceColIndex] = {
-        ...updatedColumns[sourceColIndex],
-        tasks: updatedColumns[sourceColIndex].tasks.filter(t => t.id !== taskId)
-      };
-    }
-    
-    const destColIndex = updatedColumns.findIndex(c => c.id === toColumnId);
-    if (destColIndex > -1) {
-      const destTasks = [...updatedColumns[destColIndex].tasks];
-      destTasks.splice(toIndex, 0, taskToMove);
-      updatedColumns[destColIndex] = {
-        ...updatedColumns[destColIndex],
-        tasks: destTasks
-      };
-    }
 
-    try {
-      await updateProjectData(project.id, { columns: updatedColumns });
-      setToastMessage({
-        id: 'column-moved',
-        title: 'Column moved',
-        description: `Column ${taskToMove.title.trim()} moved successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error moving task:", error);
-      setToastMessage({
-        id: 'column-moved-error',
-        title: 'Error moving column',
-        description: 'There was an error moving your column, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
+      taskToMove.updatedAt = new Date().toISOString();
 
-  const moveColumn = async (draggedColumnId: string, targetColumnId: string) => {
-    if (draggedColumnId === targetColumnId) return;
-    const project = getActiveProject();
-    const columns = [...project.columns];
-    const draggedIndex = columns.findIndex(c => c.id === draggedColumnId);
-    let targetIndex = columns.findIndex(c => c.id === targetColumnId);
+      const newFromColumnTasks = fromColumn.tasks.filter(
+        (t) => t.id !== taskId,
+      );
+      const newToColumnTasks = [...toColumn.tasks];
+      newToColumnTasks.splice(toIndex, 0, taskToMove);
 
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    const [draggedColumn] = columns.splice(draggedIndex, 1);
-    const doneColumn = columns.find(c => c.title === 'Done');
-    if (doneColumn && targetColumnId === doneColumn.id) {
-        const doneIndex = columns.findIndex(c => c.id === doneColumn.id);
-        columns.splice(doneIndex, 0, draggedColumn);
-    } else {
-        if (draggedIndex < targetIndex) {
-            targetIndex--;
+      const newColumns = project.columns.map((column) => {
+        if (column.id === fromColumnId) {
+          return { ...column, tasks: newFromColumnTasks };
         }
-        columns.splice(targetIndex, 0, draggedColumn);
-    }
-    try {
-      await updateProjectData(project.id, { columns });
-      setToastMessage({
-        id: 'column-moved',
-        title: 'Column moved',
-        description: `Column ${draggedColumn.title.trim()} moved successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error moving column:", error);
-      setToastMessage({
-        id: 'column-moved-error',
-        title: 'Error moving column',
-        description: 'There was an error moving your column, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
-  
-  const updateColumnTitle = async (projectId: string, columnId: string, title: string) => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) throw new Error("Project not found");
-    const now = new Date().toISOString();
-    const updatedColumns = project.columns.map(c =>
-        c.id === columnId ? { ...c, title, updatedAt: now } : c
-    );
-    try {
-      await updateProjectData(project.id, { columns: updatedColumns });
-      setToastMessage({
-        id: 'column-updated',
-        title: 'Column updated',
-        description: `${title.trim()}'s title updated successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error updating column title:", error);
-      setToastMessage({
-        id: 'column-updated-error',
-        title: 'Error updating column title',
-        description: 'There was an error updating your column title, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
-  
-  const updateProjectName = async (projectId: string, newName: string) => {
-    if (!projectId || !newName.trim()) return;
-
-    try {
-      await updateProjectData(projectId, { name: newName.trim() });
-      setToastMessage({
-        id: 'project-updated',
-        title: 'Project updated',
-        description: `${newName.trim()}'s name updated successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error updating project name:", error);
-      setToastMessage({
-        id: 'project-update-error',
-        title: 'Project update failed',
-        description: `Couldn't update project name. Please try again.`,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const updateTask = async (taskId: string, columnId: string, updatedData: Partial<Omit<Task, 'id'>>) => {
-    const project = getActiveProject();
-    let updatedTask: Task | undefined;
-    const updatedColumns = project.columns.map(c => {
-        if (c.id === columnId) {
-            const updatedTasks = c.tasks.map(t => {
-                if (t.id === taskId) {
-                    const taskToUpdate = { ...t, ...updatedData, updatedAt: new Date().toISOString() };
-                    if (updatedData.hasOwnProperty('deadline') && updatedData.deadline === undefined) {
-                        delete (taskToUpdate as Partial<Task>).deadline;
-                    }
-                    updatedTask = taskToUpdate;
-
-                    return taskToUpdate;
-                }
-                return t;
-            });
-            return { ...c, tasks: updatedTasks, updatedAt: new Date().toISOString() };
+        if (column.id === toColumnId) {
+          return { ...column, tasks: newToColumnTasks };
         }
-        return c;
-    });
-    try {
-      await updateProjectData(project.id, { columns: updatedColumns });
-      setToastMessage({
-        id: 'task-updated',
-        title: 'Task updated',
-        description: `${updatedTask?.title?.trim()}'s info updated successfully!`,
-        variant: 'default',
+        return column;
       });
-    } catch (error) {
-      console.error("Error updating task:", error);
-      setToastMessage({
-        id: 'task-updated-error',
-        title: 'Error updating task',
-        description: 'There was an error updating your task, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
 
-  const deleteTask = async (taskId: string, columnId: string) => {
-    const project = getActiveProject();
-    const task = project.columns.flatMap(c => c.tasks).find(t => t.id === taskId);
-    if (!task) return;
-    const updatedColumns = project.columns.map(c =>
-        c.id === columnId
-            ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId), updatedAt: new Date().toISOString() }
-            : c
-    );
-    try {
-      await updateProjectData(project.id, { columns: updatedColumns });
-      setToastMessage({
-        id: 'task-deleted',
-        title: 'Task deleted',
-        description: `Task ${task.title.trim()} deleted successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error deleting task:", error);
-      setToastMessage({
-        id: 'task-deleted-error',
-        title: 'Error deleting task',
-        description: 'There was an error deleting your task, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const deleteColumn = async (projectId: string, columnId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) throw new Error("Project not found");
-    const column = project.columns.find(c => c.id === columnId);
-    if (!column) return;
-    const updatedColumns = project.columns.filter(c => c.id !== columnId);
-    try {
-      await updateProjectData(project.id, { columns: updatedColumns });
-      setToastMessage({
-        id: 'column-deleted',
-        title: 'Column deleted',
-        description: `Column ${column.title.trim()} deleted successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error deleting column:", error);
-      setToastMessage({
-        id: 'column-deleted-error',
-        title: 'Error deleting column',
-        description: 'There was an error deleting your column, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const deleteProject = async (projectId: string) => {
-    const project = getProjectById(projectId);
-    if (!project) return;
-    const projectRef = getProjectDoc(projectId);
-    try {
-      await deleteDoc(projectRef);
-      if(activeProjectId === projectId) {
-          selectProject(projects.length > 1 ? projects.filter(p=>p.id !== projectId)[0].id : null);
+      try {
+        await updateProjectData(projectId, { columns: newColumns });
+      } catch (error) {
+        console.error("Error moving task:", error);
+        toast({
+          id: "task-moved-error",
+          title: "Error Moving Task",
+          description: "There was an error moving the task. Please try again.",
+          variant: "destructive",
+        });
       }
-      setToastMessage({
-        id: 'project-deleted',
-        title: 'Project deleted',
-        description: `Project ${project.name.trim()} deleted successfully!`,
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      setToastMessage({
-        id: 'project-deleted-error',
-        title: 'Error deleting project',
-        description: 'There was an error deleting your project, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
+    },
+    [projects, updateProjectData],
+  );
 
-  const inviteUserToProject = async (projectId: string, email: string) => {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('email', '==', email.toLowerCase()));
-    const querySnapshot = await getDocs(q);
+  const moveColumn = useCallback(
+    async (
+      projectId: string,
+      draggedColumnId: string,
+      targetColumnId: string,
+    ) => {
+      if (draggedColumnId === targetColumnId) return;
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
 
-    if (querySnapshot.empty) {
+      const columns = [...project.columns];
+      const draggedIndex = columns.findIndex((c) => c.id === draggedColumnId);
+      const targetIndex = columns.findIndex((c) => c.id === targetColumnId);
+
+      if (draggedIndex === -1 || targetIndex === -1) return;
+
+      const [draggedColumn] = columns.splice(draggedIndex, 1);
+      columns.splice(targetIndex, 0, draggedColumn);
+
+      try {
+        await updateProjectData(project.id, { columns });
+      } catch (error) {
+        console.error("Error moving column:", error);
+        toast({
+          id: "column-moved-error",
+          title: "Error Moving Column",
+          description:
+            "There was an error moving the column. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects, updateProjectData],
+  );
+
+  const updateColumnTitle = useCallback(
+    async (projectId: string, columnId: string, title: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+      const now = new Date().toISOString();
+      const updatedColumns = project.columns.map((c) =>
+        c.id === columnId ? { ...c, title, updatedAt: now } : c,
+      );
+      try {
+        await updateProjectData(project.id, { columns: updatedColumns });
+        toast({
+          id: "column-updated",
+          title: "Column Updated",
+          description: `The column title has been changed to "${title.trim()}".`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error updating column title:", error);
+        toast({
+          id: "column-updated-error",
+          title: "Error Updating Column",
+          description:
+            "There was an error updating the column title. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects, updateProjectData],
+  );
+
+  const updateProjectName = useCallback(
+    async (projectId: string, newName: string) => {
+      if (!projectId || !newName.trim()) return;
+
+      try {
+        await updateProjectData(projectId, { name: newName.trim() });
+        toast({
+          id: "project-updated",
+          title: "Project Updated",
+          description: `Project name changed to "${newName.trim()}".`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error updating project name:", error);
+        toast({
+          id: "project-update-error",
+          title: "Error Updating Project",
+          description: `Couldn't update project name. Please try again.`,
+          variant: "destructive",
+        });
+      }
+    },
+    [updateProjectData],
+  );
+
+  const updateTask = useCallback(
+    async (
+      projectId: string,
+      taskId: string,
+      columnId: string,
+      updatedData: Partial<Omit<Task, "id">>,
+    ) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+
+      const now = new Date().toISOString();
+
+      const newColumns = project.columns.map((c) => {
+        return {
+          ...c,
+          tasks: c.tasks.map((t) => {
+            if (t.id === taskId) {
+              return { ...t, ...updatedData, updatedAt: now } as Task;
+            }
+            return t;
+          }),
+        };
+      });
+
+      try {
+        await updateProjectData(projectId, { columns: newColumns });
+
+        const allTasks = newColumns.flatMap((c) => c.tasks);
+        const updatedTask = allTasks.find((t) => t.id === taskId);
+
+        if (
+          updatedTask?.parentId &&
+          updatedData.hasOwnProperty("completedAt")
+        ) {
+          const parentTask = allTasks.find(
+            (t) => t.id === updatedTask.parentId,
+          );
+          if (parentTask) {
+            const subtasks = allTasks.filter(
+              (st) => st.parentId === parentTask.id,
+            );
+            const allSubtasksComplete =
+              subtasks.length > 0 && subtasks.every((st) => !!st.completedAt);
+
+            if (allSubtasksComplete) {
+              toast({
+                id: "subtasks-complete-info",
+                title: "Sub-tasks Complete",
+                description: `You can now move "${parentTask.title}" to the 'Done' column.`,
+                variant: "default",
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error updating task:", error);
+        toast({
+          id: `task-update-error-${taskId}`,
+          title: "Error Updating Task",
+          description:
+            "There was an error updating the task. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects, updateProjectData],
+  );
+
+  const deleteTask = useCallback(
+    async (projectId: string, taskId: string, columnId: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+
+      const allTasks = project.columns.flatMap((c) => c.tasks);
+      const taskToDelete = allTasks.find((t) => t.id === taskId);
+      if (!taskToDelete) return;
+
+      const subtaskIds = allTasks
+        .filter((t) => t.parentId === taskId)
+        .map((st) => st.id);
+
+      const idsToDelete = [taskId, ...subtaskIds];
+
+      const updatedColumns = project.columns.map((column) => ({
+        ...column,
+        tasks: column.tasks.filter((t) => !idsToDelete.includes(t.id)),
+        updatedAt: new Date().toISOString(),
+      }));
+
+      try {
+        await updateProjectData(project.id, { columns: updatedColumns });
+        toast({
+          id: "task-deleted",
+          title: "Task Deleted",
+          description: `Task "${taskToDelete.title.trim()}" and its sub-tasks were deleted.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error deleting task:", error);
+        toast({
+          id: "task-deleted-error",
+          title: "Error Deleting Task",
+          description:
+            "There was an error deleting the task. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects, updateProjectData],
+  );
+
+  const deleteColumn = useCallback(
+    async (projectId: string, columnId: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+      const column = project.columns.find((c) => c.id === columnId);
+      if (!column) return;
+      if (column.tasks.length > 0) {
+        toast({
+          variant: "warning",
+          title: "Cannot Delete Column",
+          description:
+            "Please move or delete all tasks from this column first.",
+        });
+        return;
+      }
+      const updatedColumns = project.columns.filter((c) => c.id !== columnId);
+      try {
+        await updateProjectData(project.id, { columns: updatedColumns });
+        toast({
+          id: "column-deleted",
+          title: "Column Deleted",
+          description: `Column "${column.title.trim()}" has been deleted.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error deleting column:", error);
+        toast({
+          id: "column-deleted-error",
+          title: "Error Deleting Column",
+          description:
+            "There was an error deleting the column. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects, updateProjectData],
+  );
+
+  const deleteProject = useCallback(
+    async (projectId: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+      const projectRef = doc(db, "projects", projectId);
+      try {
+        await deleteDoc(projectRef);
+        toast({
+          id: "project-deleted",
+          title: "Project Deleted",
+          description: `Project "${project.name.trim()}" has been deleted.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error deleting project:", error);
+        toast({
+          id: "project-deleted-error",
+          title: "Error Deleting Project",
+          description:
+            "There was an error deleting the project. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects],
+  );
+
+  const inviteUserToProject = useCallback(
+    async (projectId: string, email: string) => {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email.toLowerCase()));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
         return { success: false, message: "User not found." };
-    }
-    
-    const userToInvite = querySnapshot.docs[0].data() as KanbanUser;
-    
-    try {
-      await updateProjectData(projectId, {
-          members: arrayUnion(userToInvite.uid) as any
-      });
-      setToastMessage({
-        id: 'user-invited',
-        title: 'User invited',
-        description: `User ${email} invited successfully!`,
-        variant: 'default',
-      });
-      return { success: true, message: `User ${email} invited.` };
-    } catch (error) {
-      console.error("Error inviting user:", error);
-      setToastMessage({
-        id: 'user-invited-error',
-        title: 'Error inviting user',
-        description: 'There was an error inviting your user, try again later.',
-        variant: 'destructive',
-      });
-      return { success: false, message: "Error inviting user." };
-    }
-  };
-  
-  const getProjectMembers = async (projectId: string): Promise<KanbanUser[]> => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project || !project.members) return [];
+      }
 
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('uid', 'in', project.members));
-    const querySnapshot = await getDocs(q);
+      const userToInvite = querySnapshot.docs[0].data() as KanbanUser;
 
-    return querySnapshot.docs.map(doc => doc.data() as KanbanUser);
-  };
-  
-  const removeUserFromProject = async (projectId: string, userId: string) => {
-    const project = getProjectById(projectId);
-    try {
-      await updateProjectData(projectId, {
-          members: arrayRemove(userId) as any
-      });
-      setToastMessage({
-          id: 'user-removed',
-          title: 'User removed',
-          description: `User ${userId} removed from project ${project?.name.trim()} successfully!`,
-          variant: 'default',
-      });
-    } catch (error) {
-      console.error("Error removing user:", error);
-      setToastMessage({
-        id: 'user-removed-error',
-        title: 'Error removing user',
-        description: 'There was an error removing your user from project, try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
+      try {
+        await updateProjectData(projectId, {
+          members: arrayUnion(userToInvite.uid) as any,
+        });
+        toast({
+          id: "user-invited",
+          title: "User Invited",
+          description: `An invitation has been sent to ${email}.`,
+          variant: "default",
+        });
+        return { success: true, message: `User ${email} invited.` };
+      } catch (error) {
+        console.error("Error inviting user:", error);
+        toast({
+          id: "user-invited-error",
+          title: "Error Inviting User",
+          description:
+            "There was an error inviting the user. Please try again.",
+          variant: "destructive",
+        });
+        return { success: false, message: "Error inviting user." };
+      }
+    },
+    [projects, updateProjectData],
+  );
 
-  const activeProject = projects.find(p => p.id === activeProjectId);
+  const getProjectMembers = useCallback(
+    async (projectId: string): Promise<KanbanUser[]> => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project || !project.members) return [];
 
-  return { 
-    projects, activeProjectId, setActiveProjectId: selectProject, addProject, addColumn, addTask, 
-    moveTask, isLoaded, activeProject, updateColumnTitle, moveColumn, updateProjectName, 
-    updateTask, deleteTask, deleteColumn, deleteProject, inviteUserToProject, getProjectMembers, removeUserFromProject
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("uid", "in", project.members));
+      const querySnapshot = await getDocs(q);
+
+      return querySnapshot.docs.map((doc) => doc.data() as KanbanUser);
+    },
+    [projects],
+  );
+
+  const removeUserFromProject = useCallback(
+    async (projectId: string, userId: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+      try {
+        await updateProjectData(projectId, {
+          members: arrayRemove(userId) as any,
+        });
+        toast({
+          id: "user-removed",
+          title: "User Removed",
+          description: `The user has been removed from the project.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error removing user:", error);
+        toast({
+          id: "user-removed-error",
+          title: "Error Removing User",
+          description: "There was an error removing the user from the project.",
+          variant: "destructive",
+        });
+      }
+    },
+    [projects, updateProjectData],
+  );
+
+  return {
+    projects,
+    addProject,
+    addColumn,
+    addTask,
+    moveTask,
+    isLoaded,
+    updateColumnTitle,
+    moveColumn,
+    updateProjectName,
+    updateTask,
+    deleteTask,
+    deleteColumn,
+    deleteProject,
+    inviteUserToProject,
+    getProjectMembers,
+    removeUserFromProject,
   };
 }

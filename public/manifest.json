@@ -9,7 +9,7 @@
   "scope": "/",
   "start_url": "/",
   "icons": [
-     {
+    {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml"

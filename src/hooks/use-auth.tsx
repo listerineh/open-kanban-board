@@ -1,16 +1,25 @@
-'use client';
-import { useState, useEffect, createContext, useContext, type ReactNode } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useRouter, usePathname } from 'next/navigation';
+"use client";
+import {
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  type ReactNode,
+} from "react";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useRouter, usePathname } from "next/navigation";
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
 };
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -21,14 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        await setDoc(userRef, {
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(
+          userRef,
+          {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
             photoURL: user.photoURL,
             lastLogin: serverTimestamp(),
-        }, { merge: true });
+          },
+          { merge: true },
+        );
       }
       setUser(user);
       setLoading(false);
@@ -39,13 +52,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
-    const isAuthPage = pathname === '/login';
+    const isAuthPage = pathname === "/login";
 
     if (!user && !isAuthPage) {
-      router.push('/login');
+      router.push("/login");
     }
+
     if (user && isAuthPage) {
-        router.push('/');
+      router.push("/");
     }
   }, [user, loading, router, pathname]);
 
@@ -59,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
