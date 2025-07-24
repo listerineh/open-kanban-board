@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,63 +9,91 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ChevronsUpDown, PlusCircle, Settings } from 'lucide-react';
-import type { Project } from '@/types/kanban';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import Link from 'next/link';
-import { useIsMobile } from '@/hooks/use-mobile';
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ChevronsUpDown, PlusCircle, Settings } from "lucide-react";
+import type { Project } from "@/types/kanban";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import Link from "next/link";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useRouter } from "next/navigation";
+import { useKanbanStore } from "@/hooks/use-kanban-store";
 
 type ProjectManagerProps = {
   projects: Project[];
   activeProjectId: string | null;
-  onSelectProject: (id: string | null) => void;
-  onAddProject: (name: string) => Promise<void>;
 };
 
 export function ProjectManager({
   projects,
   activeProjectId,
-  onSelectProject,
-  onAddProject,
 }: ProjectManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectName, setNewProjectName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMobile = useIsMobile();
+  const router = useRouter();
+  const store = useKanbanStore();
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
 
   const handleProjectSubmit = async () => {
     if (newProjectName.trim() && !isSubmitting) {
       setIsSubmitting(true);
-      await onAddProject(newProjectName.trim());
+      const newProjectId = await store.addProject(newProjectName.trim());
       setIsSubmitting(false);
       closeDialog();
+      if (newProjectId) {
+        router.push(`/p/${newProjectId}`);
+      }
     }
   };
-  
+
   const closeDialog = () => {
     setIsDialogOpen(false);
-    setNewProjectName('');
-  }
+    setNewProjectName("");
+  };
 
   const openNewProjectDialog = () => {
-    setNewProjectName('');
+    setNewProjectName("");
     setIsDialogOpen(true);
-  }
+  };
+
+  const handleSelectProject = (id: string | null) => {
+    if (id) {
+      router.push(`/p/${id}`);
+    } else {
+      router.push("/");
+    }
+  };
 
   return (
     <>
-      <div className={`flex items-center justify-between gap-2 ${isMobile ? 'w-full' : ''}`}>
-        <div className='w-full'>
+      <div
+        className={`flex items-center justify-between gap-2 ${isMobile ? "w-full" : ""}`}
+      >
+        <div className="w-full">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-48 justify-between">
-                <span className="truncate">{activeProject?.name || 'Select Project'}</span>
+              <Button
+                variant="outline"
+                className="w-full sm:w-48 justify-between"
+              >
+                <span className="truncate">
+                  {activeProject?.name || "Select Project"}
+                </span>
                 <ChevronsUpDown className="h-4 w-4 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
@@ -73,7 +101,10 @@ export function ProjectManager({
               <DropdownMenuLabel>Projects</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {projects.map((project) => (
-                <DropdownMenuItem key={project.id} onSelect={() => onSelectProject(project.id)}>
+                <DropdownMenuItem
+                  key={project.id}
+                  onSelect={() => handleSelectProject(project.id)}
+                >
                   {project.name}
                 </DropdownMenuItem>
               ))}
@@ -86,22 +117,25 @@ export function ProjectManager({
           </DropdownMenu>
         </div>
         {activeProject && (
-            <Tooltip>
-                <TooltipTrigger asChild>
-                <Link href={`/config/${activeProject.id}`} passHref>
-                    <Button variant="ghost" size="icon">
-                        <Settings className="h-4 w-4" />
-                    </Button>
-                </Link>
-                </TooltipTrigger>
-                <TooltipContent>
-                <p>Project Settings</p>
-                </TooltipContent>
-            </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href={`/config/${activeProject.id}`} passHref>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Project Settings</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(isOpen) => !isOpen && closeDialog()}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
@@ -117,14 +151,18 @@ export function ProjectManager({
                 onChange={(e) => setNewProjectName(e.target.value)}
                 className="col-span-3"
                 placeholder="e.g. Website Redesign"
-                onKeyDown={(e) => e.key === 'Enter' && handleProjectSubmit()}
+                onKeyDown={(e) => e.key === "Enter" && handleProjectSubmit()}
                 autoFocus
               />
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" onClick={handleProjectSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Project'}
+            <Button
+              type="submit"
+              onClick={handleProjectSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Creating..." : "Create Project"}
             </Button>
           </DialogFooter>
         </DialogContent>

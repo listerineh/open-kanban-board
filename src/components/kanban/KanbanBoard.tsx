@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
-import type { Project, Task, KanbanUser } from '@/types/kanban';
-import { KanbanColumn } from './KanbanColumn';
-import { NewColumnDialog } from './NewColumnDialog';
-import { TaskDetailsDialog } from './TaskDetailsDialog';
-import type { KanbanStore } from '@/hooks/use-kanban-store';
-import Confetti from 'react-confetti';
+import { useEffect, useState, useRef, useMemo } from "react";
+import type { Project, Task, KanbanUser } from "@/types/kanban";
+import { KanbanColumn } from "./KanbanColumn";
+import { NewColumnDialog } from "./NewColumnDialog";
+import { TaskDetailsDialog } from "./TaskDetailsDialog";
+import type { KanbanStore } from "@/hooks/use-kanban-store";
+import Confetti from "react-confetti";
 
 type KanbanBoardProps = {
   project: Project;
@@ -14,35 +14,55 @@ type KanbanBoardProps = {
 };
 
 export function KanbanBoard({ project, store }: KanbanBoardProps) {
-  const [_, setDraggedTask] = useState<{ task: Task; fromColumnId: string } | null>(null);
+  const [_, setDraggedTask] = useState<{
+    task: Task;
+    fromColumnId: string;
+  } | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
-  const [editingTask, setEditingTask] = useState<{ task: Task; columnId: string } | null>(null);
+  const [editingTask, setEditingTask] = useState<{
+    task: Task;
+    columnId: string;
+  } | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const prevProjectRef = useRef<Project>();
 
+  const allTasks = useMemo(
+    () => project.columns.flatMap((c) => c.tasks),
+    [project.columns],
+  );
+
   useEffect(() => {
     function handleResize() {
-        setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     }
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     handleResize();
-    return () => window.removeEventListener('resize', handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
     const prevProject = prevProjectRef.current;
 
     if (prevProject && project) {
-        const prevCompletedTasks = new Set(prevProject.columns.flatMap(c => c.tasks).filter(t => t.completedAt).map(t => t.id));
-        const currentCompletedTasks = project.columns.flatMap(c => c.tasks).filter(t => t.completedAt);
+      const prevCompletedTasks = new Set(
+        prevProject.columns
+          .flatMap((c) => c.tasks)
+          .filter((t) => t.completedAt)
+          .map((t) => t.id),
+      );
+      const currentCompletedTasks = project.columns
+        .flatMap((c) => c.tasks)
+        .filter((t) => t.completedAt);
 
-        const newlyCompletedTask = currentCompletedTasks.find(t => !prevCompletedTasks.has(t.id));
+      const newlyCompletedTask = currentCompletedTasks.find(
+        (t) => !prevCompletedTasks.has(t.id),
+      );
 
-        if (newlyCompletedTask) {
-            setShowConfetti(true);
-        }
+      if (newlyCompletedTask) {
+        setShowConfetti(true);
+      }
     }
 
     prevProjectRef.current = project;
@@ -50,7 +70,7 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
 
   useEffect(() => {
     if (project.id) {
-        store.getProjectMembers(project.id).then(setMembers);
+      store.getProjectMembers(project.id).then(setMembers);
     }
   }, [project.id, store]);
 
@@ -65,26 +85,34 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
   const handleColumnDragStart = (columnId: string) => {
     setDraggedColumnId(columnId);
   };
-  
+
   const handleColumnDrop = (targetColumnId: string) => {
     if (draggedColumnId && draggedColumnId !== targetColumnId) {
-      store.moveColumn(draggedColumnId, targetColumnId);
+      store.moveColumn(project.id, draggedColumnId, targetColumnId);
     }
   };
 
   const handleColumnDragEnd = () => {
     setDraggedColumnId(null);
   };
-  
+
   return (
     <>
-      {showConfetti && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} onConfettiComplete={() => setShowConfetti(false)} />}
+      {showConfetti && (
+        <Confetti
+          width={windowSize.width}
+          height={windowSize.height}
+          recycle={false}
+          onConfettiComplete={() => setShowConfetti(false)}
+        />
+      )}
       <div className="w-full sm:flex-1 sm:w-auto p-2 sm:p-4 md:p-6 flex flex-col sm:flex-row gap-4 overflow-x-auto max-w-screen min-w-0 min-h-0 h-full max-h-screen">
         {project.columns.map((column) => (
           <KanbanColumn
             key={column.id}
             projectId={project.id}
             column={column}
+            allTasks={allTasks}
             store={store}
             members={members}
             onTaskDragStart={handleTaskDragStart}
@@ -93,23 +121,32 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
             onColumnDrop={handleColumnDrop}
             onColumnDragEnd={handleColumnDragEnd}
             draggedColumnId={draggedColumnId}
-            onTaskClick={(task) => setEditingTask({ task, columnId: column.id })}
+            onTaskClick={(task) =>
+              setEditingTask({ task, columnId: column.id })
+            }
           />
         ))}
         <div className="flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[100px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow">
-          <NewColumnDialog onAddColumn={store.addColumn} />
+          <NewColumnDialog
+            projectId={project.id}
+            onAddColumn={store.addColumn}
+          />
         </div>
       </div>
       <TaskDetailsDialog
         isOpen={!!editingTask}
         onClose={() => setEditingTask(null)}
+        projectId={project.id}
         task={editingTask?.task ?? null}
         columnId={editingTask?.columnId ?? null}
         columns={project.columns}
+        allTasks={allTasks}
         members={members}
         onUpdateTask={store.updateTask}
         onDeleteTask={store.deleteTask}
         onMoveTask={store.moveTask}
+        onAddTask={store.addTask}
+        onTaskClick={(task, columnId) => setEditingTask({ task, columnId })}
       />
     </>
   );

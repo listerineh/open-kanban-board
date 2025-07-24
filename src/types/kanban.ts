@@ -3,11 +3,12 @@ export interface Task {
   title: string;
   description?: string;
   assignee?: string;
-  priority?: 'Urgent' | 'High' | 'Medium' | 'Low';
+  priority?: "Urgent" | "High" | "Medium" | "Low";
   createdAt: string;
   updatedAt: string;
   deadline?: string;
   completedAt?: string;
+  parentId?: string;
 }
 
 export interface Column {
@@ -29,8 +30,8 @@ export interface Project {
 }
 
 export interface KanbanUser {
-    uid: string;
-    email: string | null;
-    displayName: string | null;
-    photoURL: string | null;
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
 }
