@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,8 @@ import {
   Minus,
   Tag,
   History,
-  MessageSquarePlus,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 import type { Task, Column, KanbanUser, Project, Label as LabelType, Activity } from '@/types/kanban';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -44,6 +45,8 @@ import { Separator } from '../ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '../ui/badge';
+import { useAuth } from '@/hooks/use-auth';
+import { useKanbanStore } from '@/hooks/use-kanban-store';
 
 type TaskDetailsDialogProps = {
   isOpen: boolean;
@@ -81,10 +84,10 @@ export function TaskDetailsDialog({
   isOpen,
   onClose,
   project,
-  task,
-  columnId,
+  task: initialTask,
+  columnId: initialColumnId,
   columns,
-  allTasks,
+  allTasks: allProjectTasks,
   members,
   onUpdateTask,
   onDeleteTask,
@@ -92,6 +95,11 @@ export function TaskDetailsDialog({
   onAddTask,
   onTaskClick,
 }: TaskDetailsDialogProps) {
+  const store = useKanbanStore();
+  const { user: currentUser } = useAuth();
+  const [task, setTask] = useState(initialTask);
+  const [columnId, setColumnId] = useState(initialColumnId);
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
@@ -103,6 +111,8 @@ export function TaskDetailsDialog({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newComment, setNewComment] = useState('');
+  const [isCommenting, setIsCommenting] = useState(false);
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState('details');
@@ -110,17 +120,27 @@ export function TaskDetailsDialog({
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
   const minutes = ['00', '15', '30', '45'];
 
+  const [showMentionPopover, setShowMentionPopover] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const updatedTask = allProjectTasks.find((t) => t.id === initialTask?.id) ?? null;
+    setTask(updatedTask);
+    setColumnId(initialColumnId);
+  }, [initialTask, initialColumnId, allProjectTasks]);
+
   const subtasks = useMemo(() => {
     if (!task) return [];
-    return allTasks
+    return allProjectTasks
       .filter((t) => t.parentId === task.id)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [allTasks, task]);
+  }, [allProjectTasks, task]);
 
   const parentTask = useMemo(() => {
     if (!task?.parentId) return null;
-    return allTasks.find((t) => t.id === task.parentId) ?? null;
-  }, [allTasks, task]);
+    return allProjectTasks.find((t) => t.id === task.parentId) ?? null;
+  }, [allProjectTasks, task]);
 
   const completedSubtasks = useMemo(() => subtasks.filter((st) => !!st.completedAt).length, [subtasks]);
   const subtaskProgress = useMemo(
@@ -132,6 +152,11 @@ export function TaskDetailsDialog({
   const enableSubtasks = useMemo(() => project.enableSubtasks ?? true, [project.enableSubtasks]);
   const enableDeadlines = useMemo(() => project.enableDeadlines ?? true, [project.enableDeadlines]);
   const enableLabels = useMemo(() => project.enableLabels ?? true, [project.enableLabels]);
+
+  const activitiesAndComments = useMemo(() => {
+    if (!task?.activity) return [];
+    return [...task.activity].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [task]);
 
   useEffect(() => {
     if (task && isOpen) {
@@ -149,7 +174,9 @@ export function TaskDetailsDialog({
         setTime('');
       }
       setStatus(columnId);
-      setActiveTab('details');
+      if (activeTab === '') setActiveTab('details');
+    } else {
+      setActiveTab('');
     }
   }, [task, columnId, isOpen]);
 
@@ -270,6 +297,45 @@ export function TaskDetailsDialog({
     setTime(`${currentHour || '00'}:${newMinute}`);
   };
 
+  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setNewComment(text);
+
+    const match = /@(\w*)$/.exec(text);
+    if (match) {
+      setMentionQuery(match[1]);
+      setShowMentionPopover(true);
+    } else {
+      setShowMentionPopover(false);
+    }
+  };
+
+  const handleMentionSelect = (member: KanbanUser) => {
+    const currentText = newComment;
+    const mentionStartIndex = currentText.lastIndexOf('@');
+    const newText = `${currentText.slice(0, mentionStartIndex)}@${member.displayName} `;
+    setNewComment(newText);
+    setShowMentionPopover(false);
+    commentTextareaRef.current?.focus();
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !task) return;
+    setIsCommenting(true);
+
+    const mentions = members.filter((m) => newComment.includes(`@${m.displayName}`)).map((m) => m.uid);
+
+    await store.addComment(project.id, task.id, newComment, mentions);
+    setNewComment('');
+    setIsCommenting(false);
+  };
+
+  const mentionableMembers = (members || []).filter(
+    (m) =>
+      m.displayName?.toLowerCase().includes(mentionQuery.toLowerCase()) ||
+      m.email?.toLowerCase().includes(mentionQuery.toLowerCase()),
+  );
+
   if (!isOpen || !task) {
     return null;
   }
@@ -297,6 +363,12 @@ export function TaskDetailsDialog({
                   className="rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 font-semibold text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
                 >
                   Details
+                </TabsTrigger>
+                <TabsTrigger
+                  value="comments"
+                  className="rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 font-semibold text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+                >
+                  Comments
                 </TabsTrigger>
                 <TabsTrigger
                   value="activity"
@@ -588,10 +660,10 @@ export function TaskDetailsDialog({
                 </div>
               )}
             </TabsContent>
-            <TabsContent value="activity" className="px-6 pb-4 flex-grow overflow-y-auto mt-4">
-              <div className="space-y-4">
-                {(task.activity ?? [])
-                  .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            <TabsContent value="comments" className="px-6 pb-4 flex-grow flex flex-col gap-4 overflow-y-auto mt-4">
+              <div className="flex-grow space-y-4 overflow-y-auto pr-2">
+                {activitiesAndComments
+                  .filter((a) => a.type === 'comment')
                   .map((act) => {
                     const member = members.find((m) => m.uid === act.userId);
                     return (
@@ -600,24 +672,113 @@ export function TaskDetailsDialog({
                           <AvatarImage src={member?.photoURL ?? undefined} alt={member?.displayName ?? 'User'} />
                           <AvatarFallback>{member?.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                         </Avatar>
-                        <div>
-                          <p className="text-sm">
-                            <span className="font-semibold">{member?.displayName ?? 'A user'}</span>
-                            <span
-                              dangerouslySetInnerHTML={{
-                                __html: ` ${act.text}`,
-                              }}
-                            />
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(act.timestamp), {
-                              addSuffix: true,
-                            })}
-                          </p>
+                        <div className="flex-grow">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold">{member?.displayName ?? 'A user'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(act.timestamp), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <div
+                            className="prose prose-sm dark:prose-invert text-foreground text-sm"
+                            dangerouslySetInnerHTML={{
+                              __html: act.text.replace(/@(\w+(\s\w+)*)/g, '<strong>@$1</strong>'),
+                            }}
+                          />
                         </div>
                       </div>
                     );
                   })}
+              </div>
+              <div className="relative">
+                <Popover open={showMentionPopover} onOpenChange={setShowMentionPopover}>
+                  <PopoverTrigger asChild>
+                    <div className="w-full"></div>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-1 w-[--radix-popover-trigger-width]">
+                    <div className="max-h-48 overflow-y-auto">
+                      {mentionableMembers.map((member) => (
+                        <div
+                          key={member.uid}
+                          onClick={() => handleMentionSelect(member)}
+                          className="flex items-center gap-2 p-2 rounded-md hover:bg-accent cursor-pointer"
+                        >
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={member.photoURL ?? ''} />
+                            <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{member.displayName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <div className="flex items-start gap-2">
+                  <Avatar className="h-8 w-8 mt-1 flex-shrink-0">
+                    <AvatarImage src={currentUser?.photoURL ?? ''} />
+                    <AvatarFallback>{currentUser?.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-grow">
+                    <Textarea
+                      ref={commentTextareaRef}
+                      value={newComment}
+                      onChange={handleCommentChange}
+                      placeholder="Add a comment... Type @ to mention a user."
+                      className="min-h-[60px]"
+                      disabled={isCommenting}
+                    />
+                    <div className="mt-2 flex justify-end">
+                      <Button size="sm" onClick={handleAddComment} disabled={!newComment.trim() || isCommenting}>
+                        {isCommenting ? (
+                          'Saving...'
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-2" /> Comment
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="activity" className="px-6 pb-4 flex-grow overflow-y-auto mt-4">
+              <div className="space-y-4">
+                {activitiesAndComments.map((act) => {
+                  const member = members.find((m) => m.uid === act.userId);
+                  const isComment = act.type === 'comment';
+                  return (
+                    <div key={act.id} className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-1">
+                        {isComment ? (
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member?.photoURL ?? undefined} alt={member?.displayName ?? 'User'} />
+                            <AvatarFallback>{member?.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="h-8 w-8 flex items-center justify-center bg-muted rounded-full">
+                            <History className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm">
+                          <span className="font-semibold">{member?.displayName ?? 'A user'}</span>
+                          <span
+                            dangerouslySetInnerHTML={{
+                              __html: ` ${act.text.replace(/@(\w+(\s\w+)*)/g, '<strong>@$1</strong>')}`,
+                            }}
+                          />
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(act.timestamp), {
+                            addSuffix: true,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
                 {(!task.activity || task.activity.length === 0) && (
                   <div className="text-center py-8 text-muted-foreground">
                     <History className="mx-auto h-8 w-8 mb-2" />
