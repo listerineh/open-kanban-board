@@ -1,20 +1,14 @@
-"use client";
-import Image from "next/image";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { FullPageLoader } from "@/components/common/loader";
-import { cn } from "@/lib/utils";
+'use client';
+import Image from 'next/image';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { FullPageLoader } from '@/components/common/loader';
+import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
@@ -27,7 +21,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/");
+      router.push('/');
     }
   }, [user, loading, router]);
 
@@ -35,9 +29,9 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      router.push("/");
+      router.push('/');
     } catch (error) {
-      console.error("Error during Google sign-in:", error);
+      console.error('Error during Google sign-in:', error);
     }
   };
 
@@ -52,26 +46,18 @@ export default function LoginPage() {
       </div>
       <Card
         className={cn(
-          "w-full max-w-md z-10 bg-card/80 backdrop-blur-sm border shadow-2xl transition-all duration-1000",
-          isMounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8",
+          'w-full max-w-md z-10 bg-card/80 backdrop-blur-sm border shadow-2xl transition-all duration-1000',
+          isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8',
         )}
       >
         <CardHeader className="text-center p-8">
           <div className="mx-auto flex items-center justify-center gap-3 mb-2">
-            <Image
-              src="/icon.svg"
-              width={24}
-              height={24}
-              alt="OpenKanban icon"
-            />
+            <Image src="/icon.svg" width={24} height={24} alt="OpenKanban icon" />
             <h1 className="text-4xl font-bold font-headline">OpenKanban</h1>
           </div>
-          <CardTitle className="text-xl font-medium text-muted-foreground">
-            Streamline Your Workflow
-          </CardTitle>
+          <CardTitle className="text-xl font-medium text-muted-foreground">Streamline Your Workflow</CardTitle>
           <CardDescription className="pt-2 max-w-sm mx-auto">
-            The open-source Kanban board designed for clarity, collaboration,
-            and getting things done.
+            The open-source Kanban board designed for clarity, collaboration, and getting things done.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-6 p-8 pt-0">
@@ -91,11 +77,7 @@ export default function LoginPage() {
             className="w-full text-sm bg-white hover:bg-white/90"
             onClick={handleGoogleLogin}
           >
-            <svg
-              viewBox="0 0 48 48"
-              xmlns="http://www.w3.org/2000/svg"
-              className="mr-2 h-5 w-5"
-            >
+            <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5">
               <title>Google</title>
               <path
                 fill="#FFC107"

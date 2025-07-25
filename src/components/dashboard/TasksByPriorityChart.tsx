@@ -1,41 +1,28 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import type { Task } from "@/types/kanban";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useMemo } from 'react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import type { Task } from '@/types/kanban';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 type TasksByPriorityChartProps = {
   tasks: Task[];
 };
 
 const COLORS = {
-  Urgent: "hsl(var(--destructive))",
-  High: "hsl(var(--warning))",
-  Medium: "hsl(var(--primary))",
-  Low: "hsl(var(--muted-foreground))",
+  Urgent: 'hsl(var(--destructive))',
+  High: 'hsl(var(--warning))',
+  Medium: 'hsl(var(--primary))',
+  Low: 'hsl(var(--muted-foreground))',
 };
 
-const priorities: Task["priority"][] = ["Urgent", "High", "Medium", "Low"];
+const priorities: Task['priority'][] = ['Urgent', 'High', 'Medium', 'Low'];
 
 export function TasksByPriorityChart({ tasks }: TasksByPriorityChartProps) {
   const chartData = useMemo(() => {
     const priorityCounts = tasks.reduce(
       (acc, task) => {
-        const priority = task.priority || "Medium";
+        const priority = task.priority || 'Medium';
         acc[priority] = (acc[priority] || 0) + 1;
         return acc;
       },
@@ -57,9 +44,7 @@ export function TasksByPriorityChart({ tasks }: TasksByPriorityChartProps) {
           <CardTitle>Tasks by Priority</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-80">
-          <p className="text-muted-foreground">
-            No tasks with priorities to display.
-          </p>
+          <p className="text-muted-foreground">No tasks with priorities to display.</p>
         </CardContent>
       </Card>
     );
@@ -69,9 +54,7 @@ export function TasksByPriorityChart({ tasks }: TasksByPriorityChartProps) {
     <Card>
       <CardHeader>
         <CardTitle>Tasks by Priority</CardTitle>
-        <CardDescription>
-          Breakdown of tasks by their assigned priority level.
-        </CardDescription>
+        <CardDescription>Breakdown of tasks by their assigned priority level.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="w-full h-80">
@@ -89,26 +72,21 @@ export function TasksByPriorityChart({ tasks }: TasksByPriorityChartProps) {
                 nameKey="name"
               >
                 {chartData.map((entry) => (
-                  <Cell
-                    key={`cell-${entry.name}`}
-                    fill={COLORS[entry.name as keyof typeof COLORS]}
-                  />
+                  <Cell key={`cell-${entry.name}`} fill={COLORS[entry.name as keyof typeof COLORS]} />
                 ))}
               </Pie>
               <Tooltip
-                cursor={{ fill: "transparent" }}
+                cursor={{ fill: 'transparent' }}
                 contentStyle={{
-                  background: "hsl(var(--card))",
-                  borderColor: "hsl(var(--border))",
-                  borderRadius: "var(--radius)",
+                  background: 'hsl(var(--card))',
+                  borderColor: 'hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
                 }}
                 itemStyle={{
-                  color: "white",
+                  color: 'white',
                 }}
               />
-              <Legend
-                wrapperStyle={{ color: "hsl(var(--muted-foreground))" }}
-              />
+              <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>

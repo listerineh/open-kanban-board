@@ -1,34 +1,21 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import type { Project } from "@/types/kanban";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useMemo } from 'react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import type { Project } from '@/types/kanban';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 type TaskStatusChartProps = {
   project: Project;
 };
 
 const COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(var(--muted-foreground))",
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--muted-foreground))',
 ];
 
 export function TaskStatusChart({ project }: TaskStatusChartProps) {
@@ -43,9 +30,7 @@ export function TaskStatusChart({ project }: TaskStatusChartProps) {
     <Card>
       <CardHeader>
         <CardTitle>Task Distribution by Status</CardTitle>
-        <CardDescription>
-          Number of tasks in each column of the board.
-        </CardDescription>
+        <CardDescription>Number of tasks in each column of the board.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="w-full h-80">
@@ -63,26 +48,21 @@ export function TaskStatusChart({ project }: TaskStatusChartProps) {
                 nameKey="name"
               >
                 {chartData.map((_, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                  />
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
-                cursor={{ fill: "transparent" }}
+                cursor={{ fill: 'transparent' }}
                 contentStyle={{
-                  background: "hsl(var(--card))",
-                  borderColor: "hsl(var(--border))",
-                  borderRadius: "var(--radius)",
+                  background: 'hsl(var(--card))',
+                  borderColor: 'hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
                 }}
                 itemStyle={{
-                  color: "white",
+                  color: 'white',
                 }}
               />
-              <Legend
-                wrapperStyle={{ color: "hsl(var(--muted-foreground))" }}
-              />
+              <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>

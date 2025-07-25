@@ -1,17 +1,11 @@
-"use client";
+'use client';
 
-import { useParams, useRouter } from "next/navigation";
-import { useKanbanStore } from "@/hooks/use-kanban-store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useParams, useRouter } from 'next/navigation';
+import { useKanbanStore } from '@/hooks/use-kanban-store';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   ArrowLeft,
   Trash2,
@@ -24,15 +18,13 @@ import {
   Check,
   Tag,
   LayoutDashboard,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import type {
-  Project,
-  Column,
-  KanbanUser,
-  Label as LabelType,
-} from "@/types/kanban";
-import { useToast } from "@/hooks/use-toast";
+  Search,
+  Send,
+  Clock,
+} from 'lucide-react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import type { Project, Column, KanbanUser, Label as LabelType, Invitation } from '@/types/kanban';
+import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,35 +34,33 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { FullPageLoader } from "@/components/common/loader";
-import { useAuth } from "@/hooks/use-auth";
-import { UserNav } from "@/components/auth/user-nav";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+} from '@/components/ui/alert-dialog';
+import { FullPageLoader } from '@/components/common/loader';
+import { useAuth } from '@/hooks/use-auth';
+import { UserNav } from '@/components/auth/user-nav';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { formatDistanceToNow } from 'date-fns';
 
 const colorSwatches = [
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#84cc16",
-  "#22c55e",
-  "#14b8a6",
-  "#06b6d4",
-  "#3b82f6",
-  "#6366f1",
-  "#8b5cf6",
-  "#a855f7",
-  "#d946ef",
-  "#ec4899",
-  "#f43f5e",
-  "#78716c",
-  "#64748b",
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#84cc16',
+  '#22c55e',
+  '#14b8a6',
+  '#06b6d4',
+  '#3b82f6',
+  '#6366f1',
+  '#8b5cf6',
+  '#a855f7',
+  '#d946ef',
+  '#ec4899',
+  '#f43f5e',
+  '#78716c',
+  '#64748b',
 ];
 
 export default function ProjectConfigPage() {
@@ -81,29 +71,26 @@ export default function ProjectConfigPage() {
   const { user: currentUser, loading: authLoading } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
-  const [projectName, setProjectName] = useState("");
+  const [projectName, setProjectName] = useState('');
   const [columns, setColumns] = useState<Column[]>([]);
   const [labels, setLabels] = useState<LabelType[]>([]);
   const [members, setMembers] = useState<KanbanUser[]>([]);
-  const [inviteEmail, setInviteEmail] = useState("");
+  const [pendingMembers, setPendingMembers] = useState<Invitation[]>([]);
+  const [inviteSearch, setInviteSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<KanbanUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [enableSubtasks, setEnableSubtasks] = useState(true);
   const [enableDeadlines, setEnableDeadlines] = useState(true);
   const [enableLabels, setEnableLabels] = useState(true);
   const [enableDashboard, setEnableDashboard] = useState(true);
 
   const [columnToDelete, setColumnToDelete] = useState<Column | null>(null);
-  const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] =
-    useState(false);
-
-  // Label editing state
-  const [newLabelName, setNewLabelName] = useState("");
+  const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
+  const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(colorSwatches[0]);
   const [editingLabel, setEditingLabel] = useState<LabelType | null>(null);
 
-  const allTasks = useMemo(
-    () => project?.columns.flatMap((c) => c.tasks) ?? [],
-    [project],
-  );
+  const allTasks = useMemo(() => project?.columns.flatMap((c) => c.tasks) ?? [], [project]);
 
   const hasSubtasks = useMemo(() => {
     return allTasks.some((t) => !!t.parentId);
@@ -129,29 +116,45 @@ export default function ProjectConfigPage() {
       setProjectName(foundProject.name);
       setColumns(foundProject.columns);
       setLabels(foundProject.labels ?? []);
+      setPendingMembers(foundProject.pendingMembers ?? []);
       setEnableSubtasks(foundProject.enableSubtasks ?? true);
       setEnableDeadlines(foundProject.enableDeadlines ?? true);
       setEnableLabels(foundProject.enableLabels ?? true);
       setEnableDashboard(foundProject.enableDashboard ?? true);
       store.getProjectMembers(projectId).then(setMembers);
     } else {
-      router.replace("/");
+      router.replace('/');
     }
   }, [projectId, store.projects, store.isLoaded, authLoading, router, store]);
+
+  const handleSearchUsers = useCallback(
+    async (query: string) => {
+      setInviteSearch(query);
+      if (query.trim().length < 2) {
+        setSearchResults([]);
+        return;
+      }
+      setIsSearching(true);
+      const results = await store.searchUsers(query);
+      const currentMemberIds = new Set([
+        ...members.map((m) => m.uid),
+        ...(project?.pendingMembers?.map((pm) => pm.userId) ?? []),
+      ]);
+      setSearchResults(results.filter((u) => u.uid !== currentUser?.uid && !currentMemberIds.has(u.uid)));
+      setIsSearching(false);
+    },
+    [store, members, project, currentUser],
+  );
 
   const handleProjectNameSave = async () => {
     if (project && projectName.trim()) {
       await store.updateProject(project.id, { name: projectName.trim() });
-      toast({ title: "Success", description: "Project name updated." });
+      toast({ title: 'Success', description: 'Project name updated.' });
     }
   };
 
   const handleColumnTitleChange = (columnId: string, newTitle: string) => {
-    setColumns((currentColumns) =>
-      currentColumns.map((c) =>
-        c.id === columnId ? { ...c, title: newTitle } : c,
-      ),
-    );
+    setColumns((currentColumns) => currentColumns.map((c) => (c.id === columnId ? { ...c, title: newTitle } : c)));
   };
 
   const handleColumnTitleBlur = async (columnId: string, title: string) => {
@@ -159,18 +162,16 @@ export default function ProjectConfigPage() {
     if (title.trim() && title.trim() !== originalColumn?.title) {
       await store.updateColumnTitle(projectId, columnId, title.trim());
     } else if (originalColumn) {
-      setColumns((current) =>
-        current.map((c) => (c.id === columnId ? originalColumn : c)),
-      );
+      setColumns((current) => current.map((c) => (c.id === columnId ? originalColumn : c)));
     }
   };
 
   const handleDeleteColumn = (column: Column) => {
     if (column.tasks.length > 0) {
       toast({
-        variant: "destructive",
-        title: "Cannot delete column",
-        description: "Please move or delete all tasks from this column first.",
+        variant: 'destructive',
+        title: 'Cannot delete column',
+        description: 'Please move or delete all tasks from this column first.',
       });
       return;
     }
@@ -187,32 +188,31 @@ export default function ProjectConfigPage() {
   const handleConfirmDeleteProject = async () => {
     if (project) {
       await store.deleteProject(project.id);
-      router.push("/");
+      router.push('/');
     }
     setIsDeleteProjectDialogOpen(false);
   };
 
-  const handleInviteUser = async () => {
-    if (!inviteEmail.trim() || !project) return;
-    const { success, message } = await store.inviteUserToProject(
-      project.id,
-      inviteEmail,
-    );
-    toast({
-      title: success ? "Success" : "Error",
-      description: message,
-      variant: success ? "default" : "destructive",
-    });
+  const handleInviteUser = async (userToInvite: KanbanUser) => {
+    if (!project || !currentUser) return;
+    const { success, message } = await store.inviteUserToProject(project.id, userToInvite, currentUser);
+    toast({ title: success ? 'Success' : 'Error', description: message, variant: success ? 'default' : 'destructive' });
     if (success) {
-      setInviteEmail("");
-      store.getProjectMembers(projectId).then(setMembers);
+      setInviteSearch('');
+      setSearchResults([]);
     }
+  };
+
+  const handleCancelInvitation = async (userId: string) => {
+    if (!project) return;
+    await store.cancelInvitation(project.id, userId);
+    toast({ title: 'Success', description: 'Invitation cancelled.' });
   };
 
   const handleRemoveUser = async (userId: string) => {
     if (!project) return;
     await store.removeUserFromProject(project.id, userId);
-    toast({ title: "Success", description: "User removed from project." });
+    toast({ title: 'Success', description: 'User removed from project.' });
     store.getProjectMembers(projectId).then(setMembers);
   };
 
@@ -221,8 +221,8 @@ export default function ProjectConfigPage() {
     setEnableSubtasks(checked);
     await store.updateProject(project.id, { enableSubtasks: checked });
     toast({
-      title: "Success",
-      description: `Sub-tasks have been ${checked ? "enabled" : "disabled"}.`,
+      title: 'Success',
+      description: `Sub-tasks have been ${checked ? 'enabled' : 'disabled'}.`,
     });
   };
 
@@ -231,8 +231,8 @@ export default function ProjectConfigPage() {
     setEnableDeadlines(checked);
     await store.updateProject(project.id, { enableDeadlines: checked });
     toast({
-      title: "Success",
-      description: `Deadlines have been ${checked ? "enabled" : "disabled"}.`,
+      title: 'Success',
+      description: `Deadlines have been ${checked ? 'enabled' : 'disabled'}.`,
     });
   };
 
@@ -241,8 +241,8 @@ export default function ProjectConfigPage() {
     setEnableLabels(checked);
     await store.updateProject(project.id, { enableLabels: checked });
     toast({
-      title: "Success",
-      description: `Labels have been ${checked ? "enabled" : "disabled"}.`,
+      title: 'Success',
+      description: `Labels have been ${checked ? 'enabled' : 'disabled'}.`,
     });
   };
 
@@ -251,26 +251,21 @@ export default function ProjectConfigPage() {
     setEnableDashboard(checked);
     await store.updateProject(project.id, { enableDashboard: checked });
     toast({
-      title: "Success",
-      description: `Dashboard has been ${checked ? "enabled" : "disabled"}.`,
+      title: 'Success',
+      description: `Dashboard has been ${checked ? 'enabled' : 'disabled'}.`,
     });
   };
 
   const handleAddLabel = async () => {
     if (!newLabelName.trim() || !project) return;
     await store.createLabel(project.id, newLabelName, newLabelColor);
-    setNewLabelName("");
+    setNewLabelName('');
     setNewLabelColor(colorSwatches[0]);
   };
 
   const handleUpdateLabel = async () => {
     if (!editingLabel || !editingLabel.name.trim() || !project) return;
-    await store.updateLabel(
-      project.id,
-      editingLabel.id,
-      editingLabel.name,
-      editingLabel.color,
-    );
+    await store.updateLabel(project.id, editingLabel.id, editingLabel.name, editingLabel.color);
     setEditingLabel(null);
   };
 
@@ -290,20 +285,12 @@ export default function ProjectConfigPage() {
       <div className="container mx-auto max-w-4xl py-8 px-4">
         <header className="flex items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => router.push(`/p/${projectId}`)}
-            >
+            <Button variant="outline" size="icon" onClick={() => router.push(`/p/${projectId}`)}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold font-headline">
-                Project Settings
-              </h1>
-              <p className="text-muted-foreground">
-                Manage your project details and members.
-              </p>
+              <h1 className="text-2xl font-bold font-headline">Project Settings</h1>
+              <p className="text-muted-foreground">Manage your project details and members.</p>
             </div>
           </div>
           <UserNav />
@@ -314,8 +301,7 @@ export default function ProjectConfigPage() {
             <CardHeader>
               <CardTitle>Project Name</CardTitle>
               <CardDescription>
-                Change the name of your project. This will be visible across the
-                application.
+                Change the name of your project. This will be visible across the application.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -325,16 +311,10 @@ export default function ProjectConfigPage() {
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   className="max-w-sm"
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && handleProjectNameSave()
-                  }
+                  onKeyDown={(e) => e.key === 'Enter' && handleProjectNameSave()}
                   disabled={!isOwner}
                 />
-                <Button
-                  onClick={handleProjectNameSave}
-                  className="w-full sm:w-auto"
-                  disabled={!isOwner}
-                >
+                <Button onClick={handleProjectNameSave} className="w-full sm:w-auto" disabled={!isOwner}>
                   Save Name
                 </Button>
               </div>
@@ -344,9 +324,7 @@ export default function ProjectConfigPage() {
           <Card>
             <CardHeader>
               <CardTitle>Features</CardTitle>
-              <CardDescription>
-                Enable or disable features for this project.
-              </CardDescription>
+              <CardDescription>Enable or disable features for this project.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-3 rounded-md border">
@@ -358,8 +336,8 @@ export default function ProjectConfigPage() {
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       {hasSubtasks
-                        ? "This project has sub-tasks. You must remove them before disabling this feature."
-                        : "Allow tasks to be broken down into smaller items."}
+                        ? 'This project has sub-tasks. You must remove them before disabling this feature.'
+                        : 'Allow tasks to be broken down into smaller items.'}
                     </p>
                   </div>
                 </div>
@@ -379,8 +357,8 @@ export default function ProjectConfigPage() {
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       {hasDeadlines
-                        ? "This project has deadlines. You must remove them before disabling this feature."
-                        : "Allow tasks to have deadlines."}
+                        ? 'This project has deadlines. You must remove them before disabling this feature.'
+                        : 'Allow tasks to have deadlines.'}
                     </p>
                   </div>
                 </div>
@@ -400,8 +378,8 @@ export default function ProjectConfigPage() {
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       {hasLabels
-                        ? "This project has labels. You must remove them from all tasks before disabling this feature."
-                        : "Allow tasks to have labels for categorization."}
+                        ? 'This project has labels. You must remove them from all tasks before disabling this feature.'
+                        : 'Allow tasks to have labels for categorization.'}
                     </p>
                   </div>
                 </div>
@@ -419,9 +397,7 @@ export default function ProjectConfigPage() {
                     <Label htmlFor="dashboard-switch" className="font-medium">
                       Enable Dashboard
                     </Label>
-                    <p className="text-xs text-muted-foreground">
-                      View analytics and charts for this project.
-                    </p>
+                    <p className="text-xs text-muted-foreground">View analytics and charts for this project.</p>
                   </div>
                 </div>
                 <Switch
@@ -438,32 +414,22 @@ export default function ProjectConfigPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Manage Labels</CardTitle>
-                <CardDescription>
-                  Create, edit, or delete labels for organizing tasks in this
-                  project.
-                </CardDescription>
+                <CardDescription>Create, edit, or delete labels for organizing tasks in this project.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {isOwner && (
-                  <div className="flex items-center gap-2 p-2 border rounded-lg">
+                  <div className="flex items-center gap-2 p-1 border rounded-lg">
                     <Input
                       placeholder="New label name..."
                       value={newLabelName}
                       onChange={(e) => setNewLabelName(e.target.value)}
-                      className="flex-grow bg-transparent border-0 focus-visible:ring-1 h-8"
-                      onKeyDown={(e) => e.key === "Enter" && handleAddLabel()}
+                      className="flex-grow bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-8"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
                     />
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="w-8 h-8 flex-shrink-0"
-                        >
-                          <div
-                            className="w-5 h-5 rounded-full"
-                            style={{ backgroundColor: newLabelColor }}
-                          ></div>
+                        <Button variant="outline" size="icon" className="w-8 h-8 flex-shrink-0">
+                          <div className="w-5 h-5 rounded-full" style={{ backgroundColor: newLabelColor }}></div>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-2">
@@ -476,10 +442,7 @@ export default function ProjectConfigPage() {
                               className="w-7 h-7"
                               onClick={() => setNewLabelColor(color)}
                             >
-                              <div
-                                className="w-4 h-4 rounded-full"
-                                style={{ backgroundColor: color }}
-                              ></div>
+                              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }}></div>
                               {newLabelColor === color && (
                                 <Check className="w-3 h-3 text-white mix-blend-difference absolute" />
                               )}
@@ -495,10 +458,7 @@ export default function ProjectConfigPage() {
                 )}
                 <div className="space-y-2">
                   {labels.map((label) => (
-                    <div
-                      key={label.id}
-                      className="flex items-center gap-2 p-2 px-3 rounded-md border"
-                    >
+                    <div key={label.id} className="flex items-center gap-2 p-2 px-3 rounded-md border">
                       {editingLabel?.id === label.id ? (
                         <>
                           <div
@@ -514,17 +474,11 @@ export default function ProjectConfigPage() {
                               })
                             }
                             className="flex-grow h-8 bg-transparent"
-                            onKeyDown={(e) =>
-                              e.key === "Enter" && handleUpdateLabel()
-                            }
+                            onKeyDown={(e) => e.key === 'Enter' && handleUpdateLabel()}
                           />
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="w-8 h-8 flex-shrink-0"
-                              >
+                              <Button variant="outline" size="icon" className="w-8 h-8 flex-shrink-0">
                                 <Palette className="h-4 w-4" />
                               </Button>
                             </PopoverTrigger>
@@ -543,10 +497,7 @@ export default function ProjectConfigPage() {
                                       })
                                     }
                                   >
-                                    <div
-                                      className="w-4 h-4 rounded-full"
-                                      style={{ backgroundColor: color }}
-                                    ></div>
+                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }}></div>
                                     {editingLabel.color === color && (
                                       <Check className="w-3 h-3 text-white mix-blend-difference absolute" />
                                     )}
@@ -555,31 +506,17 @@ export default function ProjectConfigPage() {
                               </div>
                             </PopoverContent>
                           </Popover>
-                          <Button
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={handleUpdateLabel}
-                          >
+                          <Button size="icon" className="h-8 w-8" onClick={handleUpdateLabel}>
                             <Check className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => setEditingLabel(null)}
-                          >
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingLabel(null)}>
                             <X className="h-4 w-4" />
                           </Button>
                         </>
                       ) : (
                         <>
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: label.color }}
-                          ></div>
-                          <span className="flex-grow font-medium text-sm">
-                            {label.name}
-                          </span>
+                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: label.color }}></div>
+                          <span className="flex-grow font-medium text-sm">{label.name}</span>
                           {isOwner && (
                             <div className="flex items-center">
                               <Button
@@ -612,38 +549,23 @@ export default function ProjectConfigPage() {
           <Card>
             <CardHeader>
               <CardTitle>Manage Columns</CardTitle>
-              <CardDescription>
-                Rename or delete columns for this project's board.
-              </CardDescription>
+              <CardDescription>Rename or delete columns for this project's board.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {columns.map((column) => {
-                const isDoneColumn = column.title === "Done";
+                const isDoneColumn = column.title === 'Done';
                 return (
-                  <div
-                    key={column.id}
-                    className="flex items-center gap-2 p-2 rounded-md border bg-card/50"
-                  >
+                  <div key={column.id} className="flex items-center gap-2 p-2 rounded-md border bg-card/50">
                     <Input
                       value={column.title}
-                      onChange={(e) =>
-                        handleColumnTitleChange(column.id, e.target.value)
-                      }
-                      onBlur={(e) =>
-                        handleColumnTitleBlur(column.id, e.target.value)
-                      }
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && e.currentTarget.blur()
-                      }
+                      onChange={(e) => handleColumnTitleChange(column.id, e.target.value)}
+                      onBlur={(e) => handleColumnTitleBlur(column.id, e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                       className="flex-grow bg-transparent border-0 focus-visible:ring-1 focus-visible:ring-ring"
                       disabled={!isOwner || isDoneColumn}
                     />
                     {isOwner && !isDoneColumn && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteColumn(column)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteColumn(column)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     )}
@@ -656,63 +578,65 @@ export default function ProjectConfigPage() {
           <Card>
             <CardHeader>
               <CardTitle>Manage Members</CardTitle>
-              <CardDescription>
-                Invite or remove members from this project.
-              </CardDescription>
+              <CardDescription>Invite, remove, or manage project members.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {isOwner && (
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    type="email"
-                    placeholder="user@example.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="max-w-sm"
-                    onKeyDown={(e) => e.key === "Enter" && handleInviteUser()}
+                    placeholder="Find user by name or email..."
+                    value={inviteSearch}
+                    onChange={(e) => handleSearchUsers(e.target.value)}
+                    className="pl-10"
                   />
-                  <Button
-                    onClick={handleInviteUser}
-                    className="w-full sm:w-auto"
-                  >
-                    Invite User
-                  </Button>
+                  {searchResults.length > 0 && (
+                    <Card className="absolute z-10 w-full mt-2 max-h-60 overflow-y-auto">
+                      <CardContent className="p-2">
+                        {searchResults.map((user) => (
+                          <div
+                            key={user.uid}
+                            className="flex items-center justify-between p-2 rounded-md hover:bg-muted"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={user.photoURL ?? ''} />
+                                <AvatarFallback>{user.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium text-sm">{user.displayName}</p>
+                                <p className="text-xs text-muted-foreground">{user.email}</p>
+                              </div>
+                            </div>
+                            <Button size="sm" onClick={() => handleInviteUser(user)}>
+                              <Send className="h-4 w-4 mr-2" /> Invite
+                            </Button>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
               <div className="space-y-2">
+                <h4 className="font-medium text-sm">Project Members ({members.length})</h4>
                 {members.map((member) => (
-                  <div
-                    key={member.uid}
-                    className="flex items-center justify-between p-2 rounded-md border"
-                  >
+                  <div key={member.uid} className="flex items-center justify-between p-2 rounded-md border">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage
-                          src={member.photoURL ?? ""}
-                          alt={member.displayName ?? "User"}
-                        />
-                        <AvatarFallback>
-                          {member.displayName?.charAt(0).toUpperCase() ?? "U"}
-                        </AvatarFallback>
+                        <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
+                        <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                       </Avatar>
                       <div>
                         <p className="font-medium">{member.displayName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {member.email}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{member.email}</p>
                       </div>
                     </div>
                     {project.ownerId === member.uid ? (
-                      <span className="text-xs text-muted-foreground font-semibold">
-                        OWNER
-                      </span>
+                      <span className="text-xs text-muted-foreground font-semibold">OWNER</span>
                     ) : (
                       isOwner && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveUser(member.uid)}
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveUser(member.uid)}>
                           <X className="h-4 w-4 text-destructive" />
                         </Button>
                       )
@@ -720,6 +644,34 @@ export default function ProjectConfigPage() {
                   </div>
                 ))}
               </div>
+              {isOwner && pendingMembers.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Pending Invitations ({pendingMembers.length})</h4>
+                  {pendingMembers.map((invite) => (
+                    <div key={invite.userId} className="flex items-center justify-between p-2 rounded-md border">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={invite.photoURL ?? ''} />
+                          <AvatarFallback>{invite.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{invite.displayName}</p>
+                          <p className="text-xs text-muted-foreground">{invite.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatDistanceToNow(new Date(invite.invitedAt), { addSuffix: true })}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => handleCancelInvitation(invite.userId)}>
+                          <X className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -727,15 +679,10 @@ export default function ProjectConfigPage() {
             <Card className="border-destructive">
               <CardHeader>
                 <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                <CardDescription>
-                  This action is permanent and cannot be undone.
-                </CardDescription>
+                <CardDescription>This action is permanent and cannot be undone.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button
-                  variant="destructive"
-                  onClick={() => setIsDeleteProjectDialogOpen(true)}
-                >
+                <Button variant="destructive" onClick={() => setIsDeleteProjectDialogOpen(true)}>
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete this project
                 </Button>
@@ -744,43 +691,30 @@ export default function ProjectConfigPage() {
           )}
         </main>
 
-        <AlertDialog
-          open={!!columnToDelete}
-          onOpenChange={(isOpen) => !isOpen && setColumnToDelete(null)}
-        >
+        <AlertDialog open={!!columnToDelete} onOpenChange={(isOpen) => !isOpen && setColumnToDelete(null)}>
           <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete the "{columnToDelete?.title}"
-                column. This action cannot be undone.
+                This will permanently delete the "{columnToDelete?.title}" column. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setColumnToDelete(null)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDeleteColumn}
-                className="bg-destructive hover:bg-destructive/90"
-              >
+              <AlertDialogCancel onClick={() => setColumnToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteColumn} className="bg-destructive hover:bg-destructive/90">
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog
-          open={isDeleteProjectDialogOpen}
-          onOpenChange={setIsDeleteProjectDialogOpen}
-        >
+        <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
           <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the{" "}
-                <strong>{project?.name}</strong> project, including all of its
-                columns and tasks.
+                This action cannot be undone. This will permanently delete the <strong>{project?.name}</strong> project,
+                including all of its columns and tasks.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
