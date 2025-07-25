@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -46,21 +45,40 @@ import {
   ListTodo,
   CheckCircle2,
   Minus,
+  Tag,
+  History,
+  MessageSquarePlus,
 } from "lucide-react";
-import type { Task, Column, KanbanUser } from "@/types/kanban";
+import type {
+  Task,
+  Column,
+  KanbanUser,
+  Project,
+  Label as LabelType,
+  Activity,
+} from "@/types/kanban";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { format, setHours, setMinutes, isPast, isAfter } from "date-fns";
+import {
+  format,
+  setHours,
+  setMinutes,
+  isPast,
+  isAfter,
+  formatDistanceToNow,
+} from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "../ui/calendar";
 import { Checkbox } from "../ui/checkbox";
 import { Progress } from "../ui/progress";
 import { Separator } from "../ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "../ui/badge";
 
 type TaskDetailsDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  projectId: string;
+  project: Project;
   task: Task | null;
   columnId: string | null;
   columns: Column[];
@@ -71,6 +89,7 @@ type TaskDetailsDialogProps = {
     taskId: string,
     columnId: string,
     updatedData: Partial<Omit<Task, "id">>,
+    meta?: { subtaskTitle?: string },
   ) => Promise<void>;
   onDeleteTask: (
     projectId: string,
@@ -95,7 +114,7 @@ type TaskDetailsDialogProps = {
 export function TaskDetailsDialog({
   isOpen,
   onClose,
-  projectId,
+  project,
   task,
   columnId,
   columns,
@@ -113,11 +132,14 @@ export function TaskDetailsDialog({
   const [status, setStatus] = useState<string | null>(null);
   const [priority, setPriority] = useState<Task["priority"]>("Medium");
   const [deadline, setDeadline] = useState<Date | undefined>();
+  const [labelIds, setLabelIds] = useState<string[]>([]);
   const [time, setTime] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const { toast } = useToast();
+
+  const [activeTab, setActiveTab] = useState("details");
 
   const hours = Array.from({ length: 24 }, (_, i) =>
     i.toString().padStart(2, "0"),
@@ -149,12 +171,27 @@ export function TaskDetailsDialog({
     [subtasks, completedSubtasks],
   );
 
+  const projectLabels = useMemo(() => project.labels ?? [], [project.labels]);
+  const enableSubtasks = useMemo(
+    () => project.enableSubtasks ?? true,
+    [project.enableSubtasks],
+  );
+  const enableDeadlines = useMemo(
+    () => project.enableDeadlines ?? true,
+    [project.enableDeadlines],
+  );
+  const enableLabels = useMemo(
+    () => project.enableLabels ?? true,
+    [project.enableLabels],
+  );
+
   useEffect(() => {
     if (task && isOpen) {
       setTitle(task.title);
       setDescription(task.description || "");
       setAssigneeId(task.assignee || "unassigned");
       setPriority(task.priority || "Medium");
+      setLabelIds(task.labelIds || []);
       const deadlineDate = task.deadline ? new Date(task.deadline) : undefined;
       setDeadline(deadlineDate);
       if (deadlineDate) {
@@ -165,6 +202,7 @@ export function TaskDetailsDialog({
         setTime("");
       }
       setStatus(columnId);
+      setActiveTab("details");
     }
   }, [task, columnId, isOpen]);
 
@@ -185,6 +223,14 @@ export function TaskDetailsDialog({
     if (!date) {
       setTime("");
     }
+  };
+
+  const handleLabelToggle = (labelId: string) => {
+    setLabelIds((prev) =>
+      prev.includes(labelId)
+        ? prev.filter((id) => id !== labelId)
+        : [...prev, labelId],
+    );
   };
 
   const handleSave = async () => {
@@ -214,12 +260,27 @@ export function TaskDetailsDialog({
       updatedData.assignee = finalAssigneeId;
     if (priority !== (task.priority || "Medium"))
       updatedData.priority = priority;
-    if ((finalDeadlineISO || undefined) !== (task.deadline || undefined))
-      updatedData.deadline = finalDeadlineISO;
+
+    const sortedLabelIds = [...labelIds].sort();
+    const sortedTaskLabelIds = [...(task.labelIds || [])].sort();
+    if (
+      enableLabels &&
+      JSON.stringify(sortedLabelIds) !== JSON.stringify(sortedTaskLabelIds)
+    ) {
+      updatedData.labelIds = sortedLabelIds;
+    }
+
+    // Handle deadline changes carefully
+    const currentDeadlineISO = task.deadline
+      ? new Date(task.deadline).toISOString()
+      : undefined;
+    if (finalDeadlineISO !== currentDeadlineISO) {
+      updatedData.deadline = enableDeadlines ? finalDeadlineISO : undefined;
+    }
 
     const updatePromise =
       Object.keys(updatedData).length > 0
-        ? onUpdateTask(projectId, task.id, columnId, updatedData)
+        ? onUpdateTask(project.id, task.id, columnId, updatedData)
         : Promise.resolve();
 
     const movePromise =
@@ -229,7 +290,7 @@ export function TaskDetailsDialog({
             const toIndex = destinationColumn
               ? destinationColumn.tasks.length
               : 0;
-            return onMoveTask(projectId, task.id, columnId, status, toIndex);
+            return onMoveTask(project.id, task.id, columnId, status, toIndex);
           }
         : () => Promise.resolve();
 
@@ -242,28 +303,33 @@ export function TaskDetailsDialog({
 
   const handleDelete = async () => {
     if (!task || !columnId) return;
-    await onDeleteTask(projectId, task.id, columnId);
+    await onDeleteTask(project.id, task.id, columnId);
     setIsDeleteDialogOpen(false);
     onClose();
   };
 
   const handleAddSubtask = async () => {
     if (!newSubtaskTitle.trim() || !task || !columnId) return;
-    const subtaskData = {
+    const subtaskData: Omit<
+      Task,
+      "id" | "createdAt" | "updatedAt" | "completedAt"
+    > = {
       title: newSubtaskTitle.trim(),
       parentId: task.id,
       priority: "Medium",
     };
-    await onAddTask(projectId, columnId, subtaskData);
+    await onAddTask(project.id, columnId, subtaskData);
     setNewSubtaskTitle("");
   };
 
-  const handleSubtaskCheck = async (subtaskId: string, isChecked: boolean) => {
+  const handleSubtaskCheck = async (subtask: Task, isChecked: boolean) => {
     if (!task || !columnId) return;
     const updatedData = {
       completedAt: isChecked ? new Date().toISOString() : null,
     };
-    await onUpdateTask(projectId, subtaskId, columnId, updatedData as any);
+    await onUpdateTask(project.id, subtask.id, columnId, updatedData as any, {
+      subtaskTitle: subtask.title,
+    });
   };
 
   const handleSubtaskClick = (subtask: Task) => {
@@ -288,320 +354,459 @@ export function TaskDetailsDialog({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh] p-0">
+        <DialogContent
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="sm:max-w-lg flex flex-col max-h-[90vh] p-0"
+        >
           <DialogHeader className="p-6 pb-4 flex-shrink-0">
             <DialogTitle>
               {task.parentId ? "Edit Sub-task" : "Edit Task"}
             </DialogTitle>
             <DialogDescription>
-              Make changes to your task here. Click save when you're done.
+              {task.parentId
+                ? `Sub-task in "${parentTask?.title}"`
+                : "Make changes to your task here. Click save when you're done."}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 px-6 pb-4 flex-grow overflow-y-auto">
-            <div className="space-y-2">
-              <Label htmlFor="task-title">Title</Label>
-              <Input
-                id="task-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Design the landing page"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="task-description">Description</Label>
-              <Textarea
-                id="task-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Add more details about the task"
-                rows={4}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task-priority">Priority</Label>
-                <Select
-                  value={priority ?? "Medium"}
-                  onValueChange={(value) =>
-                    setPriority(value as Task["priority"])
-                  }
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex-grow flex flex-col min-h-0"
+          >
+            <TabsList className="flex-shrink-0 w-full justify-start rounded-none border-b bg-transparent p-0">
+              <div className="px-6 flex items-center gap-4">
+                <TabsTrigger
+                  value="details"
+                  className="rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 font-semibold text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
                 >
-                  <SelectTrigger id="task-priority">
-                    <SelectValue placeholder="Select a priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Urgent">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-red-500" />
-                        <span>Urgent</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="High">
-                      <div className="flex items-center gap-2">
-                        <ArrowUp className="h-4 w-4 text-orange-400" />
-                        <span>High</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="Medium">
-                      <div className="flex items-center gap-2">
-                        <Minus className="h-4 w-4 text-blue-400" />
-                        <span>Medium</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="Low">
-                      <div className="flex items-center gap-2">
-                        <ArrowDown className="h-4 w-4 text-zinc-400" />
-                        <span>Low</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  Details
+                </TabsTrigger>
+                <TabsTrigger
+                  value="activity"
+                  className="rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 font-semibold text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none"
+                >
+                  Activity
+                </TabsTrigger>
+              </div>
+            </TabsList>
+            <TabsContent
+              value="details"
+              className="grid gap-4 px-6 pb-4 flex-grow overflow-y-auto mt-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="task-title">Title</Label>
+                <Input
+                  id="task-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Design the landing page"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="task-status">Status</Label>
-                <Select
-                  value={status ?? ""}
-                  onValueChange={setStatus}
-                  disabled={!!task.parentId}
-                >
-                  <SelectTrigger id="task-status">
-                    <SelectValue placeholder="Select a status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {columns.map((col) => (
-                      <SelectItem key={col.id} value={col.id}>
-                        {col.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="task-description">Description</Label>
+                <Textarea
+                  id="task-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add more details about the task"
+                  rows={4}
+                />
               </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task-assignee">Assignee</Label>
-                <Select value={assigneeId} onValueChange={setAssigneeId}>
-                  <SelectTrigger id="task-assignee">
-                    <SelectValue placeholder="Select an assignee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {members.map((member) => (
-                      <SelectItem key={member.uid} value={member.uid}>
-                        <div className="flex flex-row justify-between items-center gap-2">
-                          <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
-                            <AvatarImage
-                              src={member.photoURL ?? ""}
-                              alt={member.displayName ?? "User"}
-                            />
-                            <AvatarFallback>
-                              {member.displayName?.charAt(0).toUpperCase() ??
-                                "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <p className="sm:text-md text-sm">
-                            {member.displayName ?? member.email}
-                          </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="task-priority">Priority</Label>
+                  <Select
+                    value={priority ?? "Medium"}
+                    onValueChange={(value) =>
+                      setPriority(value as Task["priority"])
+                    }
+                  >
+                    <SelectTrigger id="task-priority">
+                      <SelectValue placeholder="Select a priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Urgent">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-500" />
+                          <span>Urgent</span>
                         </div>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Deadline</Label>
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !deadline && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {deadline ? (
-                        format(deadline, "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={deadline}
-                      onSelect={handleDateSelect}
-                      disabled={(date) =>
-                        (parentTask?.deadline &&
-                          isAfter(date, new Date(parentTask.deadline))) ||
-                        false
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <div className="flex items-center gap-1">
-                  <Select
-                    value={currentHour}
-                    onValueChange={handleHourChange}
-                    disabled={!deadline}
-                  >
-                    <SelectTrigger className="w-[75px]">
-                      <SelectValue placeholder="Hour" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hours.map((h) => (
-                        <SelectItem key={h} value={h}>
-                          {h}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="High">
+                        <div className="flex items-center gap-2">
+                          <ArrowUp className="h-4 w-4 text-orange-400" />
+                          <span>High</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Medium">
+                        <div className="flex items-center gap-2">
+                          <Minus className="h-4 w-4 text-blue-400" />
+                          <span>Medium</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Low">
+                        <div className="flex items-center gap-2">
+                          <ArrowDown className="h-4 w-4 text-zinc-400" />
+                          <span>Low</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
-                  <span className="font-bold text-muted-foreground">:</span>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="task-status">Status</Label>
                   <Select
-                    value={currentMinute}
-                    onValueChange={handleMinuteChange}
-                    disabled={!deadline}
+                    value={status ?? ""}
+                    onValueChange={setStatus}
+                    disabled={!!task.parentId}
                   >
-                    <SelectTrigger className="w-[75px]">
-                      <SelectValue placeholder="Min" />
+                    <SelectTrigger id="task-status">
+                      <SelectValue placeholder="Select a status" />
                     </SelectTrigger>
                     <SelectContent>
-                      {minutes.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
+                      {columns.map((col) => (
+                        <SelectItem key={col.id} value={col.id}>
+                          {col.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-            </div>
-            {!task.parentId && (
-              <div className="space-y-4 pt-2">
-                <Separator />
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <ListTodo className="h-4 w-4" /> Sub-tasks
-                  </Label>
-                  {subtasks.length > 0 && (
-                    <div className="space-y-2">
-                      <Progress value={subtaskProgress} className="h-2" />
-                      <p className="text-xs text-muted-foreground">
-                        {completedSubtasks} of {subtasks.length} sub-tasks
-                        completed
-                      </p>
-                    </div>
-                  )}
-                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                    {subtasks.map((subtask) => (
-                      <div
-                        key={subtask.id}
-                        className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50"
-                      >
-                        <Checkbox
-                          id={`subtask-${subtask.id}`}
-                          checked={!!subtask.completedAt}
-                          onCheckedChange={(checked) =>
-                            handleSubtaskCheck(subtask.id, !!checked)
-                          }
-                        />
-                        <div
-                          className="flex-grow cursor-pointer"
-                          onClick={() => handleSubtaskClick(subtask)}
-                        >
-                          <label
-                            htmlFor={`subtask-${subtask.id}`}
-                            className={cn(
-                              "text-sm flex-grow",
-                              subtask.completedAt &&
-                                "line-through text-muted-foreground",
-                            )}
-                          >
-                            {subtask.title}
-                          </label>
-                          {subtask.deadline && (
-                            <p
-                              className={cn(
-                                "text-xs",
-                                subtask.completedAt
-                                  ? "text-muted-foreground/80"
-                                  : isPast(new Date(subtask.deadline))
-                                    ? "text-destructive"
-                                    : "text-muted-foreground",
-                              )}
-                            >
-                              {format(new Date(subtask.deadline), "MMM d")}
+                  <Label htmlFor="task-assignee">Assignee</Label>
+                  <Select value={assigneeId} onValueChange={setAssigneeId}>
+                    <SelectTrigger id="task-assignee">
+                      <SelectValue placeholder="Select an assignee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {members.map((member) => (
+                        <SelectItem key={member.uid} value={member.uid}>
+                          <div className="flex flex-row justify-between items-center gap-2">
+                            <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
+                              <AvatarImage
+                                src={member.photoURL ?? ""}
+                                alt={member.displayName ?? "User"}
+                              />
+                              <AvatarFallback>
+                                {member.displayName?.charAt(0).toUpperCase() ??
+                                  "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <p className="sm:text-md text-sm">
+                              {member.displayName ?? member.email}
                             </p>
-                          )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {enableLabels && (
+                <div className="space-y-2">
+                  <Label>Labels</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <Tag className="mr-2 h-4 w-4" />
+                        <div className="flex-grow truncate">
+                          {labelIds.length > 0
+                            ? projectLabels
+                                .filter((l) => labelIds.includes(l.id))
+                                .map((l) => l.name)
+                                .join(", ")
+                            : "Select labels"}
                         </div>
-                        {subtask.assignee && (
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage
-                              src={
-                                members.find((m) => m.uid === subtask.assignee)
-                                  ?.photoURL ?? ""
-                              }
-                            />
-                            <AvatarFallback>
-                              {members
-                                .find((m) => m.uid === subtask.assignee)
-                                ?.displayName?.charAt(0)
-                                .toUpperCase() ?? "U"}
-                            </AvatarFallback>
-                          </Avatar>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                      <div className="p-2 space-y-1">
+                        {projectLabels.length > 0 ? (
+                          projectLabels.map((label) => (
+                            <div
+                              key={label.id}
+                              className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted cursor-pointer"
+                              onClick={() => handleLabelToggle(label.id)}
+                            >
+                              <Checkbox checked={labelIds.includes(label.id)} />
+                              <Badge
+                                variant="secondary"
+                                style={{
+                                  backgroundColor: label.color,
+                                  color: "white",
+                                }}
+                              >
+                                {label.name}
+                              </Badge>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="p-2 text-xs text-muted-foreground">
+                            No labels in this project. Create some in the
+                            project settings.
+                          </p>
                         )}
                       </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 pt-2">
-                    <Input
-                      placeholder="Add a new sub-task..."
-                      value={newSubtaskTitle}
-                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleAddSubtask()}
-                    />
-                    <Button onClick={handleAddSubtask} size="sm">
-                      <Plus className="h-4 w-4 mr-1" /> Add
-                    </Button>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+              {enableDeadlines && (
+                <div className="space-y-2">
+                  <Label>Deadline</Label>
+                  <div className="flex gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !deadline && "text-muted-foreground",
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {deadline ? (
+                            format(deadline, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={deadline}
+                          onSelect={handleDateSelect}
+                          disabled={(date) =>
+                            (parentTask?.deadline &&
+                              isAfter(date, new Date(parentTask.deadline))) ||
+                            false
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <div className="flex items-center gap-1">
+                      <Select
+                        value={currentHour}
+                        onValueChange={handleHourChange}
+                        disabled={!deadline}
+                      >
+                        <SelectTrigger className="w-[75px]">
+                          <SelectValue placeholder="Hour" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {hours.map((h) => (
+                            <SelectItem key={h} value={h}>
+                              {h}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="font-bold text-muted-foreground">:</span>
+                      <Select
+                        value={currentMinute}
+                        onValueChange={handleMinuteChange}
+                        disabled={!deadline}
+                      >
+                        <SelectTrigger className="w-[75px]">
+                          <SelectValue placeholder="Min" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {minutes.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="justify-between sm:justify-between p-6 pt-4 border-t flex-shrink-0 gap-2">
-            <Button
-              variant="destructive"
-              size="default"
-              onClick={() => setIsDeleteDialogOpen(true)}
+              )}
+              {!task.parentId && enableSubtasks && (
+                <div className="space-y-4 pt-2">
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <ListTodo className="h-4 w-4" /> Sub-tasks
+                    </Label>
+                    {subtasks.length > 0 && (
+                      <div className="space-y-2">
+                        <Progress value={subtaskProgress} className="h-2" />
+                        <p className="text-xs text-muted-foreground">
+                          {completedSubtasks} of {subtasks.length} sub-tasks
+                          completed
+                        </p>
+                      </div>
+                    )}
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                      {subtasks.map((subtask) => (
+                        <div
+                          key={subtask.id}
+                          className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50"
+                        >
+                          <Checkbox
+                            id={`subtask-${subtask.id}`}
+                            checked={!!subtask.completedAt}
+                            onCheckedChange={(checked) =>
+                              handleSubtaskCheck(subtask, !!checked)
+                            }
+                          />
+                          <div
+                            className="flex-grow cursor-pointer"
+                            onClick={() => handleSubtaskClick(subtask)}
+                          >
+                            <label
+                              htmlFor={`subtask-${subtask.id}`}
+                              className={cn(
+                                "text-sm flex-grow",
+                                subtask.completedAt &&
+                                  "line-through text-muted-foreground",
+                              )}
+                            >
+                              {subtask.title}
+                            </label>
+                            {subtask.deadline && enableDeadlines && (
+                              <p
+                                className={cn(
+                                  "text-xs",
+                                  subtask.completedAt
+                                    ? "text-muted-foreground/80"
+                                    : isPast(new Date(subtask.deadline))
+                                      ? "text-destructive"
+                                      : "text-muted-foreground",
+                                )}
+                              >
+                                {format(new Date(subtask.deadline), "MMM d")}
+                              </p>
+                            )}
+                          </div>
+                          {subtask.assignee && (
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage
+                                src={
+                                  members.find(
+                                    (m) => m.uid === subtask.assignee,
+                                  )?.photoURL ?? ""
+                                }
+                              />
+                              <AvatarFallback>
+                                {members
+                                  .find((m) => m.uid === subtask.assignee)
+                                  ?.displayName?.charAt(0)
+                                  .toUpperCase() ?? "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2 pt-2">
+                      <Input
+                        placeholder="Add a new sub-task..."
+                        value={newSubtaskTitle}
+                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleAddSubtask()
+                        }
+                      />
+                      <Button onClick={handleAddSubtask} size="sm">
+                        <Plus className="h-4 w-4 mr-1" /> Add
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+            <TabsContent
+              value="activity"
+              className="px-6 pb-4 flex-grow overflow-y-auto mt-4"
             >
-              <Trash2 className="h-4 w-4" /> Delete task
-              <span className="sr-only">Delete Task</span>
-            </Button>
-            <div className="flex gap-2 justify-between">
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
+              <div className="space-y-4">
+                {(task.activity ?? [])
+                  .sort(
+                    (a, b) =>
+                      new Date(b.timestamp).getTime() -
+                      new Date(a.timestamp).getTime(),
+                  )
+                  .map((act) => {
+                    const member = members.find((m) => m.uid === act.userId);
+                    return (
+                      <div key={act.id} className="flex items-start gap-3">
+                        <Avatar className="h-8 w-8 mt-1">
+                          <AvatarImage
+                            src={member?.photoURL ?? undefined}
+                            alt={member?.displayName ?? "User"}
+                          />
+                          <AvatarFallback>
+                            {member?.displayName?.charAt(0).toUpperCase() ??
+                              "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm">
+                            <span className="font-semibold">
+                              {member?.displayName ?? "A user"}
+                            </span>
+                            <span
+                              dangerouslySetInnerHTML={{
+                                __html: ` ${act.text}`,
+                              }}
+                            />
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(act.timestamp), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {(!task.activity || task.activity.length === 0) && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <History className="mx-auto h-8 w-8 mb-2" />
+                    <p>No activity recorded for this task yet.</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+          <div className="p-6 pt-4 border-t flex-shrink-0">
+            <div className="flex justify-between items-center gap-2">
               <Button
-                type="submit"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="w-full"
+                variant="destructive"
+                size="default"
+                onClick={() => setIsDeleteDialogOpen(true)}
               >
-                {isSaving ? "Saving..." : "Save Changes"}
+                <Trash2 className="h-4 w-4" />
+                <span className="ml-2 hidden sm:inline-block">
+                  Delete {task.parentId ? "sub-task" : "task"}
+                </span>
               </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
             </div>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
       >
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>

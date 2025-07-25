@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import type { Project, Column, Task, KanbanUser } from "@/types/kanban";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import type {
+  Project,
+  Column,
+  Task,
+  KanbanUser,
+  Activity,
+  Label,
+  Notification,
+} from "@/types/kanban";
 import { useAuth } from "./use-auth";
-import { toast, ToasterToast } from "./use-toast";
+import { toast } from "./use-toast";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -17,7 +25,6 @@ import {
   getDocs,
   arrayUnion,
   arrayRemove,
-  writeBatch,
 } from "firebase/firestore";
 
 export type KanbanStore = {
@@ -28,7 +35,10 @@ export type KanbanStore = {
   addTask: (
     projectId: string,
     columnId: string,
-    taskData: Omit<Task, "id" | "createdAt" | "updatedAt" | "completedAt">,
+    taskData: Omit<
+      Task,
+      "id" | "createdAt" | "updatedAt" | "completedAt" | "activity"
+    >,
   ) => Promise<void>;
   moveTask: (
     projectId: string,
@@ -47,12 +57,16 @@ export type KanbanStore = {
     draggedColumnId: string,
     targetColumnId: string,
   ) => Promise<void>;
-  updateProjectName: (projectId: string, newName: string) => Promise<void>;
+  updateProject: (
+    projectId: string,
+    data: Partial<Omit<Project, "id">>,
+  ) => Promise<void>;
   updateTask: (
     projectId: string,
     taskId: string,
     columnId: string,
     updatedData: Partial<Omit<Task, "id">>,
+    meta?: { subtaskTitle?: string },
   ) => Promise<void>;
   deleteTask: (
     projectId: string,
@@ -67,6 +81,29 @@ export type KanbanStore = {
   ) => Promise<{ success: boolean; message: string }>;
   getProjectMembers: (projectId: string) => Promise<KanbanUser[]>;
   removeUserFromProject: (projectId: string, userId: string) => Promise<void>;
+  createLabel: (
+    projectId: string,
+    name: string,
+    color: string,
+  ) => Promise<void>;
+  updateLabel: (
+    projectId: string,
+    labelId: string,
+    name: string,
+    color: string,
+  ) => Promise<void>;
+  deleteLabel: (projectId: string, labelId: string) => Promise<void>;
+  openNewProjectDialog: () => void;
+};
+
+// This state is outside the hook to be accessible by the UserNav component
+// without causing re-renders of the entire app.
+let isNewProjectDialogOpen = false;
+const dialogListeners = new Set<(isOpen: boolean) => void>();
+
+const updateDialogState = (isOpen: boolean) => {
+  isNewProjectDialogOpen = isOpen;
+  dialogListeners.forEach((listener) => listener(isOpen));
 };
 
 export function useKanbanStore(): KanbanStore {
@@ -144,16 +181,37 @@ export function useKanbanStore(): KanbanStore {
     return () => unsubscribe();
   }, [user, getCacheKey]);
 
-  const updateProjectData = useCallback(
+  const updateProject = useCallback(
     async (projectId: string, data: Partial<Omit<Project, "id">>) => {
       const projectRef = doc(db, "projects", projectId);
+      const cleanData = { ...data };
+      // Firestore does not support undefined values.
+      Object.keys(cleanData).forEach((key) => {
+        if (cleanData[key as keyof typeof cleanData] === undefined) {
+          delete cleanData[key as keyof typeof cleanData];
+        }
+      });
       await updateDoc(projectRef, {
-        ...data,
+        ...cleanData,
         updatedAt: new Date().toISOString(),
       });
     },
     [],
   );
+
+  const addActivity = (
+    task: Task,
+    text: string,
+    userId: string,
+  ): Activity[] => {
+    const newActivity: Activity = {
+      id: `activity-${Date.now()}`,
+      text,
+      timestamp: new Date().toISOString(),
+      userId,
+    };
+    return [...(task.activity || []), newActivity];
+  };
 
   const addProject = useCallback(
     async (name: string) => {
@@ -165,6 +223,19 @@ export function useKanbanStore(): KanbanStore {
         members: [user.uid],
         createdAt: now,
         updatedAt: now,
+        enableSubtasks: true,
+        enableDeadlines: true,
+        enableLabels: true,
+        enableDashboard: false,
+        labels: [
+          { id: `label-${Date.now()}-1`, name: "Bug", color: "#ef4444" },
+          { id: `label-${Date.now()}-2`, name: "Feature", color: "#3b82f6" },
+          {
+            id: `label-${Date.now()}-3`,
+            name: "Improvement",
+            color: "#22c55e",
+          },
+        ],
         columns: [
           {
             id: `col-${Date.now()}-1`,
@@ -235,7 +306,7 @@ export function useKanbanStore(): KanbanStore {
       }
 
       try {
-        await updateProjectData(project.id, { columns });
+        await updateProject(project.id, { columns });
         toast({
           id: "column-created",
           title: "Column Created",
@@ -253,41 +324,84 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
+    [projects, updateProject],
   );
 
   const addTask = useCallback(
     async (
       projectId: string,
       columnId: string,
-      taskData: Omit<Task, "id" | "createdAt" | "updatedAt" | "completedAt">,
+      taskData: Omit<
+        Task,
+        "id" | "createdAt" | "updatedAt" | "completedAt" | "activity"
+      >,
     ) => {
+      if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
       const now = new Date().toISOString();
-      const newTask: Task = {
-        ...taskData,
+      let newTask: Task = {
         id: `task-${Date.now()}`,
         createdAt: now,
         updatedAt: now,
         completedAt: null,
+        title: taskData.title,
+        activity: [],
       };
+
+      if (taskData.description) newTask.description = taskData.description;
+      if (taskData.assignee) newTask.assignee = taskData.assignee;
+      if (taskData.priority) newTask.priority = taskData.priority;
+      if (project.enableDeadlines && taskData.deadline)
+        newTask.deadline = taskData.deadline;
+      if (project.enableSubtasks && taskData.parentId)
+        newTask.parentId = taskData.parentId;
+      if (project.enableLabels && taskData.labelIds)
+        newTask.labelIds = taskData.labelIds;
+
+      const activityText = taskData.parentId
+        ? `created this sub-task`
+        : `created this task`;
+
+      newTask.activity = addActivity(newTask, activityText, user.uid);
 
       const column = project.columns.find((c) => c.id === columnId);
       if (column && column.title === "Done") {
         newTask.completedAt = now;
+        newTask.activity = addActivity(
+          newTask,
+          `marked this as <b>complete</b>`,
+          user.uid,
+        );
       }
 
-      const updatedColumns = project.columns.map((c) =>
+      let updatedColumns = project.columns.map((c) =>
         c.id === columnId ? { ...c, tasks: [newTask, ...c.tasks] } : c,
       );
 
+      // If it's a subtask, add activity to parent
+      if (taskData.parentId) {
+        updatedColumns = updatedColumns.map((c) => ({
+          ...c,
+          tasks: c.tasks.map((t) => {
+            if (t.id === taskData.parentId) {
+              const parentActivityText = `added a sub-task: <b>${newTask.title}</b>`;
+              return {
+                ...t,
+                activity: addActivity(t, parentActivityText, user.uid),
+              };
+            }
+            return t;
+          }),
+        }));
+      }
+
       try {
-        await updateProjectData(project.id, { columns: updatedColumns });
+        await updateProject(project.id, { columns: updatedColumns });
         toast({
           id: "task-created",
-          title: "Task Created",
+          title: taskData.parentId ? "Sub-task Created" : "Task Created",
           description: `Task "${newTask.title.trim()}" has been added.`,
           variant: "default",
         });
@@ -301,7 +415,7 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
+    [projects, updateProject, user],
   );
 
   const moveTask = useCallback(
@@ -312,6 +426,7 @@ export function useKanbanStore(): KanbanStore {
       toColumnId: string,
       toIndex: number,
     ) => {
+      if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
@@ -325,6 +440,9 @@ export function useKanbanStore(): KanbanStore {
       const allTasks = project.columns.flatMap((c) => c.tasks);
       const subtasks = allTasks.filter((t) => t.parentId === taskId);
 
+      const activityText = `moved this task from <b>${fromColumn.title}</b> to <b>${toColumn.title}</b>`;
+      taskToMove.activity = addActivity(taskToMove, activityText, user.uid);
+
       if (toColumn.title === "Done") {
         if (subtasks.length > 0 && subtasks.some((st) => !st.completedAt)) {
           toast({
@@ -336,6 +454,11 @@ export function useKanbanStore(): KanbanStore {
           return;
         }
         taskToMove.completedAt = new Date().toISOString();
+        taskToMove.activity = addActivity(
+          taskToMove,
+          `marked this as <b>complete</b>`,
+          user.uid,
+        );
       } else {
         taskToMove.completedAt = null;
       }
@@ -359,7 +482,7 @@ export function useKanbanStore(): KanbanStore {
       });
 
       try {
-        await updateProjectData(projectId, { columns: newColumns });
+        await updateProject(projectId, { columns: newColumns });
       } catch (error) {
         console.error("Error moving task:", error);
         toast({
@@ -370,7 +493,7 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
+    [projects, updateProject, user],
   );
 
   const moveColumn = useCallback(
@@ -393,7 +516,7 @@ export function useKanbanStore(): KanbanStore {
       columns.splice(targetIndex, 0, draggedColumn);
 
       try {
-        await updateProjectData(project.id, { columns });
+        await updateProject(project.id, { columns });
       } catch (error) {
         console.error("Error moving column:", error);
         toast({
@@ -405,7 +528,7 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
+    [projects, updateProject],
   );
 
   const updateColumnTitle = useCallback(
@@ -417,7 +540,7 @@ export function useKanbanStore(): KanbanStore {
         c.id === columnId ? { ...c, title, updatedAt: now } : c,
       );
       try {
-        await updateProjectData(project.id, { columns: updatedColumns });
+        await updateProject(project.id, { columns: updatedColumns });
         toast({
           id: "column-updated",
           title: "Column Updated",
@@ -435,32 +558,7 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
-  );
-
-  const updateProjectName = useCallback(
-    async (projectId: string, newName: string) => {
-      if (!projectId || !newName.trim()) return;
-
-      try {
-        await updateProjectData(projectId, { name: newName.trim() });
-        toast({
-          id: "project-updated",
-          title: "Project Updated",
-          description: `Project name changed to "${newName.trim()}".`,
-          variant: "default",
-        });
-      } catch (error) {
-        console.error("Error updating project name:", error);
-        toast({
-          id: "project-update-error",
-          title: "Error Updating Project",
-          description: `Couldn't update project name. Please try again.`,
-          variant: "destructive",
-        });
-      }
-    },
-    [updateProjectData],
+    [projects, updateProject],
   );
 
   const updateTask = useCallback(
@@ -469,33 +567,170 @@ export function useKanbanStore(): KanbanStore {
       taskId: string,
       columnId: string,
       updatedData: Partial<Omit<Task, "id">>,
+      meta?: { subtaskTitle?: string },
     ) => {
+      if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
+      const allMembers = await getProjectMembers(projectId);
       const now = new Date().toISOString();
 
+      let parentTask: Task | undefined;
+
+      // Clean updatedData to remove any undefined values before processing
+      const cleanUpdatedData = { ...updatedData };
+      Object.keys(cleanUpdatedData).forEach((key) => {
+        if (
+          cleanUpdatedData[key as keyof typeof cleanUpdatedData] === undefined
+        ) {
+          delete cleanUpdatedData[key as keyof typeof cleanUpdatedData];
+        }
+      });
+
       const newColumns = project.columns.map((c) => {
-        return {
-          ...c,
-          tasks: c.tasks.map((t) => {
-            if (t.id === taskId) {
-              return { ...t, ...updatedData, updatedAt: now } as Task;
+        let tasks = c.tasks.map((t) => {
+          if (t.id === taskId) {
+            const oldTask: Task = { ...t };
+            let updatedTask = { ...t, ...cleanUpdatedData, updatedAt: now };
+
+            if (
+              cleanUpdatedData.title &&
+              cleanUpdatedData.title !== oldTask.title
+            ) {
+              updatedTask.activity = addActivity(
+                updatedTask,
+                `changed the title from <b>${oldTask.title}</b> to <b>${updatedTask.title}</b>`,
+                user.uid,
+              );
+            }
+            if (
+              cleanUpdatedData.description !== undefined &&
+              cleanUpdatedData.description !== (oldTask.description ?? "")
+            ) {
+              updatedTask.activity = addActivity(
+                updatedTask,
+                `updated the description`,
+                user.uid,
+              );
+            }
+            if (
+              cleanUpdatedData.assignee !== undefined &&
+              cleanUpdatedData.assignee !== (oldTask.assignee ?? "")
+            ) {
+              const oldName =
+                allMembers.find((m) => m.uid === oldTask?.assignee)
+                  ?.displayName ?? "Unassigned";
+              const newName =
+                allMembers.find((m) => m.uid === cleanUpdatedData.assignee)
+                  ?.displayName ?? "Unassigned";
+              updatedTask.activity = addActivity(
+                updatedTask,
+                `changed the assignee from <b>${oldName}</b> to <b>${newName}</b>`,
+                user.uid,
+              );
+
+              // Create notification for the new assignee
+              if (cleanUpdatedData.assignee) {
+                addDoc(collection(db, "notifications"), {
+                  userId: cleanUpdatedData.assignee,
+                  text: `You were assigned to the task <b>${updatedTask.title}</b> in project <b>${project.name}</b>`,
+                  link: `/p/${projectId}?taskId=${updatedTask.id}`,
+                  read: false,
+                  createdAt: new Date().toISOString(),
+                } as Omit<Notification, "id">);
+              }
+            }
+            if (
+              cleanUpdatedData.priority &&
+              cleanUpdatedData.priority !== oldTask.priority
+            ) {
+              updatedTask.activity = addActivity(
+                updatedTask,
+                `changed priority from <b>${oldTask.priority ?? "Medium"}</b> to <b>${cleanUpdatedData.priority}</b>`,
+                user.uid,
+              );
+            }
+            if (cleanUpdatedData.deadline !== oldTask.deadline) {
+              const newDeadline = cleanUpdatedData.deadline
+                ? new Date(cleanUpdatedData.deadline).toLocaleDateString()
+                : "no deadline";
+              updatedTask.activity = addActivity(
+                updatedTask,
+                `set the deadline to <b>${newDeadline}</b>`,
+                user.uid,
+              );
+            }
+            if (
+              cleanUpdatedData.hasOwnProperty("completedAt") &&
+              cleanUpdatedData.completedAt !== oldTask.completedAt
+            ) {
+              const text = cleanUpdatedData.completedAt
+                ? "marked this as <b>complete</b>"
+                : "marked this as <b>incomplete</b>";
+              updatedTask.activity = addActivity(updatedTask, text, user.uid);
+            }
+
+            if (project.enableLabels && cleanUpdatedData.labelIds) {
+              const oldLabels = oldTask.labelIds || [];
+              const newLabels = cleanUpdatedData.labelIds;
+              const added = newLabels.filter((l) => !oldLabels.includes(l));
+              const removed = oldLabels.filter((l) => !newLabels.includes(l));
+
+              added.forEach((labelId) => {
+                const label = project.labels?.find((l) => l.id === labelId);
+                if (label)
+                  updatedTask.activity = addActivity(
+                    updatedTask,
+                    `added the label <b style="color: ${label.color}; background-color: ${label.color}20; padding: 1px 4px; border-radius: 4px;">${label.name}</b>`,
+                    user.uid,
+                  );
+              });
+              removed.forEach((labelId) => {
+                const label = project.labels?.find((l) => l.id === labelId);
+                if (label)
+                  updatedTask.activity = addActivity(
+                    updatedTask,
+                    `removed the label <b style="color: ${label.color}; background-color: ${label.color}20; padding: 1px 4px; border-radius: 4px;">${label.name}</b>`,
+                    user.uid,
+                  );
+              });
+            }
+            if (updatedTask.parentId) {
+              parentTask = project.columns
+                .flatMap((c) => c.tasks)
+                .find((t) => t.id === updatedTask.parentId);
+            }
+            return updatedTask;
+          }
+          return t;
+        });
+
+        // This is for logging subtask completion on the parent task.
+        if (parentTask && cleanUpdatedData.hasOwnProperty("completedAt")) {
+          const parentId = parentTask.id;
+          tasks = tasks.map((t) => {
+            if (t.id === parentId) {
+              const activityText = cleanUpdatedData.completedAt
+                ? `completed a sub-task: <b>${meta?.subtaskTitle}</b>`
+                : `marked a sub-task as incomplete: <b>${meta?.subtaskTitle}</b>`;
+              return { ...t, activity: addActivity(t, activityText, user.uid) };
             }
             return t;
-          }),
-        };
+          });
+        }
+        return { ...c, tasks };
       });
 
       try {
-        await updateProjectData(projectId, { columns: newColumns });
+        await updateProject(projectId, { columns: newColumns });
 
         const allTasks = newColumns.flatMap((c) => c.tasks);
         const updatedTask = allTasks.find((t) => t.id === taskId);
 
         if (
           updatedTask?.parentId &&
-          updatedData.hasOwnProperty("completedAt")
+          cleanUpdatedData.hasOwnProperty("completedAt")
         ) {
           const parentTask = allTasks.find(
             (t) => t.id === updatedTask.parentId,
@@ -528,7 +763,7 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
+    [projects, updateProject, user],
   );
 
   const deleteTask = useCallback(
@@ -553,7 +788,7 @@ export function useKanbanStore(): KanbanStore {
       }));
 
       try {
-        await updateProjectData(project.id, { columns: updatedColumns });
+        await updateProject(project.id, { columns: updatedColumns });
         toast({
           id: "task-deleted",
           title: "Task Deleted",
@@ -571,7 +806,7 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
+    [projects, updateProject],
   );
 
   const deleteColumn = useCallback(
@@ -591,7 +826,7 @@ export function useKanbanStore(): KanbanStore {
       }
       const updatedColumns = project.columns.filter((c) => c.id !== columnId);
       try {
-        await updateProjectData(project.id, { columns: updatedColumns });
+        await updateProject(project.id, { columns: updatedColumns });
         toast({
           id: "column-deleted",
           title: "Column Deleted",
@@ -609,7 +844,7 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
+    [projects, updateProject],
   );
 
   const deleteProject = useCallback(
@@ -641,6 +876,7 @@ export function useKanbanStore(): KanbanStore {
 
   const inviteUserToProject = useCallback(
     async (projectId: string, email: string) => {
+      if (!user) return { success: false, message: "User not authenticated." };
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("email", "==", email.toLowerCase()));
       const querySnapshot = await getDocs(q);
@@ -650,11 +886,22 @@ export function useKanbanStore(): KanbanStore {
       }
 
       const userToInvite = querySnapshot.docs[0].data() as KanbanUser;
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return { success: false, message: "Project not found." };
 
       try {
-        await updateProjectData(projectId, {
+        await updateProject(projectId, {
           members: arrayUnion(userToInvite.uid) as any,
         });
+
+        await addDoc(collection(db, "notifications"), {
+          userId: userToInvite.uid,
+          text: `You have been invited to the project <b>${project.name}</b>`,
+          link: `/p/${projectId}`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        } as Omit<Notification, "id">);
+
         toast({
           id: "user-invited",
           title: "User Invited",
@@ -674,7 +921,7 @@ export function useKanbanStore(): KanbanStore {
         return { success: false, message: "Error inviting user." };
       }
     },
-    [projects, updateProjectData],
+    [updateProject, user, projects],
   );
 
   const getProjectMembers = useCallback(
@@ -682,21 +929,30 @@ export function useKanbanStore(): KanbanStore {
       const project = projects.find((p) => p.id === projectId);
       if (!project || !project.members) return [];
 
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("uid", "in", project.members));
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map((doc) => doc.data() as KanbanUser);
+      try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("uid", "in", project.members));
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map((doc) => doc.data() as KanbanUser);
+      } catch (e) {
+        // This can happen if project.members is empty, which is a valid case.
+        if (
+          e instanceof Error &&
+          e.message.includes("at least one value for 'in' operator")
+        ) {
+          return [];
+        }
+        console.error("Error fetching project members:", e);
+        return [];
+      }
     },
     [projects],
   );
 
   const removeUserFromProject = useCallback(
     async (projectId: string, userId: string) => {
-      const project = projects.find((p) => p.id === projectId);
-      if (!project) return;
       try {
-        await updateProjectData(projectId, {
+        await updateProject(projectId, {
           members: arrayRemove(userId) as any,
         });
         toast({
@@ -715,25 +971,120 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProjectData],
+    [updateProject],
   );
 
-  return {
-    projects,
-    addProject,
-    addColumn,
-    addTask,
-    moveTask,
-    isLoaded,
-    updateColumnTitle,
-    moveColumn,
-    updateProjectName,
-    updateTask,
-    deleteTask,
-    deleteColumn,
-    deleteProject,
-    inviteUserToProject,
-    getProjectMembers,
-    removeUserFromProject,
-  };
+  const createLabel = useCallback(
+    async (projectId: string, name: string, color: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+      const newLabel: Label = { id: `label-${Date.now()}`, name, color };
+      const updatedLabels = [...(project.labels || []), newLabel];
+      await updateProject(projectId, { labels: updatedLabels });
+    },
+    [projects, updateProject],
+  );
+
+  const updateLabel = useCallback(
+    async (projectId: string, labelId: string, name: string, color: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+      const updatedLabels = (project.labels || []).map((label) =>
+        label.id === labelId ? { ...label, name, color } : label,
+      );
+      await updateProject(projectId, { labels: updatedLabels });
+    },
+    [projects, updateProject],
+  );
+
+  const deleteLabel = useCallback(
+    async (projectId: string, labelId: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+
+      const labelToDelete = project.labels?.find((l) => l.id === labelId);
+      if (!labelToDelete) return;
+
+      const updatedLabels = (project.labels || []).filter(
+        (label) => label.id !== labelId,
+      );
+
+      // Also remove this labelId from all tasks
+      const updatedColumns = project.columns.map((column) => ({
+        ...column,
+        tasks: column.tasks.map((task) => {
+          const newLabelIds = (task.labelIds || []).filter(
+            (id) => id !== labelId,
+          );
+          return {
+            ...task,
+            labelIds: newLabelIds,
+          };
+        }),
+      }));
+
+      await updateProject(projectId, {
+        labels: updatedLabels,
+        columns: updatedColumns,
+      });
+      toast({
+        id: "label-deleted",
+        title: "Label Deleted",
+        description: `Label "${labelToDelete.name}" was successfully removed.`,
+        variant: "default",
+      });
+    },
+    [projects, updateProject],
+  );
+
+  const openNewProjectDialog = useCallback(() => {
+    updateDialogState(true);
+  }, []);
+
+  return useMemo(
+    () => ({
+      projects,
+      isLoaded,
+      addProject,
+      addColumn,
+      addTask,
+      moveTask,
+      updateColumnTitle,
+      moveColumn,
+      updateProject,
+      updateTask,
+      deleteTask,
+      deleteColumn,
+      deleteProject,
+      inviteUserToProject,
+      getProjectMembers,
+      removeUserFromProject,
+      createLabel,
+      updateLabel,
+      deleteLabel,
+      openNewProjectDialog,
+    }),
+    [
+      projects,
+      isLoaded,
+      addProject,
+      addColumn,
+      addTask,
+      moveTask,
+      updateColumnTitle,
+      moveColumn,
+      updateProject,
+      updateTask,
+      deleteTask,
+      deleteColumn,
+      deleteProject,
+      inviteUserToProject,
+      getProjectMembers,
+      removeUserFromProject,
+      createLabel,
+      updateLabel,
+      deleteLabel,
+      openNewProjectDialog,
+    ],
+  );
 }

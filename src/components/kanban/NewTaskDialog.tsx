@@ -23,9 +23,10 @@ import {
   ArrowUp,
   Calendar as CalendarIcon,
   Minus,
+  Tag,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import type { KanbanUser, Task } from "@/types/kanban";
+import type { KanbanUser, Task, Label as LabelType } from "@/types/kanban";
 import {
   Select,
   SelectContent,
@@ -36,6 +37,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { format, setHours, setMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Badge } from "../ui/badge";
+import { Checkbox } from "../ui/checkbox";
 
 type NewTaskDialogProps = {
   isOpen: boolean;
@@ -48,6 +51,9 @@ type NewTaskDialogProps = {
     taskData: Omit<Task, "id" | "createdAt" | "updatedAt" | "completedAt">,
   ) => Promise<void>;
   members: KanbanUser[];
+  projectLabels: LabelType[];
+  enableDeadlines: boolean;
+  enableLabels: boolean;
 };
 
 export function NewTaskDialog({
@@ -55,14 +61,18 @@ export function NewTaskDialog({
   onClose,
   onAddTask,
   members,
+  projectLabels,
   projectId,
   columnId,
+  enableDeadlines,
+  enableLabels,
 }: NewTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [priority, setPriority] = useState<Task["priority"]>("Medium");
   const [deadline, setDeadline] = useState<Date | undefined>();
+  const [labelIds, setLabelIds] = useState<string[]>([]);
   const [time, setTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,11 +88,13 @@ export function NewTaskDialog({
     setPriority("Medium");
     setDeadline(undefined);
     setTime("");
+    setLabelIds([]);
   };
 
   const handleAddTask = async () => {
     if (title.trim() && !isSubmitting) {
       setIsSubmitting(true);
+
       let finalDeadline = deadline;
       if (finalDeadline && time) {
         const [hours, minutes] = time.split(":");
@@ -93,13 +105,23 @@ export function NewTaskDialog({
       } else if (finalDeadline) {
         finalDeadline.setHours(0, 0, 0, 0);
       }
-      await onAddTask(projectId, columnId, {
+
+      const taskData: Omit<
+        Task,
+        "id" | "createdAt" | "updatedAt" | "completedAt"
+      > = {
         title: title.trim(),
-        description: description.trim(),
-        assignee: assigneeId === "unassigned" ? "" : assigneeId,
         priority,
-        deadline: finalDeadline?.toISOString(),
-      });
+      };
+
+      if (description.trim()) taskData.description = description.trim();
+      if (assigneeId && assigneeId !== "unassigned")
+        taskData.assignee = assigneeId;
+      if (finalDeadline && enableDeadlines)
+        taskData.deadline = finalDeadline.toISOString();
+      if (labelIds.length > 0 && enableLabels) taskData.labelIds = labelIds;
+
+      await onAddTask(projectId, columnId, taskData);
       setIsSubmitting(false);
       resetForm();
       onClose();
@@ -111,6 +133,14 @@ export function NewTaskDialog({
     if (!date) {
       setTime("");
     }
+  };
+
+  const handleLabelToggle = (labelId: string) => {
+    setLabelIds((prev) =>
+      prev.includes(labelId)
+        ? prev.filter((id) => id !== labelId)
+        : [...prev, labelId],
+    );
   };
 
   const [currentHour, currentMinute] = time.split(":");
@@ -131,7 +161,10 @@ export function NewTaskDialog({
         onClose();
       }}
     >
-      <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh] p-0">
+      <DialogContent
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="sm:max-w-md flex flex-col max-h-[90vh] p-0"
+      >
         <DialogHeader className="p-6 pb-4 flex-shrink-0">
           <DialogTitle>Add New Task</DialogTitle>
         </DialogHeader>
@@ -191,72 +224,74 @@ export function NewTaskDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Deadline (optional)</Label>
-            <div className="flex gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !deadline && "text-muted-foreground",
-                    )}
+          {enableDeadlines && (
+            <div className="space-y-2">
+              <Label>Deadline (optional)</Label>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !deadline && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {deadline ? (
+                        format(deadline, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={deadline}
+                      onSelect={handleDateSelect}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <div className="flex items-center gap-1">
+                  <Select
+                    value={currentHour}
+                    onValueChange={handleHourChange}
+                    disabled={!deadline}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {deadline ? (
-                      format(deadline, "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={deadline}
-                    onSelect={handleDateSelect}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <div className="flex items-center gap-1">
-                <Select
-                  value={currentHour}
-                  onValueChange={handleHourChange}
-                  disabled={!deadline}
-                >
-                  <SelectTrigger className="w-[75px]">
-                    <SelectValue placeholder="Hour" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {hours.map((h) => (
-                      <SelectItem key={h} value={h}>
-                        {h}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="font-bold text-muted-foreground">:</span>
-                <Select
-                  value={currentMinute}
-                  onValueChange={handleMinuteChange}
-                  disabled={!deadline}
-                >
-                  <SelectTrigger className="w-[75px]">
-                    <SelectValue placeholder="Min" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {minutes.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    <SelectTrigger className="w-[75px]">
+                      <SelectValue placeholder="Hour" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hours.map((h) => (
+                        <SelectItem key={h} value={h}>
+                          {h}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="font-bold text-muted-foreground">:</span>
+                  <Select
+                    value={currentMinute}
+                    onValueChange={handleMinuteChange}
+                    disabled={!deadline}
+                  >
+                    <SelectTrigger className="w-[75px]">
+                      <SelectValue placeholder="Min" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {minutes.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
-          </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="task-assignee">Assignee (optional)</Label>
             <Select value={assigneeId} onValueChange={setAssigneeId}>
@@ -286,6 +321,51 @@ export function NewTaskDialog({
               </SelectContent>
             </Select>
           </div>
+          {enableLabels && (
+            <div className="space-y-2">
+              <Label>Labels</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <Tag className="mr-2 h-4 w-4" />
+                    <div className="flex-grow truncate">
+                      {labelIds.length > 0
+                        ? projectLabels
+                            .filter((l) => labelIds.includes(l.id))
+                            .map((l) => l.name)
+                            .join(", ")
+                        : "Select labels"}
+                    </div>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <div className="p-2 space-y-1">
+                    {projectLabels.map((label) => (
+                      <div
+                        key={label.id}
+                        className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted cursor-pointer"
+                        onClick={() => handleLabelToggle(label.id)}
+                      >
+                        <Checkbox checked={labelIds.includes(label.id)} />
+                        <Badge
+                          variant="secondary"
+                          style={{
+                            backgroundColor: label.color,
+                            color: "white",
+                          }}
+                        >
+                          {label.name}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
         <DialogFooter className="p-6 border-t flex-shrink-0">
           <Button variant="outline" onClick={onClose}>

@@ -42,13 +42,16 @@ export function NewColumnDialog({
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="w-full h-full border-dashed hover:bg-primary/10 hover:border-primary text-muted-foreground hover:text-primary"
+          className="w-full h-full border-dashed md:hover:bg-primary/10 md:hover:border-primary text-muted-foreground md:hover:text-primary"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add new column
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="sm:max-w-[425px]"
+      >
         <DialogHeader>
           <DialogTitle>Add New Column</DialogTitle>
         </DialogHeader>

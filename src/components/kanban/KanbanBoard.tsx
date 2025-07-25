@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import type { Project, Task, KanbanUser } from "@/types/kanban";
+import type { Project, Task, KanbanUser, Label } from "@/types/kanban";
 import { KanbanColumn } from "./KanbanColumn";
 import { NewColumnDialog } from "./NewColumnDialog";
 import { TaskDetailsDialog } from "./TaskDetailsDialog";
@@ -32,6 +32,15 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
     () => project.columns.flatMap((c) => c.tasks),
     [project.columns],
   );
+  const enableDeadlines = useMemo(
+    () => project.enableDeadlines ?? true,
+    [project.enableDeadlines],
+  );
+  const enableLabels = useMemo(
+    () => project.enableLabels ?? true,
+    [project.enableLabels],
+  );
+  const projectLabels = useMemo(() => project.labels ?? [], [project.labels]);
 
   useEffect(() => {
     function handleResize() {
@@ -46,22 +55,23 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
     const prevProject = prevProjectRef.current;
 
     if (prevProject && project) {
-      const prevCompletedTasks = new Set(
-        prevProject.columns
-          .flatMap((c) => c.tasks)
-          .filter((t) => t.completedAt)
-          .map((t) => t.id),
-      );
-      const currentCompletedTasks = project.columns
-        .flatMap((c) => c.tasks)
-        .filter((t) => t.completedAt);
-
-      const newlyCompletedTask = currentCompletedTasks.find(
-        (t) => !prevCompletedTasks.has(t.id),
-      );
-
-      if (newlyCompletedTask) {
-        setShowConfetti(true);
+      const doneColumn = project.columns.find((c) => c.title === "Done");
+      if (doneColumn) {
+        const prevDoneColumn = prevProject.columns.find(
+          (c) => c.id === doneColumn.id,
+        );
+        if (
+          prevDoneColumn &&
+          doneColumn.tasks.length > prevDoneColumn.tasks.length
+        ) {
+          const prevTaskIds = new Set(prevDoneColumn.tasks.map((t) => t.id));
+          const newTaskInDone = doneColumn.tasks.find(
+            (t) => !prevTaskIds.has(t.id),
+          );
+          if (newTaskInDone) {
+            setShowConfetti(true);
+          }
+        }
       }
     }
 
@@ -115,6 +125,9 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
             allTasks={allTasks}
             store={store}
             members={members}
+            projectLabels={projectLabels}
+            enableDeadlines={enableDeadlines}
+            enableLabels={enableLabels}
             onTaskDragStart={handleTaskDragStart}
             onTaskDragEnd={handleTaskDragEnd}
             onColumnDragStart={handleColumnDragStart}
@@ -136,7 +149,7 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
       <TaskDetailsDialog
         isOpen={!!editingTask}
         onClose={() => setEditingTask(null)}
-        projectId={project.id}
+        project={project}
         task={editingTask?.task ?? null}
         columnId={editingTask?.columnId ?? null}
         columns={project.columns}
