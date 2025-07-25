@@ -184,7 +184,7 @@ export function useKanbanStore(): KanbanStore {
         enableSubtasks: true,
         enableDeadlines: true,
         enableLabels: true,
-        enableDashboard: false,
+        enableDashboard: true,
         labels: [
           { id: `label-${Date.now()}-1`, name: 'Bug', color: '#ef4444' },
           { id: `label-${Date.now()}-2`, name: 'Feature', color: '#3b82f6' },
