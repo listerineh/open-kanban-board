@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useRef, useMemo } from "react";
-import type { Project, Task, KanbanUser, Label } from "@/types/kanban";
-import { KanbanColumn } from "./KanbanColumn";
-import { NewColumnDialog } from "./NewColumnDialog";
-import { TaskDetailsDialog } from "./TaskDetailsDialog";
-import type { KanbanStore } from "@/hooks/use-kanban-store";
-import Confetti from "react-confetti";
+import { useEffect, useState, useRef, useMemo } from 'react';
+import type { Project, Task, KanbanUser, Label } from '@/types/kanban';
+import { KanbanColumn } from './KanbanColumn';
+import { NewColumnDialog } from './NewColumnDialog';
+import { TaskDetailsDialog } from './TaskDetailsDialog';
+import type { KanbanStore } from '@/hooks/use-kanban-store';
+import Confetti from 'react-confetti';
 
 type KanbanBoardProps = {
   project: Project;
@@ -28,46 +28,30 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const prevProjectRef = useRef<Project>();
 
-  const allTasks = useMemo(
-    () => project.columns.flatMap((c) => c.tasks),
-    [project.columns],
-  );
-  const enableDeadlines = useMemo(
-    () => project.enableDeadlines ?? true,
-    [project.enableDeadlines],
-  );
-  const enableLabels = useMemo(
-    () => project.enableLabels ?? true,
-    [project.enableLabels],
-  );
+  const allTasks = useMemo(() => project.columns.flatMap((c) => c.tasks), [project.columns]);
+  const enableDeadlines = useMemo(() => project.enableDeadlines ?? true, [project.enableDeadlines]);
+  const enableLabels = useMemo(() => project.enableLabels ?? true, [project.enableLabels]);
   const projectLabels = useMemo(() => project.labels ?? [], [project.labels]);
 
   useEffect(() => {
     function handleResize() {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     }
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
     handleResize();
-    return () => window.removeEventListener("resize", handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
     const prevProject = prevProjectRef.current;
 
     if (prevProject && project) {
-      const doneColumn = project.columns.find((c) => c.title === "Done");
+      const doneColumn = project.columns.find((c) => c.title === 'Done');
       if (doneColumn) {
-        const prevDoneColumn = prevProject.columns.find(
-          (c) => c.id === doneColumn.id,
-        );
-        if (
-          prevDoneColumn &&
-          doneColumn.tasks.length > prevDoneColumn.tasks.length
-        ) {
+        const prevDoneColumn = prevProject.columns.find((c) => c.id === doneColumn.id);
+        if (prevDoneColumn && doneColumn.tasks.length > prevDoneColumn.tasks.length) {
           const prevTaskIds = new Set(prevDoneColumn.tasks.map((t) => t.id));
-          const newTaskInDone = doneColumn.tasks.find(
-            (t) => !prevTaskIds.has(t.id),
-          );
+          const newTaskInDone = doneColumn.tasks.find((t) => !prevTaskIds.has(t.id));
           if (newTaskInDone) {
             setShowConfetti(true);
           }
@@ -134,16 +118,11 @@ export function KanbanBoard({ project, store }: KanbanBoardProps) {
             onColumnDrop={handleColumnDrop}
             onColumnDragEnd={handleColumnDragEnd}
             draggedColumnId={draggedColumnId}
-            onTaskClick={(task) =>
-              setEditingTask({ task, columnId: column.id })
-            }
+            onTaskClick={(task) => setEditingTask({ task, columnId: column.id })}
           />
         ))}
         <div className="flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[100px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow">
-          <NewColumnDialog
-            projectId={project.id}
-            onAddColumn={store.addColumn}
-          />
+          <NewColumnDialog projectId={project.id} onAddColumn={store.addColumn} />
         </div>
       </div>
       <TaskDetailsDialog

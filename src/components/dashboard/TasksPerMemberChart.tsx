@@ -1,37 +1,20 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import type { Task, KanbanUser } from "@/types/kanban";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import type { Task, KanbanUser } from '@/types/kanban';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 type TasksPerMemberChartProps = {
   tasks: Task[];
   members: KanbanUser[];
 };
 
-export function TasksPerMemberChart({
-  tasks,
-  members,
-}: TasksPerMemberChartProps) {
+export function TasksPerMemberChart({ tasks, members }: TasksPerMemberChartProps) {
   const chartData = useMemo(() => {
     const memberTaskCounts = tasks.reduce(
       (acc, task) => {
-        const assigneeId = task.assignee || "unassigned";
+        const assigneeId = task.assignee || 'unassigned';
         acc[assigneeId] = (acc[assigneeId] || 0) + 1;
         return acc;
       },
@@ -40,14 +23,10 @@ export function TasksPerMemberChart({
 
     return members
       .map((member) => ({
-        name: member.displayName?.split(" ")[0] ?? member.email,
+        name: member.displayName?.split(' ')[0] ?? member.email,
         tasks: memberTaskCounts[member.uid] || 0,
       }))
-      .concat(
-        memberTaskCounts.unassigned > 0
-          ? [{ name: "Unassigned", tasks: memberTaskCounts.unassigned }]
-          : [],
-      )
+      .concat(memberTaskCounts.unassigned > 0 ? [{ name: 'Unassigned', tasks: memberTaskCounts.unassigned }] : [])
       .filter((d) => d.tasks > 0);
   }, [tasks, members]);
 
@@ -68,17 +47,12 @@ export function TasksPerMemberChart({
     <Card>
       <CardHeader>
         <CardTitle>Tasks per Member</CardTitle>
-        <CardDescription>
-          Total number of tasks assigned to each project member.
-        </CardDescription>
+        <CardDescription>Total number of tasks assigned to each project member.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="w-full h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
-            >
+            <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <XAxis
                 dataKey="name"
                 stroke="hsl(var(--muted-foreground))"
@@ -94,21 +68,15 @@ export function TasksPerMemberChart({
                 allowDecimals={false}
               />
               <Tooltip
-                cursor={{ fill: "transparent" }}
+                cursor={{ fill: 'transparent' }}
                 contentStyle={{
-                  background: "hsl(var(--card))",
-                  borderColor: "hsl(var(--border))",
-                  borderRadius: "var(--radius)",
+                  background: 'hsl(var(--card))',
+                  borderColor: 'hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
                 }}
               />
-              <Legend
-                wrapperStyle={{ color: "hsl(var(--muted-foreground))" }}
-              />
-              <Bar
-                dataKey="tasks"
-                fill="hsl(var(--primary))"
-                radius={[4, 4, 0, 0]}
-              />
+              <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
+              <Bar dataKey="tasks" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

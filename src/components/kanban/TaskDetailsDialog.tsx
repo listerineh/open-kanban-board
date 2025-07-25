@@ -1,29 +1,13 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { useState, useEffect, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 import {
   AlertTriangle,
   ArrowDown,
@@ -48,32 +32,18 @@ import {
   Tag,
   History,
   MessageSquarePlus,
-} from "lucide-react";
-import type {
-  Task,
-  Column,
-  KanbanUser,
-  Project,
-  Label as LabelType,
-  Activity,
-} from "@/types/kanban";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import {
-  format,
-  setHours,
-  setMinutes,
-  isPast,
-  isAfter,
-  formatDistanceToNow,
-} from "date-fns";
-import { cn } from "@/lib/utils";
-import { Calendar } from "../ui/calendar";
-import { Checkbox } from "../ui/checkbox";
-import { Progress } from "../ui/progress";
-import { Separator } from "../ui/separator";
-import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "../ui/badge";
+} from 'lucide-react';
+import type { Task, Column, KanbanUser, Project, Label as LabelType, Activity } from '@/types/kanban';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { format, setHours, setMinutes, isPast, isAfter, formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Calendar } from '../ui/calendar';
+import { Checkbox } from '../ui/checkbox';
+import { Progress } from '../ui/progress';
+import { Separator } from '../ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '../ui/badge';
 
 type TaskDetailsDialogProps = {
   isOpen: boolean;
@@ -88,14 +58,10 @@ type TaskDetailsDialogProps = {
     projectId: string,
     taskId: string,
     columnId: string,
-    updatedData: Partial<Omit<Task, "id">>,
+    updatedData: Partial<Omit<Task, 'id'>>,
     meta?: { subtaskTitle?: string },
   ) => Promise<void>;
-  onDeleteTask: (
-    projectId: string,
-    taskId: string,
-    columnId: string,
-  ) => Promise<void>;
+  onDeleteTask: (projectId: string, taskId: string, columnId: string) => Promise<void>;
   onMoveTask: (
     projectId: string,
     taskId: string,
@@ -106,7 +72,7 @@ type TaskDetailsDialogProps = {
   onAddTask: (
     projectId: string,
     columnId: string,
-    taskData: Omit<Task, "id" | "createdAt" | "updatedAt" | "completedAt">,
+    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>,
   ) => Promise<void>;
   onTaskClick: (task: Task, columnId: string) => void;
 };
@@ -126,34 +92,29 @@ export function TaskDetailsDialog({
   onAddTask,
   onTaskClick,
 }: TaskDetailsDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [status, setStatus] = useState<string | null>(null);
-  const [priority, setPriority] = useState<Task["priority"]>("Medium");
+  const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [deadline, setDeadline] = useState<Date | undefined>();
   const [labelIds, setLabelIds] = useState<string[]>([]);
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState('details');
 
-  const hours = Array.from({ length: 24 }, (_, i) =>
-    i.toString().padStart(2, "0"),
-  );
-  const minutes = ["00", "15", "30", "45"];
+  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+  const minutes = ['00', '15', '30', '45'];
 
   const subtasks = useMemo(() => {
     if (!task) return [];
     return allTasks
       .filter((t) => t.parentId === task.id)
-      .sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      );
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [allTasks, task]);
 
   const parentTask = useMemo(() => {
@@ -161,76 +122,54 @@ export function TaskDetailsDialog({
     return allTasks.find((t) => t.id === task.parentId) ?? null;
   }, [allTasks, task]);
 
-  const completedSubtasks = useMemo(
-    () => subtasks.filter((st) => !!st.completedAt).length,
-    [subtasks],
-  );
+  const completedSubtasks = useMemo(() => subtasks.filter((st) => !!st.completedAt).length, [subtasks]);
   const subtaskProgress = useMemo(
-    () =>
-      subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0,
+    () => (subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0),
     [subtasks, completedSubtasks],
   );
 
   const projectLabels = useMemo(() => project.labels ?? [], [project.labels]);
-  const enableSubtasks = useMemo(
-    () => project.enableSubtasks ?? true,
-    [project.enableSubtasks],
-  );
-  const enableDeadlines = useMemo(
-    () => project.enableDeadlines ?? true,
-    [project.enableDeadlines],
-  );
-  const enableLabels = useMemo(
-    () => project.enableLabels ?? true,
-    [project.enableLabels],
-  );
+  const enableSubtasks = useMemo(() => project.enableSubtasks ?? true, [project.enableSubtasks]);
+  const enableDeadlines = useMemo(() => project.enableDeadlines ?? true, [project.enableDeadlines]);
+  const enableLabels = useMemo(() => project.enableLabels ?? true, [project.enableLabels]);
 
   useEffect(() => {
     if (task && isOpen) {
       setTitle(task.title);
-      setDescription(task.description || "");
-      setAssigneeId(task.assignee || "unassigned");
-      setPriority(task.priority || "Medium");
+      setDescription(task.description || '');
+      setAssigneeId(task.assignee || 'unassigned');
+      setPriority(task.priority || 'Medium');
       setLabelIds(task.labelIds || []);
       const deadlineDate = task.deadline ? new Date(task.deadline) : undefined;
       setDeadline(deadlineDate);
       if (deadlineDate) {
-        const hasTime =
-          deadlineDate.getHours() !== 0 || deadlineDate.getMinutes() !== 0;
-        setTime(hasTime ? format(deadlineDate, "HH:mm") : "");
+        const hasTime = deadlineDate.getHours() !== 0 || deadlineDate.getMinutes() !== 0;
+        setTime(hasTime ? format(deadlineDate, 'HH:mm') : '');
       } else {
-        setTime("");
+        setTime('');
       }
       setStatus(columnId);
-      setActiveTab("details");
+      setActiveTab('details');
     }
   }, [task, columnId, isOpen]);
 
   const handleDateSelect = (date: Date | undefined) => {
-    if (
-      parentTask?.deadline &&
-      date &&
-      isAfter(date, new Date(parentTask.deadline))
-    ) {
+    if (parentTask?.deadline && date && isAfter(date, new Date(parentTask.deadline))) {
       toast({
-        variant: "destructive",
-        title: "Invalid Deadline",
-        description: `Sub-task deadline cannot be after the parent task's deadline of ${format(new Date(parentTask.deadline), "PPP")}.`,
+        variant: 'destructive',
+        title: 'Invalid Deadline',
+        description: `Sub-task deadline cannot be after the parent task's deadline of ${format(new Date(parentTask.deadline), 'PPP')}.`,
       });
       return;
     }
     setDeadline(date);
     if (!date) {
-      setTime("");
+      setTime('');
     }
   };
 
   const handleLabelToggle = (labelId: string) => {
-    setLabelIds((prev) =>
-      prev.includes(labelId)
-        ? prev.filter((id) => id !== labelId)
-        : [...prev, labelId],
-    );
+    setLabelIds((prev) => (prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]));
   };
 
   const handleSave = async () => {
@@ -240,40 +179,29 @@ export function TaskDetailsDialog({
 
     let finalDeadline = deadline;
     if (finalDeadline && time) {
-      const [hours, minutes] = time.split(":");
-      finalDeadline = setMinutes(
-        setHours(finalDeadline, parseInt(hours, 10)),
-        parseInt(minutes, 10),
-      );
+      const [hours, minutes] = time.split(':');
+      finalDeadline = setMinutes(setHours(finalDeadline, parseInt(hours, 10)), parseInt(minutes, 10));
     } else if (finalDeadline) {
       finalDeadline.setHours(0, 0, 0, 0);
     }
     const finalDeadlineISO = finalDeadline?.toISOString();
 
-    const updatedData: Partial<Omit<Task, "id">> = {};
-    const finalAssigneeId = assigneeId === "unassigned" ? "" : assigneeId;
+    const updatedData: Partial<Omit<Task, 'id'>> = {};
+    const finalAssigneeId = assigneeId === 'unassigned' ? '' : assigneeId;
 
     if (title.trim() !== task.title) updatedData.title = title.trim();
-    if (description.trim() !== (task.description || ""))
-      updatedData.description = description.trim();
-    if (finalAssigneeId !== (task.assignee || ""))
-      updatedData.assignee = finalAssigneeId;
-    if (priority !== (task.priority || "Medium"))
-      updatedData.priority = priority;
+    if (description.trim() !== (task.description || '')) updatedData.description = description.trim();
+    if (finalAssigneeId !== (task.assignee || '')) updatedData.assignee = finalAssigneeId;
+    if (priority !== (task.priority || 'Medium')) updatedData.priority = priority;
 
     const sortedLabelIds = [...labelIds].sort();
     const sortedTaskLabelIds = [...(task.labelIds || [])].sort();
-    if (
-      enableLabels &&
-      JSON.stringify(sortedLabelIds) !== JSON.stringify(sortedTaskLabelIds)
-    ) {
+    if (enableLabels && JSON.stringify(sortedLabelIds) !== JSON.stringify(sortedTaskLabelIds)) {
       updatedData.labelIds = sortedLabelIds;
     }
 
     // Handle deadline changes carefully
-    const currentDeadlineISO = task.deadline
-      ? new Date(task.deadline).toISOString()
-      : undefined;
+    const currentDeadlineISO = task.deadline ? new Date(task.deadline).toISOString() : undefined;
     if (finalDeadlineISO !== currentDeadlineISO) {
       updatedData.deadline = enableDeadlines ? finalDeadlineISO : undefined;
     }
@@ -287,9 +215,7 @@ export function TaskDetailsDialog({
       status !== columnId && !task.parentId
         ? () => {
             const destinationColumn = columns.find((c) => c.id === status);
-            const toIndex = destinationColumn
-              ? destinationColumn.tasks.length
-              : 0;
+            const toIndex = destinationColumn ? destinationColumn.tasks.length : 0;
             return onMoveTask(project.id, task.id, columnId, status, toIndex);
           }
         : () => Promise.resolve();
@@ -310,16 +236,13 @@ export function TaskDetailsDialog({
 
   const handleAddSubtask = async () => {
     if (!newSubtaskTitle.trim() || !task || !columnId) return;
-    const subtaskData: Omit<
-      Task,
-      "id" | "createdAt" | "updatedAt" | "completedAt"
-    > = {
+    const subtaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'> = {
       title: newSubtaskTitle.trim(),
       parentId: task.id,
-      priority: "Medium",
+      priority: 'Medium',
     };
     await onAddTask(project.id, columnId, subtaskData);
-    setNewSubtaskTitle("");
+    setNewSubtaskTitle('');
   };
 
   const handleSubtaskCheck = async (subtask: Task, isChecked: boolean) => {
@@ -337,14 +260,14 @@ export function TaskDetailsDialog({
     onTaskClick(subtask, columnId);
   };
 
-  const [currentHour, currentMinute] = time.split(":");
+  const [currentHour, currentMinute] = time.split(':');
 
   const handleHourChange = (newHour: string) => {
-    setTime(`${newHour}:${currentMinute || "00"}`);
+    setTime(`${newHour}:${currentMinute || '00'}`);
   };
 
   const handleMinuteChange = (newMinute: string) => {
-    setTime(`${currentHour || "00"}:${newMinute}`);
+    setTime(`${currentHour || '00'}:${newMinute}`);
   };
 
   if (!isOpen || !task) {
@@ -359,20 +282,14 @@ export function TaskDetailsDialog({
           className="sm:max-w-lg flex flex-col max-h-[90vh] p-0"
         >
           <DialogHeader className="p-6 pb-4 flex-shrink-0">
-            <DialogTitle>
-              {task.parentId ? "Edit Sub-task" : "Edit Task"}
-            </DialogTitle>
+            <DialogTitle>{task.parentId ? 'Edit Sub-task' : 'Edit Task'}</DialogTitle>
             <DialogDescription>
               {task.parentId
                 ? `Sub-task in "${parentTask?.title}"`
                 : "Make changes to your task here. Click save when you're done."}
             </DialogDescription>
           </DialogHeader>
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="flex-grow flex flex-col min-h-0"
-          >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col min-h-0">
             <TabsList className="flex-shrink-0 w-full justify-start rounded-none border-b bg-transparent p-0">
               <div className="px-6 flex items-center gap-4">
                 <TabsTrigger
@@ -389,10 +306,7 @@ export function TaskDetailsDialog({
                 </TabsTrigger>
               </div>
             </TabsList>
-            <TabsContent
-              value="details"
-              className="grid gap-4 px-6 pb-4 flex-grow overflow-y-auto mt-4"
-            >
+            <TabsContent value="details" className="grid gap-4 px-6 pb-4 flex-grow overflow-y-auto mt-4">
               <div className="space-y-2">
                 <Label htmlFor="task-title">Title</Label>
                 <Input
@@ -416,10 +330,8 @@ export function TaskDetailsDialog({
                 <div className="space-y-2">
                   <Label htmlFor="task-priority">Priority</Label>
                   <Select
-                    value={priority ?? "Medium"}
-                    onValueChange={(value) =>
-                      setPriority(value as Task["priority"])
-                    }
+                    value={priority ?? 'Medium'}
+                    onValueChange={(value) => setPriority(value as Task['priority'])}
                   >
                     <SelectTrigger id="task-priority">
                       <SelectValue placeholder="Select a priority" />
@@ -454,11 +366,7 @@ export function TaskDetailsDialog({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="task-status">Status</Label>
-                  <Select
-                    value={status ?? ""}
-                    onValueChange={setStatus}
-                    disabled={!!task.parentId}
-                  >
+                  <Select value={status ?? ''} onValueChange={setStatus} disabled={!!task.parentId}>
                     <SelectTrigger id="task-status">
                       <SelectValue placeholder="Select a status" />
                     </SelectTrigger>
@@ -485,18 +393,10 @@ export function TaskDetailsDialog({
                         <SelectItem key={member.uid} value={member.uid}>
                           <div className="flex flex-row justify-between items-center gap-2">
                             <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
-                              <AvatarImage
-                                src={member.photoURL ?? ""}
-                                alt={member.displayName ?? "User"}
-                              />
-                              <AvatarFallback>
-                                {member.displayName?.charAt(0).toUpperCase() ??
-                                  "U"}
-                              </AvatarFallback>
+                              <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
+                              <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                             </Avatar>
-                            <p className="sm:text-md text-sm">
-                              {member.displayName ?? member.email}
-                            </p>
+                            <p className="sm:text-md text-sm">{member.displayName ?? member.email}</p>
                           </div>
                         </SelectItem>
                       ))}
@@ -509,18 +409,15 @@ export function TaskDetailsDialog({
                   <Label>Labels</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
                         <Tag className="mr-2 h-4 w-4" />
                         <div className="flex-grow truncate">
                           {labelIds.length > 0
                             ? projectLabels
                                 .filter((l) => labelIds.includes(l.id))
                                 .map((l) => l.name)
-                                .join(", ")
-                            : "Select labels"}
+                                .join(', ')
+                            : 'Select labels'}
                         </div>
                       </Button>
                     </PopoverTrigger>
@@ -538,7 +435,7 @@ export function TaskDetailsDialog({
                                 variant="secondary"
                                 style={{
                                   backgroundColor: label.color,
-                                  color: "white",
+                                  color: 'white',
                                 }}
                               >
                                 {label.name}
@@ -547,8 +444,7 @@ export function TaskDetailsDialog({
                           ))
                         ) : (
                           <p className="p-2 text-xs text-muted-foreground">
-                            No labels in this project. Create some in the
-                            project settings.
+                            No labels in this project. Create some in the project settings.
                           </p>
                         )}
                       </div>
@@ -563,18 +459,14 @@ export function TaskDetailsDialog({
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
-                          variant={"outline"}
+                          variant={'outline'}
                           className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !deadline && "text-muted-foreground",
+                            'w-full justify-start text-left font-normal',
+                            !deadline && 'text-muted-foreground',
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {deadline ? (
-                            format(deadline, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
+                          {deadline ? format(deadline, 'PPP') : <span>Pick a date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -583,20 +475,14 @@ export function TaskDetailsDialog({
                           selected={deadline}
                           onSelect={handleDateSelect}
                           disabled={(date) =>
-                            (parentTask?.deadline &&
-                              isAfter(date, new Date(parentTask.deadline))) ||
-                            false
+                            (parentTask?.deadline && isAfter(date, new Date(parentTask.deadline))) || false
                           }
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
                     <div className="flex items-center gap-1">
-                      <Select
-                        value={currentHour}
-                        onValueChange={handleHourChange}
-                        disabled={!deadline}
-                      >
+                      <Select value={currentHour} onValueChange={handleHourChange} disabled={!deadline}>
                         <SelectTrigger className="w-[75px]">
                           <SelectValue placeholder="Hour" />
                         </SelectTrigger>
@@ -609,11 +495,7 @@ export function TaskDetailsDialog({
                         </SelectContent>
                       </Select>
                       <span className="font-bold text-muted-foreground">:</span>
-                      <Select
-                        value={currentMinute}
-                        onValueChange={handleMinuteChange}
-                        disabled={!deadline}
-                      >
+                      <Select value={currentMinute} onValueChange={handleMinuteChange} disabled={!deadline}>
                         <SelectTrigger className="w-[75px]">
                           <SelectValue placeholder="Min" />
                         </SelectTrigger>
@@ -640,34 +522,24 @@ export function TaskDetailsDialog({
                       <div className="space-y-2">
                         <Progress value={subtaskProgress} className="h-2" />
                         <p className="text-xs text-muted-foreground">
-                          {completedSubtasks} of {subtasks.length} sub-tasks
-                          completed
+                          {completedSubtasks} of {subtasks.length} sub-tasks completed
                         </p>
                       </div>
                     )}
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                       {subtasks.map((subtask) => (
-                        <div
-                          key={subtask.id}
-                          className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50"
-                        >
+                        <div key={subtask.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50">
                           <Checkbox
                             id={`subtask-${subtask.id}`}
                             checked={!!subtask.completedAt}
-                            onCheckedChange={(checked) =>
-                              handleSubtaskCheck(subtask, !!checked)
-                            }
+                            onCheckedChange={(checked) => handleSubtaskCheck(subtask, !!checked)}
                           />
-                          <div
-                            className="flex-grow cursor-pointer"
-                            onClick={() => handleSubtaskClick(subtask)}
-                          >
+                          <div className="flex-grow cursor-pointer" onClick={() => handleSubtaskClick(subtask)}>
                             <label
                               htmlFor={`subtask-${subtask.id}`}
                               className={cn(
-                                "text-sm flex-grow",
-                                subtask.completedAt &&
-                                  "line-through text-muted-foreground",
+                                'text-sm flex-grow',
+                                subtask.completedAt && 'line-through text-muted-foreground',
                               )}
                             >
                               {subtask.title}
@@ -675,32 +547,26 @@ export function TaskDetailsDialog({
                             {subtask.deadline && enableDeadlines && (
                               <p
                                 className={cn(
-                                  "text-xs",
+                                  'text-xs',
                                   subtask.completedAt
-                                    ? "text-muted-foreground/80"
+                                    ? 'text-muted-foreground/80'
                                     : isPast(new Date(subtask.deadline))
-                                      ? "text-destructive"
-                                      : "text-muted-foreground",
+                                      ? 'text-destructive'
+                                      : 'text-muted-foreground',
                                 )}
                               >
-                                {format(new Date(subtask.deadline), "MMM d")}
+                                {format(new Date(subtask.deadline), 'MMM d')}
                               </p>
                             )}
                           </div>
                           {subtask.assignee && (
                             <Avatar className="h-6 w-6">
-                              <AvatarImage
-                                src={
-                                  members.find(
-                                    (m) => m.uid === subtask.assignee,
-                                  )?.photoURL ?? ""
-                                }
-                              />
+                              <AvatarImage src={members.find((m) => m.uid === subtask.assignee)?.photoURL ?? ''} />
                               <AvatarFallback>
                                 {members
                                   .find((m) => m.uid === subtask.assignee)
                                   ?.displayName?.charAt(0)
-                                  .toUpperCase() ?? "U"}
+                                  .toUpperCase() ?? 'U'}
                               </AvatarFallback>
                             </Avatar>
                           )}
@@ -712,9 +578,7 @@ export function TaskDetailsDialog({
                         placeholder="Add a new sub-task..."
                         value={newSubtaskTitle}
                         onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && handleAddSubtask()
-                        }
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
                       />
                       <Button onClick={handleAddSubtask} size="sm">
                         <Plus className="h-4 w-4 mr-1" /> Add
@@ -724,36 +588,21 @@ export function TaskDetailsDialog({
                 </div>
               )}
             </TabsContent>
-            <TabsContent
-              value="activity"
-              className="px-6 pb-4 flex-grow overflow-y-auto mt-4"
-            >
+            <TabsContent value="activity" className="px-6 pb-4 flex-grow overflow-y-auto mt-4">
               <div className="space-y-4">
                 {(task.activity ?? [])
-                  .sort(
-                    (a, b) =>
-                      new Date(b.timestamp).getTime() -
-                      new Date(a.timestamp).getTime(),
-                  )
+                  .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                   .map((act) => {
                     const member = members.find((m) => m.uid === act.userId);
                     return (
                       <div key={act.id} className="flex items-start gap-3">
                         <Avatar className="h-8 w-8 mt-1">
-                          <AvatarImage
-                            src={member?.photoURL ?? undefined}
-                            alt={member?.displayName ?? "User"}
-                          />
-                          <AvatarFallback>
-                            {member?.displayName?.charAt(0).toUpperCase() ??
-                              "U"}
-                          </AvatarFallback>
+                          <AvatarImage src={member?.photoURL ?? undefined} alt={member?.displayName ?? 'User'} />
+                          <AvatarFallback>{member?.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="text-sm">
-                            <span className="font-semibold">
-                              {member?.displayName ?? "A user"}
-                            </span>
+                            <span className="font-semibold">{member?.displayName ?? 'A user'}</span>
                             <span
                               dangerouslySetInnerHTML={{
                                 __html: ` ${act.text}`,
@@ -780,48 +629,34 @@ export function TaskDetailsDialog({
           </Tabs>
           <div className="p-6 pt-4 border-t flex-shrink-0">
             <div className="flex justify-between items-center gap-2">
-              <Button
-                variant="destructive"
-                size="default"
-                onClick={() => setIsDeleteDialogOpen(true)}
-              >
+              <Button variant="destructive" size="default" onClick={() => setIsDeleteDialogOpen(true)}>
                 <Trash2 className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline-block">
-                  Delete {task.parentId ? "sub-task" : "task"}
-                </span>
+                <span className="ml-2 hidden sm:inline-block">Delete {task.parentId ? 'sub-task' : 'task'}</span>
               </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
                 <Button type="submit" onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? "Saving..." : "Save Changes"}
+                  {isSaving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this
-              task
-              {subtasks.length > 0 && " and all of its sub-tasks"} from the
-              board.
+              This action cannot be undone. This will permanently delete this task
+              {subtasks.length > 0 && ' and all of its sub-tasks'} from the board.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive hover:bg-destructive/90 text-white"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-white">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

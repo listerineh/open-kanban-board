@@ -1,30 +1,20 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Plus } from 'lucide-react';
 
 type NewColumnDialogProps = {
   projectId: string;
   onAddColumn: (projectId: string, title: string) => Promise<void>;
 };
 
-export function NewColumnDialog({
-  projectId,
-  onAddColumn,
-}: NewColumnDialogProps) {
+export function NewColumnDialog({ projectId, onAddColumn }: NewColumnDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddColumn = async () => {
@@ -32,7 +22,7 @@ export function NewColumnDialog({
       setIsSubmitting(true);
       await onAddColumn(projectId, title.trim());
       setIsSubmitting(false);
-      setTitle("");
+      setTitle('');
       setIsOpen(false);
     }
   };
@@ -48,10 +38,7 @@ export function NewColumnDialog({
           Add new column
         </Button>
       </DialogTrigger>
-      <DialogContent
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="sm:max-w-[425px]"
-      >
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Column</DialogTitle>
         </DialogHeader>
@@ -66,17 +53,13 @@ export function NewColumnDialog({
               onChange={(e) => setTitle(e.target.value)}
               className="col-span-3"
               placeholder="e.g. Review"
-              onKeyDown={(e) => e.key === "Enter" && handleAddColumn()}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddColumn()}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button
-            type="submit"
-            onClick={handleAddColumn}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Adding..." : "Add Column"}
+          <Button type="submit" onClick={handleAddColumn} disabled={isSubmitting}>
+            {isSubmitting ? 'Adding...' : 'Add Column'}
           </Button>
         </DialogFooter>
       </DialogContent>

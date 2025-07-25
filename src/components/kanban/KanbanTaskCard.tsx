@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import type { KanbanUser, Task, Label } from "@/types/kanban";
-import { Card, CardContent } from "@/components/ui/card";
-import { GripVertical, Calendar, CheckCircle2, ListTodo } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Progress } from "../ui/progress";
-import { formatDistanceToNow } from "date-fns";
-import { Badge } from "../ui/badge";
+import type { KanbanUser, Task, Label } from '@/types/kanban';
+import { Card, CardContent } from '@/components/ui/card';
+import { GripVertical, Calendar, CheckCircle2, ListTodo } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Progress } from '../ui/progress';
+import { formatDistanceToNow } from 'date-fns';
+import { Badge } from '../ui/badge';
 
 type KanbanTaskCardProps = {
   task: Task;
@@ -38,19 +38,16 @@ export function KanbanTaskCard({
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isOverdue, setIsOverdue] = useState(false);
-  const [deadlineText, setDeadlineText] = useState("");
+  const [deadlineText, setDeadlineText] = useState('');
 
   const completedSubtasks = subtasks.filter((st) => !!st.completedAt).length;
-  const subtaskProgress =
-    subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
-  const taskLabels = projectLabels.filter((label) =>
-    task.labelIds?.includes(label.id),
-  );
+  const subtaskProgress = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
+  const taskLabels = projectLabels.filter((label) => task.labelIds?.includes(label.id));
 
   useEffect(() => {
     if (task.completedAt) {
       setProgress(100);
-      setDeadlineText("");
+      setDeadlineText('');
       setIsOverdue(false);
       return;
     }
@@ -58,7 +55,7 @@ export function KanbanTaskCard({
     if (!task.deadline || !enableDeadlines) {
       setProgress(0);
       setIsOverdue(false);
-      setDeadlineText("");
+      setDeadlineText('');
       return;
     }
 
@@ -112,11 +109,8 @@ export function KanbanTaskCard({
       e.preventDefault();
       return;
     }
-    e.dataTransfer.setData(
-      "application/json",
-      JSON.stringify({ taskId: task.id, fromColumnId: columnId }),
-    );
-    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData('application/json', JSON.stringify({ taskId: task.id, fromColumnId: columnId }));
+    e.dataTransfer.effectAllowed = 'move';
     onDragStart(task, columnId);
     setIsDragging(true);
   };
@@ -129,13 +123,13 @@ export function KanbanTaskCard({
   const assignee = members.find((m) => m.uid === task.assignee);
 
   const priorityStyles: Record<string, string> = {
-    Urgent: "border-l-red-500",
-    High: "border-l-orange-400",
-    Medium: "border-l-blue-400",
-    Low: "border-l-zinc-500",
+    Urgent: 'border-l-red-500',
+    High: 'border-l-orange-400',
+    Medium: 'border-l-blue-400',
+    Low: 'border-l-zinc-500',
   };
 
-  const priority = task.priority ?? "Medium";
+  const priority = task.priority ?? 'Medium';
   const borderClass = priorityStyles[priority];
 
   return (
@@ -146,10 +140,10 @@ export function KanbanTaskCard({
       onClick={onClick}
       data-task-id={task.id}
       className={cn(
-        "group cursor-pointer active:cursor-grabbing bg-card md:hover:bg-card/80 transition-all border-l-4",
-        isDragging && "opacity-50",
-        task.completedAt ? "border-l-green-500" : borderClass,
-        task.parentId && "opacity-80 md:hover:opacity-100",
+        'group cursor-pointer active:cursor-grabbing bg-card md:hover:bg-card/80 transition-all border-l-4',
+        isDragging && 'opacity-50',
+        task.completedAt ? 'border-l-green-500' : borderClass,
+        task.parentId && 'opacity-80 md:hover:opacity-100',
       )}
     >
       <CardContent className="p-3 flex items-start gap-2">
@@ -157,11 +151,7 @@ export function KanbanTaskCard({
         <div className="flex-grow space-y-2">
           <div>
             <p className="font-medium">{task.title}</p>
-            {task.description && (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {task.description}
-              </p>
-            )}
+            {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
           </div>
 
           {enableLabels && taskLabels.length > 0 && (
@@ -171,7 +161,7 @@ export function KanbanTaskCard({
                   key={label.id}
                   variant="secondary"
                   className="text-xs px-1.5 py-0.5"
-                  style={{ backgroundColor: label.color, color: "white" }}
+                  style={{ backgroundColor: label.color, color: 'white' }}
                 >
                   {label.name}
                 </Badge>
@@ -184,17 +174,10 @@ export function KanbanTaskCard({
               {assignee ? (
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
-                    <AvatarImage
-                      src={assignee.photoURL ?? ""}
-                      alt={assignee.displayName ?? "User"}
-                    />
-                    <AvatarFallback>
-                      {assignee.displayName?.charAt(0).toUpperCase() ?? "U"}
-                    </AvatarFallback>
+                    <AvatarImage src={assignee.photoURL ?? ''} alt={assignee.displayName ?? 'User'} />
+                    <AvatarFallback>{assignee.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                   </Avatar>
-                  <span className="text-sm text-muted-foreground">
-                    {assignee.displayName}
-                  </span>
+                  <span className="text-sm text-muted-foreground">{assignee.displayName}</span>
                 </div>
               ) : (
                 <div />
@@ -223,8 +206,8 @@ export function KanbanTaskCard({
                 return (
                   <div
                     className={cn(
-                      "flex items-center gap-1.5 text-xs",
-                      isOverdue ? "text-destructive" : "text-muted-foreground",
+                      'flex items-center gap-1.5 text-xs',
+                      isOverdue ? 'text-destructive' : 'text-muted-foreground',
                     )}
                   >
                     <Calendar className="h-3.5 w-3.5" />
@@ -236,18 +219,11 @@ export function KanbanTaskCard({
             })()}
           </div>
 
-          {task.deadline &&
-            task.createdAt &&
-            !task.completedAt &&
-            subtasks.length === 0 &&
-            enableDeadlines && (
-              <div className="pt-1">
-                <Progress
-                  value={progress}
-                  className={cn("h-1.5", isOverdue && "[&>div]:bg-destructive")}
-                />
-              </div>
-            )}
+          {task.deadline && task.createdAt && !task.completedAt && subtasks.length === 0 && enableDeadlines && (
+            <div className="pt-1">
+              <Progress value={progress} className={cn('h-1.5', isOverdue && '[&>div]:bg-destructive')} />
+            </div>
+          )}
 
           {subtasks.length > 0 && !task.completedAt && (
             <div className="pt-1">

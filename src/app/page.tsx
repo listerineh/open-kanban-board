@@ -1,25 +1,19 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useKanbanStore } from "@/hooks/use-kanban-store";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/use-auth";
-import { UserNav } from "@/components/auth/user-nav";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { PlusCircle } from "lucide-react";
-import Link from "next/link";
-import Image from "next/image";
-import { DashboardSkeleton } from "@/components/common/skeletons";
-import { Badge } from "@/components/ui/badge";
-import { useNewProjectDialog } from "@/hooks/use-new-project-dialog";
-import { Notifications } from "@/components/notifications/Notifications";
+import { useState, useEffect } from 'react';
+import { useKanbanStore } from '@/hooks/use-kanban-store';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
+import { UserNav } from '@/components/auth/user-nav';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PlusCircle } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { DashboardSkeleton } from '@/components/common/skeletons';
+import { Badge } from '@/components/ui/badge';
+import { useNewProjectDialog } from '@/hooks/use-new-project-dialog';
+import { Notifications } from '@/components/notifications/Notifications';
 
 export default function RootPage() {
   const store = useKanbanStore();
@@ -31,30 +25,27 @@ export default function RootPage() {
   useEffect(() => {
     if (store.isLoaded && user) {
       try {
-        const lastProjectId = localStorage.getItem("lastActiveProjectId");
-        if (
-          lastProjectId &&
-          store.projects.some((p) => p.id === lastProjectId)
-        ) {
+        const lastProjectId = localStorage.getItem('lastActiveProjectId');
+        if (lastProjectId && store.projects.some((p) => p.id === lastProjectId)) {
           router.replace(`/p/${lastProjectId}`);
         } else {
           setIsRedirecting(false);
         }
       } catch (error) {
-        console.error("Failed to access localStorage", error);
+        console.error('Failed to access localStorage', error);
         setIsRedirecting(false);
       }
     } else if (!authLoading && !user) {
-      router.push("/login");
+      router.push('/login');
     }
   }, [store.isLoaded, user, authLoading, store.projects, router]);
 
   const handleHomeClick = () => {
     try {
-      localStorage.removeItem("lastActiveProjectId");
+      localStorage.removeItem('lastActiveProjectId');
       setIsRedirecting(false);
     } catch (error) {
-      console.error("Failed to remove from localStorage", error);
+      console.error('Failed to remove from localStorage', error);
     }
   };
 
@@ -66,17 +57,8 @@ export default function RootPage() {
     <div className="w-screen h-dvh flex flex-col bg-background text-foreground font-body overflow-x-hidden">
       <header className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
         <div className="relative">
-          <Link
-            href="/"
-            className="flex items-center gap-3"
-            onClick={handleHomeClick}
-          >
-            <Image
-              src="/icon.svg"
-              width={24}
-              height={24}
-              alt="OpenKanban icon"
-            />
+          <Link href="/" className="flex items-center gap-3" onClick={handleHomeClick}>
+            <Image src="/icon.svg" width={24} height={24} alt="OpenKanban icon" />
             <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
           </Link>
           <Badge
@@ -94,9 +76,7 @@ export default function RootPage() {
       <main className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-8 overflow-y-auto">
         <div className="w-full max-w-4xl">
           <div className="mb-8 text-center mt-32 sm:mt-0">
-            <h2 className="text-3xl font-headline font-bold">
-              Welcome, {user?.displayName ?? "User"}!
-            </h2>
+            <h2 className="text-3xl font-headline font-bold">Welcome, {user?.displayName ?? 'User'}!</h2>
             <p className="text-muted-foreground mt-2">
               Select a project to continue or create a new one to get started.
             </p>
@@ -113,12 +93,8 @@ export default function RootPage() {
                   <CardHeader>
                     <CardTitle className="truncate">{project.name}</CardTitle>
                     <CardDescription>
-                      {project.columns.length} columns,{" "}
-                      {project.columns.reduce(
-                        (acc, col) => acc + col.tasks.length,
-                        0,
-                      )}{" "}
-                      tasks
+                      {project.columns.length} columns,{' '}
+                      {project.columns.reduce((acc, col) => acc + col.tasks.length, 0)} tasks
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow flex items-end">
@@ -140,12 +116,9 @@ export default function RootPage() {
             </div>
           ) : (
             <div className="text-center p-8 border-2 border-dashed rounded-lg">
-              <h3 className="text-xl font-headline font-semibold mb-2">
-                No projects yet!
-              </h3>
+              <h3 className="text-xl font-headline font-semibold mb-2">No projects yet!</h3>
               <p className="text-muted-foreground max-w-md mx-auto mb-4">
-                It looks like you don't have any projects. Create your first one
-                to start organizing your tasks.
+                It looks like you don't have any projects. Create your first one to start organizing your tasks.
               </p>
               <Button onClick={openDialog}>
                 <PlusCircle className="mr-2 h-4 w-4" />

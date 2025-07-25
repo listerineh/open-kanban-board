@@ -1,44 +1,21 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  Calendar as CalendarIcon,
-  Minus,
-  Tag,
-} from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import type { KanbanUser, Task, Label as LabelType } from "@/types/kanban";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { format, setHours, setMinutes } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Badge } from "../ui/badge";
-import { Checkbox } from "../ui/checkbox";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar as CalendarIcon, Minus, Tag } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import type { KanbanUser, Task, Label as LabelType } from '@/types/kanban';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { format, setHours, setMinutes } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Badge } from '../ui/badge';
+import { Checkbox } from '../ui/checkbox';
 
 type NewTaskDialogProps = {
   isOpen: boolean;
@@ -48,7 +25,7 @@ type NewTaskDialogProps = {
   onAddTask: (
     projectId: string,
     columnId: string,
-    taskData: Omit<Task, "id" | "createdAt" | "updatedAt" | "completedAt">,
+    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>,
   ) => Promise<void>;
   members: KanbanUser[];
   projectLabels: LabelType[];
@@ -67,27 +44,25 @@ export function NewTaskDialog({
   enableDeadlines,
   enableLabels,
 }: NewTaskDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [priority, setPriority] = useState<Task["priority"]>("Medium");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [deadline, setDeadline] = useState<Date | undefined>();
   const [labelIds, setLabelIds] = useState<string[]>([]);
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const hours = Array.from({ length: 24 }, (_, i) =>
-    i.toString().padStart(2, "0"),
-  );
-  const minutes = ["00", "15", "30", "45"];
+  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+  const minutes = ['00', '15', '30', '45'];
 
   const resetForm = () => {
-    setTitle("");
-    setDescription("");
-    setAssigneeId("");
-    setPriority("Medium");
+    setTitle('');
+    setDescription('');
+    setAssigneeId('');
+    setPriority('Medium');
     setDeadline(undefined);
-    setTime("");
+    setTime('');
     setLabelIds([]);
   };
 
@@ -97,28 +72,20 @@ export function NewTaskDialog({
 
       let finalDeadline = deadline;
       if (finalDeadline && time) {
-        const [hours, minutes] = time.split(":");
-        finalDeadline = setMinutes(
-          setHours(finalDeadline, parseInt(hours, 10)),
-          parseInt(minutes, 10),
-        );
+        const [hours, minutes] = time.split(':');
+        finalDeadline = setMinutes(setHours(finalDeadline, parseInt(hours, 10)), parseInt(minutes, 10));
       } else if (finalDeadline) {
         finalDeadline.setHours(0, 0, 0, 0);
       }
 
-      const taskData: Omit<
-        Task,
-        "id" | "createdAt" | "updatedAt" | "completedAt"
-      > = {
+      const taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'> = {
         title: title.trim(),
         priority,
       };
 
       if (description.trim()) taskData.description = description.trim();
-      if (assigneeId && assigneeId !== "unassigned")
-        taskData.assignee = assigneeId;
-      if (finalDeadline && enableDeadlines)
-        taskData.deadline = finalDeadline.toISOString();
+      if (assigneeId && assigneeId !== 'unassigned') taskData.assignee = assigneeId;
+      if (finalDeadline && enableDeadlines) taskData.deadline = finalDeadline.toISOString();
       if (labelIds.length > 0 && enableLabels) taskData.labelIds = labelIds;
 
       await onAddTask(projectId, columnId, taskData);
@@ -131,26 +98,22 @@ export function NewTaskDialog({
   const handleDateSelect = (date: Date | undefined) => {
     setDeadline(date);
     if (!date) {
-      setTime("");
+      setTime('');
     }
   };
 
   const handleLabelToggle = (labelId: string) => {
-    setLabelIds((prev) =>
-      prev.includes(labelId)
-        ? prev.filter((id) => id !== labelId)
-        : [...prev, labelId],
-    );
+    setLabelIds((prev) => (prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]));
   };
 
-  const [currentHour, currentMinute] = time.split(":");
+  const [currentHour, currentMinute] = time.split(':');
 
   const handleHourChange = (newHour: string) => {
-    setTime(`${newHour}:${currentMinute || "00"}`);
+    setTime(`${newHour}:${currentMinute || '00'}`);
   };
 
   const handleMinuteChange = (newMinute: string) => {
-    setTime(`${currentHour || "00"}:${newMinute}`);
+    setTime(`${currentHour || '00'}:${newMinute}`);
   };
 
   return (
@@ -161,10 +124,7 @@ export function NewTaskDialog({
         onClose();
       }}
     >
-      <DialogContent
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="sm:max-w-md flex flex-col max-h-[90vh] p-0"
-      >
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="sm:max-w-md flex flex-col max-h-[90vh] p-0">
         <DialogHeader className="p-6 pb-4 flex-shrink-0">
           <DialogTitle>Add New Task</DialogTitle>
         </DialogHeader>
@@ -189,10 +149,7 @@ export function NewTaskDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="task-priority">Priority</Label>
-            <Select
-              value={priority}
-              onValueChange={(value) => setPriority(value as Task["priority"])}
-            >
+            <Select value={priority} onValueChange={(value) => setPriority(value as Task['priority'])}>
               <SelectTrigger id="task-priority" className="w-full">
                 <SelectValue placeholder="Select a priority" />
               </SelectTrigger>
@@ -231,35 +188,19 @@ export function NewTaskDialog({
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !deadline && "text-muted-foreground",
-                      )}
+                      variant={'outline'}
+                      className={cn('w-full justify-start text-left font-normal', !deadline && 'text-muted-foreground')}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {deadline ? (
-                        format(deadline, "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
+                      {deadline ? format(deadline, 'PPP') : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={deadline}
-                      onSelect={handleDateSelect}
-                      initialFocus
-                    />
+                    <Calendar mode="single" selected={deadline} onSelect={handleDateSelect} initialFocus />
                   </PopoverContent>
                 </Popover>
                 <div className="flex items-center gap-1">
-                  <Select
-                    value={currentHour}
-                    onValueChange={handleHourChange}
-                    disabled={!deadline}
-                  >
+                  <Select value={currentHour} onValueChange={handleHourChange} disabled={!deadline}>
                     <SelectTrigger className="w-[75px]">
                       <SelectValue placeholder="Hour" />
                     </SelectTrigger>
@@ -272,11 +213,7 @@ export function NewTaskDialog({
                     </SelectContent>
                   </Select>
                   <span className="font-bold text-muted-foreground">:</span>
-                  <Select
-                    value={currentMinute}
-                    onValueChange={handleMinuteChange}
-                    disabled={!deadline}
-                  >
+                  <Select value={currentMinute} onValueChange={handleMinuteChange} disabled={!deadline}>
                     <SelectTrigger className="w-[75px]">
                       <SelectValue placeholder="Min" />
                     </SelectTrigger>
@@ -304,17 +241,10 @@ export function NewTaskDialog({
                   <SelectItem key={member.uid} value={member.uid}>
                     <div className="flex flex-row justify-between items-center gap-2">
                       <Avatar className="h-5 w-5 sm:h-8 sm:w-8">
-                        <AvatarImage
-                          src={member.photoURL ?? ""}
-                          alt={member.displayName ?? "User"}
-                        />
-                        <AvatarFallback>
-                          {member.displayName?.charAt(0).toUpperCase() ?? "U"}
-                        </AvatarFallback>
+                        <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
+                        <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                       </Avatar>
-                      <p className="sm:text-sm text-xs">
-                        {member.displayName ?? member.email}
-                      </p>
+                      <p className="sm:text-sm text-xs">{member.displayName ?? member.email}</p>
                     </div>
                   </SelectItem>
                 ))}
@@ -326,18 +256,15 @@ export function NewTaskDialog({
               <Label>Labels</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
                     <Tag className="mr-2 h-4 w-4" />
                     <div className="flex-grow truncate">
                       {labelIds.length > 0
                         ? projectLabels
                             .filter((l) => labelIds.includes(l.id))
                             .map((l) => l.name)
-                            .join(", ")
-                        : "Select labels"}
+                            .join(', ')
+                        : 'Select labels'}
                     </div>
                   </Button>
                 </PopoverTrigger>
@@ -354,7 +281,7 @@ export function NewTaskDialog({
                           variant="secondary"
                           style={{
                             backgroundColor: label.color,
-                            color: "white",
+                            color: 'white',
                           }}
                         >
                           {label.name}
@@ -371,12 +298,8 @@ export function NewTaskDialog({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            onClick={handleAddTask}
-            disabled={!title.trim() || isSubmitting}
-          >
-            {isSubmitting ? "Adding..." : "Add Task"}
+          <Button type="submit" onClick={handleAddTask} disabled={!title.trim() || isSubmitting}>
+            {isSubmitting ? 'Adding...' : 'Add Task'}
           </Button>
         </DialogFooter>
       </DialogContent>

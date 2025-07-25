@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  font-family: "Inter", sans-serif;
+  font-family: 'Inter', sans-serif;
   overflow-x: hidden;
   overflow-y: hidden;
   height: 100dvh;

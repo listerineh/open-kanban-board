@@ -5,6 +5,19 @@ export interface Notification {
   link: string;
   read: boolean;
   createdAt: string;
+  actions?: {
+    accept: { projectId: string; invitationId: string };
+    decline: { projectId: string; invitationId: string };
+  };
+}
+
+export interface Invitation {
+  id: string;
+  userId: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  invitedAt: string;
 }
 
 export interface Task {
@@ -12,7 +25,7 @@ export interface Task {
   title: string;
   description?: string;
   assignee?: string;
-  priority?: "Urgent" | "High" | "Medium" | "Low";
+  priority?: 'Urgent' | 'High' | 'Medium' | 'Low';
   createdAt: string;
   updatedAt: string;
   deadline?: string;
@@ -49,6 +62,7 @@ export interface Project {
   columns: Column[];
   ownerId: string;
   members: string[];
+  pendingMembers?: Invitation[];
   createdAt: string;
   updatedAt: string;
   enableSubtasks?: boolean;

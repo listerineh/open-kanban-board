@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import { useState, useRef, useMemo } from "react";
-import type { Column, KanbanUser, Task, Label } from "@/types/kanban";
-import { KanbanTaskCard } from "./KanbanTaskCard";
-import { Plus, ArrowUp, ArrowDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { NewTaskDialog } from "./NewTaskDialog";
-import { cn } from "@/lib/utils";
-import type { KanbanStore } from "@/hooks/use-kanban-store";
-import { Input } from "@/components/ui/input";
-import { Separator } from "../ui/separator";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useRef, useMemo } from 'react';
+import type { Column, KanbanUser, Task, Label } from '@/types/kanban';
+import { KanbanTaskCard } from './KanbanTaskCard';
+import { Plus, ArrowUp, ArrowDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { NewTaskDialog } from './NewTaskDialog';
+import { cn } from '@/lib/utils';
+import type { KanbanStore } from '@/hooks/use-kanban-store';
+import { Input } from '@/components/ui/input';
+import { Separator } from '../ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 type KanbanColumnProps = {
   projectId: string;
@@ -53,31 +53,27 @@ export function KanbanColumn({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(column.title);
   const isDraggingThisColumn = draggedColumnId === column.id;
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
 
-  const isDoneColumn = column.title === "Done";
+  const isDoneColumn = column.title === 'Done';
 
-  const priorityOrder: Record<Task["priority"] & string, number> = {
+  const priorityOrder: Record<Task['priority'] & string, number> = {
     Urgent: 4,
     High: 3,
     Medium: 2,
     Low: 1,
   };
 
-  const getPriority = (task: Task) =>
-    priorityOrder[task.priority ?? "Medium"] ?? 2;
+  const getPriority = (task: Task) => priorityOrder[task.priority ?? 'Medium'] ?? 2;
 
-  const parentTasks = useMemo(
-    () => column.tasks.filter((task) => !task.parentId),
-    [column.tasks],
-  );
+  const parentTasks = useMemo(() => column.tasks.filter((task) => !task.parentId), [column.tasks]);
 
   const sortedTasks = useMemo(() => {
     return [...parentTasks].sort((a, b) => {
       const priorityA = getPriority(a);
       const priorityB = getPriority(b);
-      if (sortOrder === "desc") {
+      if (sortOrder === 'desc') {
         return priorityB - priorityA;
       } else {
         return priorityA - priorityB;
@@ -103,9 +99,9 @@ export function KanbanColumn({
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       e.currentTarget.blur();
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       setTitle(column.title);
       setIsEditingTitle(false);
     }
@@ -115,22 +111,20 @@ export function KanbanColumn({
     e.preventDefault();
     setIsTaskDragOver(false);
 
-    const draggedColId = e.dataTransfer.getData("application/kanban-column");
+    const draggedColId = e.dataTransfer.getData('application/kanban-column');
     if (draggedColId && draggedColId !== column.id) {
       onColumnDrop(column.id);
       return;
     }
 
-    const taskDataString = e.dataTransfer.getData("application/json");
+    const taskDataString = e.dataTransfer.getData('application/json');
     if (!taskDataString) return;
 
     try {
       const { taskId, fromColumnId } = JSON.parse(taskDataString);
 
       if (taskId && fromColumnId && fromColumnId !== column.id) {
-        const cards = Array.from(
-          columnRef.current?.querySelectorAll("[data-task-id]") || [],
-        );
+        const cards = Array.from(columnRef.current?.querySelectorAll('[data-task-id]') || []);
         const dropY = e.clientY;
 
         let targetIndex = cards.length;
@@ -147,7 +141,7 @@ export function KanbanColumn({
         store.moveTask(projectId, taskId, fromColumnId, column.id, targetIndex);
       }
     } catch (error) {
-      console.error("Failed to parse task data:", error);
+      console.error('Failed to parse task data:', error);
     } finally {
       onTaskDragEnd();
     }
@@ -156,16 +150,16 @@ export function KanbanColumn({
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
 
-    if (e.dataTransfer.types.includes("application/kanban-column")) {
-      e.dataTransfer.dropEffect = "move";
+    if (e.dataTransfer.types.includes('application/kanban-column')) {
+      e.dataTransfer.dropEffect = 'move';
       return;
     }
 
-    if (e.dataTransfer.types.includes("application/json")) {
+    if (e.dataTransfer.types.includes('application/json')) {
       setIsTaskDragOver(true);
-      e.dataTransfer.dropEffect = "move";
+      e.dataTransfer.dropEffect = 'move';
     } else {
-      e.dataTransfer.dropEffect = "none";
+      e.dataTransfer.dropEffect = 'none';
     }
   };
 
@@ -195,8 +189,7 @@ export function KanbanColumn({
     </>
   );
 
-  const displayTasksWithDeadline =
-    enableDeadlines && tasksWithDeadline.length > 0;
+  const displayTasksWithDeadline = enableDeadlines && tasksWithDeadline.length > 0;
   const displayTasksWithoutDeadline = tasksWithoutDeadline.length > 0;
 
   return (
@@ -211,8 +204,8 @@ export function KanbanColumn({
           e.preventDefault();
           return;
         }
-        e.dataTransfer.setData("application/kanban-column", column.id);
-        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData('application/kanban-column', column.id);
+        e.dataTransfer.effectAllowed = 'move';
         onColumnDragStart(column.id);
       }}
       onDragEnd={onColumnDragEnd}
@@ -220,19 +213,16 @@ export function KanbanColumn({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       className={cn(
-        "flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[200px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow",
-        isTaskDragOver && !draggedColumnId && "bg-primary/10",
-        isDraggingThisColumn &&
-          "opacity-50 ring-2 ring-primary ring-offset-2 ring-offset-background",
-        draggedColumnId &&
-          !isDraggingThisColumn &&
-          "md:hover:ring-2 md:hover:ring-primary/50",
+        'flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[200px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow',
+        isTaskDragOver && !draggedColumnId && 'bg-primary/10',
+        isDraggingThisColumn && 'opacity-50 ring-2 ring-primary ring-offset-2 ring-offset-background',
+        draggedColumnId && !isDraggingThisColumn && 'md:hover:ring-2 md:hover:ring-primary/50',
       )}
     >
       <div
         className={cn(
-          "p-3 border-b border-border flex justify-between items-center gap-2",
-          !isDoneColumn && "cursor-grab active:cursor-grabbing",
+          'p-3 border-b border-border flex justify-between items-center gap-2',
+          !isDoneColumn && 'cursor-grab active:cursor-grabbing',
         )}
       >
         {isEditingTitle ? (
@@ -249,32 +239,22 @@ export function KanbanColumn({
           <h3
             onClick={() => !isDoneColumn && setIsEditingTitle(true)}
             className={cn(
-              "font-headline font-semibold text-lg w-full p-1 -m-1 rounded",
-              !isDoneColumn
-                ? "cursor-text md:hover:bg-muted/50"
-                : "cursor-default",
+              'font-headline font-semibold text-lg w-full p-1 -m-1 rounded',
+              !isDoneColumn ? 'cursor-text md:hover:bg-muted/50' : 'cursor-default',
             )}
           >
             {column.title}
           </h3>
         )}
         <div className="flex items-center gap-1">
-          <span className="text-sm text-muted-foreground">
-            {sortedTasks.length}
-          </span>
+          <span className="text-sm text-muted-foreground">{sortedTasks.length}</span>
           <Button
             variant="ghost"
             size="icon"
             className="h-6 w-6"
-            onClick={() =>
-              setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
-            }
+            onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
           >
-            {sortOrder === "desc" ? (
-              <ArrowDown className="h-4 w-4" />
-            ) : (
-              <ArrowUp className="h-4 w-4" />
-            )}
+            {sortOrder === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
             <span className="sr-only">Toggle sort order</span>
           </Button>
         </div>
@@ -282,37 +262,25 @@ export function KanbanColumn({
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {displayTasksWithDeadline && (
           <div className="space-y-3">
-            <div className="px-1 text-xs text-muted-foreground font-semibold">
-              WITH DEADLINE
-            </div>
+            <div className="px-1 text-xs text-muted-foreground font-semibold">WITH DEADLINE</div>
             {renderTaskList(tasksWithDeadline)}
           </div>
         )}
 
-        {displayTasksWithDeadline && displayTasksWithoutDeadline && (
-          <Separator />
-        )}
+        {displayTasksWithDeadline && displayTasksWithoutDeadline && <Separator />}
 
         {displayTasksWithoutDeadline && (
           <div className="space-y-3">
             {displayTasksWithDeadline && (
-              <div className="px-1 text-xs text-muted-foreground font-semibold">
-                OTHER TASKS
-              </div>
+              <div className="px-1 text-xs text-muted-foreground font-semibold">OTHER TASKS</div>
             )}
             {renderTaskList(tasksWithoutDeadline)}
           </div>
         )}
-        {isTaskDragOver && (
-          <div className="h-16 rounded-lg bg-primary/20 border-2 border-dashed border-primary"></div>
-        )}
+        {isTaskDragOver && <div className="h-16 rounded-lg bg-primary/20 border-2 border-dashed border-primary"></div>}
       </div>
       <div className="p-3 mt-auto">
-        <Button
-          variant="ghost"
-          className="w-full justify-start"
-          onClick={() => setIsAddingTask(true)}
-        >
+        <Button variant="ghost" className="w-full justify-start" onClick={() => setIsAddingTask(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add task
         </Button>
