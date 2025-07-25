@@ -41,8 +41,8 @@ import { UserNav } from '@/components/auth/user-nav';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const colorSwatches = [
   '#ef4444',
@@ -598,17 +598,17 @@ export default function ProjectConfigPage() {
                             key={user.uid}
                             className="flex items-center justify-between p-2 rounded-md hover:bg-muted"
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
                               <Avatar className="h-8 w-8">
                                 <AvatarImage src={user.photoURL ?? ''} />
                                 <AvatarFallback>{user.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
                               </Avatar>
-                              <div>
-                                <p className="font-medium text-sm">{user.displayName}</p>
-                                <p className="text-xs text-muted-foreground">{user.email}</p>
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">{user.displayName}</p>
+                                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                               </div>
                             </div>
-                            <Button size="sm" onClick={() => handleInviteUser(user)}>
+                            <Button size="sm" onClick={() => handleInviteUser(user)} className="flex-shrink-0">
                               <Send className="h-4 w-4 mr-2" /> Invite
                             </Button>
                           </div>
@@ -622,21 +622,26 @@ export default function ProjectConfigPage() {
                 <h4 className="font-medium text-sm">Project Members ({members.length})</h4>
                 {members.map((member) => (
                   <div key={member.uid} className="flex items-center justify-between p-2 rounded-md border">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
                         <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                       </Avatar>
-                      <div>
-                        <p className="font-medium">{member.displayName}</p>
-                        <p className="text-xs text-muted-foreground">{member.email}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{member.displayName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                       </div>
                     </div>
                     {project.ownerId === member.uid ? (
                       <span className="text-xs text-muted-foreground font-semibold">OWNER</span>
                     ) : (
                       isOwner && (
-                        <Button variant="ghost" size="icon" onClick={() => handleRemoveUser(member.uid)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveUser(member.uid)}
+                          className="flex-shrink-0"
+                        >
                           <X className="h-4 w-4 text-destructive" />
                         </Button>
                       )
@@ -649,22 +654,27 @@ export default function ProjectConfigPage() {
                   <h4 className="font-medium text-sm">Pending Invitations ({pendingMembers.length})</h4>
                   {pendingMembers.map((invite) => (
                     <div key={invite.userId} className="flex items-center justify-between p-2 rounded-md border">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarImage src={invite.photoURL ?? ''} />
                           <AvatarFallback>{invite.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
                         </Avatar>
-                        <div>
-                          <p className="font-medium">{invite.displayName}</p>
-                          <p className="text-xs text-muted-foreground">{invite.email}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{invite.displayName}</p>
+                          <p className="text-xs text-muted-foreground truncate">{invite.email}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           <span>{formatDistanceToNow(new Date(invite.invitedAt), { addSuffix: true })}</span>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => handleCancelInvitation(invite.userId)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleCancelInvitation(invite.userId)}
+                          className="flex-shrink-0"
+                        >
                           <X className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
