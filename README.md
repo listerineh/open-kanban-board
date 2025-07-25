@@ -1,7 +1,7 @@
 
 <div align="center">
-  <img src="public/icon.svg" alt="KanbanFlow Logo" width="80"/>
-  <h1>KanbanFlow</h1>
+  <img src="public/icon.svg" alt="OpenKanban Logo" width="80"/>
+  <h1>OpenKanban</h1>
   <p>
     <strong>A modern, open-source Kanban board to streamline your workflow.</strong>
   </p>
