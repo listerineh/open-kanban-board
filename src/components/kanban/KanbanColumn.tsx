@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
-import type { Column, KanbanUser, Task } from "@/types/kanban";
+import type { Column, KanbanUser, Task, Label } from "@/types/kanban";
 import { KanbanTaskCard } from "./KanbanTaskCard";
 import { Plus, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,9 @@ type KanbanColumnProps = {
   allTasks: Task[];
   store: KanbanStore;
   members: KanbanUser[];
+  projectLabels: Label[];
+  enableDeadlines: boolean;
+  enableLabels: boolean;
   onTaskDragStart: (task: Task, fromColumnId: string) => void;
   onTaskDragEnd: () => void;
   onColumnDragStart: (columnId: string) => void;
@@ -33,6 +36,9 @@ export function KanbanColumn({
   allTasks,
   store,
   members,
+  projectLabels,
+  enableDeadlines,
+  enableLabels,
   onTaskDragStart,
   onTaskDragEnd,
   onColumnDragStart,
@@ -178,6 +184,9 @@ export function KanbanColumn({
           subtasks={allTasks.filter((t) => t.parentId === task.id)}
           columnId={column.id}
           members={members}
+          projectLabels={projectLabels}
+          enableDeadlines={enableDeadlines}
+          enableLabels={enableLabels}
           onDragStart={onTaskDragStart}
           onDragEnd={onTaskDragEnd}
           onClick={() => onTaskClick(task)}
@@ -185,6 +194,10 @@ export function KanbanColumn({
       ))}
     </>
   );
+
+  const displayTasksWithDeadline =
+    enableDeadlines && tasksWithDeadline.length > 0;
+  const displayTasksWithoutDeadline = tasksWithoutDeadline.length > 0;
 
   return (
     <div
@@ -213,7 +226,7 @@ export function KanbanColumn({
           "opacity-50 ring-2 ring-primary ring-offset-2 ring-offset-background",
         draggedColumnId &&
           !isDraggingThisColumn &&
-          "hover:ring-2 hover:ring-primary/50",
+          "md:hover:ring-2 md:hover:ring-primary/50",
       )}
     >
       <div
@@ -238,7 +251,7 @@ export function KanbanColumn({
             className={cn(
               "font-headline font-semibold text-lg w-full p-1 -m-1 rounded",
               !isDoneColumn
-                ? "cursor-text hover:bg-muted/50"
+                ? "cursor-text md:hover:bg-muted/50"
                 : "cursor-default",
             )}
           >
@@ -267,7 +280,7 @@ export function KanbanColumn({
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {tasksWithDeadline.length > 0 && (
+        {displayTasksWithDeadline && (
           <div className="space-y-3">
             <div className="px-1 text-xs text-muted-foreground font-semibold">
               WITH DEADLINE
@@ -276,13 +289,13 @@ export function KanbanColumn({
           </div>
         )}
 
-        {tasksWithDeadline.length > 0 && tasksWithoutDeadline.length > 0 && (
+        {displayTasksWithDeadline && displayTasksWithoutDeadline && (
           <Separator />
         )}
 
-        {tasksWithoutDeadline.length > 0 && (
+        {displayTasksWithoutDeadline && (
           <div className="space-y-3">
-            {tasksWithDeadline.length > 0 && (
+            {displayTasksWithDeadline && (
               <div className="px-1 text-xs text-muted-foreground font-semibold">
                 OTHER TASKS
               </div>
@@ -311,6 +324,9 @@ export function KanbanColumn({
         columnId={column.id}
         onAddTask={store.addTask}
         members={members}
+        projectLabels={projectLabels}
+        enableDeadlines={enableDeadlines}
+        enableLabels={enableLabels}
       />
     </div>
   );

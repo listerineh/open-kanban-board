@@ -1,4 +1,3 @@
-
 <div align="center">
   <img src="public/icon.svg" alt="OpenKanban Logo" width="80"/>
   <h1>OpenKanban</h1>
@@ -19,23 +18,28 @@
 
 ## ✨ Key Features
 
-KanbanFlow is packed with features designed to make project management intuitive and collaborative.
+OpenKanban is packed with features designed to make project management intuitive and collaborative.
 
-| Feature                 | Description                                                                                               | Status |
-| ----------------------- | --------------------------------------------------------------------------------------------------------- | :----: |
-| **Project Management**  | Create, edit, and delete projects with ease.                                                              |   ✅   |
-| **Task Organization**   | Add, update, and delete tasks within columns.                                                             |   ✅   |
-| **Drag & Drop**         | Intuitively move tasks between columns and reorder columns on your board.                                 |   ✅   |
-| **Sub-tasks**           | Break down complex tasks into smaller, manageable sub-tasks.                                              |   ✅   |
-| **Task Deadlines**      | Set deadlines for tasks to keep your projects on track.                                                   |   ✅   |
-| **Task Priorities**     | Assign priorities (Urgent, High, Medium, Low) to focus on what matters most.                              |   ✅   |
-| **User Collaboration**  | Invite members to your projects via email for seamless teamwork.                                          |   ✅   |
-| **Task Assignment**     | Assign tasks to specific project members.                                                                 |   ✅   |
-| **User Authentication** | Secure Google Authentication to protect your projects.                                                    |   ✅   |
-| **Responsive Design**   | A fully responsive UI that works beautifully on desktop and mobile devices.                               |   ✅   |
-| **Toast Notifications** | Get instant feedback for your actions with clean, modern toast alerts.                                    |   ✅   |
-| **Dark Mode**           | A beautiful dark mode for comfortable viewing in low-light conditions.                                    |   ✅   |
-| **State Persistence**   | Your session is cached, so refreshing the page won't log you out or lose your place.                      |   ✅   |
+| Feature                 | Description                                                                                                  | Status |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ | :----: |
+| **Project Dashboard**   | Visualize project progress with insightful charts for task status, priority, and member workload. (Optional) |   ✅   |
+| **Project Management**  | Create, edit, and delete projects with ease.                                                                 |   ✅   |
+| **Task Organization**   | Add, update, and delete tasks within columns.                                                                |   ✅   |
+| **Drag & Drop**         | Intuitively move tasks between columns and reorder columns on your board.                                    |   ✅   |
+| **Sub-tasks**           | Break down complex tasks into smaller, manageable sub-tasks. (Optional)                                      |   ✅   |
+| **Task Deadlines**      | Set deadlines for tasks to keep your projects on track. (Optional)                                           |   ✅   |
+| **Task Priorities**     | Assign priorities (Urgent, High, Medium, Low) to focus on what matters most.                                 |   ✅   |
+| **Task Labels**         | Assign color-coded labels to tasks for better categorization. (Optional)                                     |   ✅   |
+| **Task Search**         | Quickly find tasks within a project using the board-level search bar.                                        |   ✅   |
+| **Activity Log**        | Track the history of changes for each task.                                                                  |   ✅   |
+| **User Collaboration**  | Invite members to your projects via email for seamless teamwork.                                             |   ✅   |
+| **Task Assignment**     | Assign tasks to specific project members.                                                                    |   ✅   |
+| **User Authentication** | Secure Google Authentication to protect your projects.                                                       |   ✅   |
+| **Notifications**       | Receive alerts for important events like task assignments and project invitations.                           |   ✅   |
+| **Responsive Design**   | A fully responsive UI that works beautifully on desktop and mobile devices.                                  |   ✅   |
+| **Toast Notifications** | Get instant feedback for your actions with clean, modern toast alerts.                                       |   ✅   |
+| **Dark Mode**           | A beautiful dark mode for comfortable viewing in low-light conditions.                                       |   ✅   |
+| **State Persistence**   | Your session is cached, so refreshing the page won't log you out or lose your place.                         |   ✅   |
 
 ---
 
@@ -43,17 +47,18 @@ KanbanFlow is packed with features designed to make project management intuitive
 
 ### Core Technologies
 
--   **[Next.js](https://nextjs.org/)**: The React framework for building fast, server-rendered applications.
--   **[React](https://react.dev/)**: A JavaScript library for building user interfaces.
--   **[Firebase](https://firebase.google.com/)**: Provides backend services, including Authentication and Firestore Database.
--   **[Tailwind CSS](https://tailwindcss.com/)**: A utility-first CSS framework for rapid UI development.
--   **[TypeScript](https://www.typescriptlang.org/)**: A statically typed superset of JavaScript that enhances code quality.
+- **[Next.js](https://nextjs.org/)**: The React framework for building fast, server-rendered applications.
+- **[React](https://react.dev/)**: A JavaScript library for building user interfaces.
+- **[Firebase](https://firebase.google.com/)**: Provides backend services, including Authentication and Firestore Database.
+- **[Tailwind CSS](https://tailwindcss.com/)**: A utility-first CSS framework for rapid UI development.
+- **[TypeScript](https://www.typescriptlang.org/)**: A statically typed superset of JavaScript that enhances code quality.
 
 ### UI & Components
 
--   **[ShadCN/UI](https://ui.shadcn.com/)**: A collection of beautifully designed, reusable components.
--   **[Lucide React](https://lucide.dev/)**: A clean and consistent icon toolkit.
--   **[Framer Motion](https://www.framer.com/motion/)**: Powers the smooth animations across the app.
+- **[ShadCN/UI](https://ui.shadcn.com/)**: A collection of beautifully designed, reusable components.
+- **[Lucide React](https://lucide.dev/)**: A clean and consistent icon toolkit.
+- **[Framer Motion](https://www.framer.com/motion/)**: Powers the smooth animations across the app.
+- **[Recharts](https://recharts.org/)**: A composable charting library built on React components.
 
 ---
 
@@ -63,25 +68,28 @@ To get a local copy up and running, follow these simple steps.
 
 ### Prerequisites
 
--   Node.js (v18 or later)
--   npm or yarn
+- Node.js (v18 or later)
+- npm or yarn
 
 ### Installation
 
 1.  **Clone the repository**
+
     ```bash
     git clone https://github.com/listerineh/open-kanban-board.git
     cd open-kanban-board
     ```
 
 2.  **Install dependencies**
+
     ```bash
     npm install
     ```
 
 3.  **Set up environment variables**
-    -   Create a `.env` file in the root of your project.
-    -   Add your Firebase project configuration to this file. You can get these from the Firebase console.
+    - Create a `.env` file in the root of your project.
+    - Add your Firebase project configuration to this file. You can get these from the Firebase console.
+
     ```env
     NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain

@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import "./globals.css";
+import { NewProjectDialogProvider } from "@/hooks/use-new-project-dialog";
 
 export const metadata: Metadata = {
   title: "OpenKanban",
@@ -85,8 +86,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-          <Toaster />
+          <NewProjectDialogProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+            <Toaster />
+          </NewProjectDialogProvider>
         </AuthProvider>
       </body>
     </html>

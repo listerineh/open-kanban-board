@@ -12,11 +12,14 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
+import { Code, Github, LogOut, PlusCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useNewProjectDialog } from "@/hooks/use-new-project-dialog";
 
 export function UserNav() {
   const { user } = useAuth();
   const router = useRouter();
+  const { openDialog } = useNewProjectDialog();
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -42,7 +45,7 @@ export function UserNav() {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-64" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
@@ -54,8 +57,33 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={openDialog} className="cursor-pointer">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          New Project
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+          <LogOut className="mr-2 h-4 w-4" />
           Log out
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => window.open("https://listerineh.dev", "_blank")}
+          className="cursor-pointer"
+        >
+          <Code className="mr-2 h-4 w-4" />
+          <span>Built by Listerineh</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() =>
+            window.open(
+              "https://github.com/listerineh/open-kanban-board/",
+              "_blank",
+            )
+          }
+          className="cursor-pointer"
+        >
+          <Github className="mr-2 h-4 w-4" />
+          <span>GitHub Repository</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

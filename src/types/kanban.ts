@@ -1,3 +1,12 @@
+export interface Notification {
+  id: string;
+  userId: string;
+  text: string;
+  link: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -9,6 +18,21 @@ export interface Task {
   deadline?: string;
   completedAt?: string;
   parentId?: string;
+  labelIds?: string[];
+  activity?: Activity[];
+}
+
+export interface Activity {
+  id: string;
+  text: string;
+  timestamp: string;
+  userId: string;
+}
+
+export interface Label {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export interface Column {
@@ -27,6 +51,11 @@ export interface Project {
   members: string[];
   createdAt: string;
   updatedAt: string;
+  enableSubtasks?: boolean;
+  enableDeadlines?: boolean;
+  enableLabels?: boolean;
+  enableDashboard?: boolean;
+  labels?: Label[];
 }
 
 export interface KanbanUser {
