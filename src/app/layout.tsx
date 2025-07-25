@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   keywords: ['Kanban', 'Project Management', 'Task Management', 'Free Kanban Board', 'Open Source Kanban'],
   generator: 'Next.js',
   referrer: 'origin',
+  manifest: '/manifest.json',
   publisher: 'Vercel',
   authors: [
     {
