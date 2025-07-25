@@ -40,6 +40,7 @@ export interface Activity {
   text: string;
   timestamp: string;
   userId: string;
+  type: 'log' | 'comment';
 }
 
 export interface Label {

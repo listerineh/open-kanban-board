@@ -13,17 +13,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/use-notifications';
 import { ScrollArea } from '../ui/scroll-area';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '../ui/skeleton';
 
 export function Notifications() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, loading, handleInvitationAction } = useNotifications();
+  const router = useRouter();
 
   const handleNotificationClick = (notificationId: string, link: string) => {
     markAsRead(notificationId);
-    // Don't navigate if it's just a placeholder link
-    return link !== '#';
+    if (link && link !== '#') {
+      router.push(link);
+    }
   };
 
   return (
@@ -53,7 +55,7 @@ export function Notifications() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <ScrollArea className="h-auto max-h-[calc(5*4rem)] overflow-y-auto">
+        <ScrollArea className="h-auto max-h-[calc(5*4.5rem)] overflow-y-auto">
           {loading ? (
             <div className="p-2 space-y-3">
               <Skeleton className="h-16 w-full" />
@@ -64,26 +66,23 @@ export function Notifications() {
             notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
-                className="cursor-pointer flex flex-col items-start gap-3 whitespace-normal data-[disabled]:cursor-not-allowed"
+                className="cursor-pointer flex flex-col items-start gap-3 whitespace-normal data-[disabled]:cursor-default"
                 onSelect={(e) => {
                   e.preventDefault();
                   if (!notification.actions) {
                     handleNotificationClick(notification.id, notification.link);
                   }
                 }}
-                disabled={!!notification.actions}
               >
-                <Link href={notification.actions ? '#' : notification.link} passHref className="w-full">
-                  <div className="flex items-start gap-3 w-full">
-                    {!notification.read && <CircleDot className="h-2 w-2 mt-2 text-primary flex-shrink-0" />}
-                    <div className={notification.read ? 'pl-5' : ''}>
-                      <p className="text-sm leading-snug" dangerouslySetInnerHTML={{ __html: notification.text }}></p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                      </p>
-                    </div>
+                <div className="flex items-start gap-3 w-full">
+                  {!notification.read && <CircleDot className="h-2 w-2 mt-2 text-primary flex-shrink-0" />}
+                  <div className={notification.read ? 'pl-5' : ''}>
+                    <p className="text-sm leading-snug" dangerouslySetInnerHTML={{ __html: notification.text }}></p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                    </p>
                   </div>
-                </Link>
+                </div>
                 {notification.actions && (
                   <div className="flex items-center gap-2 w-full justify-end pl-5">
                     <Button

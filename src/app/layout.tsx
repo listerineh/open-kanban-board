@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider } from '@/hooks/use-auth';
 import './globals.css';
 import { NewProjectDialogProvider } from '@/hooks/use-new-project-dialog';
+import { ThemeProvider } from '@/hooks/use-theme';
 
 export const metadata: Metadata = {
   title: 'OpenKanban',
@@ -59,7 +60,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -71,16 +72,25 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link
+          rel="icon"
+          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ð±</text></svg>"
+          type="image/svg+xml"
+        />
+        <link
+          rel="apple-touch-icon"
+          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ð±</text></svg>"
+        />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <NewProjectDialogProvider>
-            <TooltipProvider>{children}</TooltipProvider>
-            <Toaster />
-          </NewProjectDialogProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <NewProjectDialogProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+              <Toaster />
+            </NewProjectDialogProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

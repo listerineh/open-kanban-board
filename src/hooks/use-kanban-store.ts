@@ -67,6 +67,7 @@ export type KanbanStore = {
   createLabel: (projectId: string, name: string, color: string) => Promise<void>;
   updateLabel: (projectId: string, labelId: string, name: string, color: string) => Promise<void>;
   deleteLabel: (projectId: string, labelId: string) => Promise<void>;
+  addComment: (projectId: string, taskId: string, commentText: string, mentions: string[]) => Promise<void>;
   openNewProjectDialog: () => void;
 };
 
@@ -160,12 +161,13 @@ export function useKanbanStore(): KanbanStore {
     await updateDoc(projectRef, { ...cleanData, updatedAt: new Date().toISOString() });
   }, []);
 
-  const addActivity = (task: Task, text: string, userId: string): Activity[] => {
+  const addActivity = (task: Task, text: string, userId: string, type: 'log' | 'comment' = 'log'): Activity[] => {
     const newActivity: Activity = {
       id: `activity-${Date.now()}`,
       text,
       timestamp: new Date().toISOString(),
       userId,
+      type,
     };
     return [...(task.activity || []), newActivity];
   };
@@ -184,7 +186,7 @@ export function useKanbanStore(): KanbanStore {
         enableSubtasks: true,
         enableDeadlines: true,
         enableLabels: true,
-        enableDashboard: false,
+        enableDashboard: true,
         labels: [
           { id: `label-${Date.now()}-1`, name: 'Bug', color: '#ef4444' },
           { id: `label-${Date.now()}-2`, name: 'Feature', color: '#3b82f6' },
@@ -965,6 +967,44 @@ export function useKanbanStore(): KanbanStore {
     [projects, updateProject],
   );
 
+  const addComment = useCallback(
+    async (projectId: string, taskId: string, commentText: string, mentions: string[]) => {
+      if (!user) return;
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) return;
+
+      const newColumns = project.columns.map((c) => ({
+        ...c,
+        tasks: c.tasks.map((t) => {
+          if (t.id === taskId) {
+            return { ...t, activity: addActivity(t, commentText, user.uid, 'comment') };
+          }
+          return t;
+        }),
+      }));
+
+      await updateProject(projectId, { columns: newColumns });
+
+      const task = project.columns.flatMap((c) => c.tasks).find((t) => t.id === taskId);
+      if (task) {
+        const batch = writeBatch(db);
+        mentions.forEach((mentionedUserId) => {
+          const notification: Omit<Notification, 'id'> = {
+            userId: mentionedUserId,
+            text: `<b>${user.displayName}</b> mentioned you in a comment on task <b>${task.title}</b>`,
+            link: `/p/${projectId}?taskId=${taskId}`,
+            read: false,
+            createdAt: new Date().toISOString(),
+          };
+          const notificationRef = doc(collection(db, 'notifications'));
+          batch.set(notificationRef, notification);
+        });
+        await batch.commit();
+      }
+    },
+    [user, projects, updateProject],
+  );
+
   const openNewProjectDialog = useCallback(() => {
     updateDialogState(true);
   }, []);
@@ -993,6 +1033,7 @@ export function useKanbanStore(): KanbanStore {
       createLabel,
       updateLabel,
       deleteLabel,
+      addComment,
       openNewProjectDialog,
     }),
     [
@@ -1018,6 +1059,7 @@ export function useKanbanStore(): KanbanStore {
       createLabel,
       updateLabel,
       deleteLabel,
+      addComment,
       openNewProjectDialog,
     ],
   );

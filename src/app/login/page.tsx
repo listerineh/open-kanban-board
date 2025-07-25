@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FullPageLoader } from '@/components/common/loader';
 import { cn } from '@/lib/utils';
+import { AppIcon } from '@/components/common/AppIcon';
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
@@ -52,7 +53,7 @@ export default function LoginPage() {
       >
         <CardHeader className="text-center p-8">
           <div className="mx-auto flex items-center justify-center gap-3 mb-2">
-            <Image src="/icon.svg" width={24} height={24} alt="OpenKanban icon" />
+            <AppIcon className="h-8 w-8" />
             <h1 className="text-4xl font-bold font-headline">OpenKanban</h1>
           </div>
           <CardTitle className="text-xl font-medium text-muted-foreground">Streamline Your Workflow</CardTitle>

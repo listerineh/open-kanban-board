@@ -1,5 +1,10 @@
 <div align="center">
-  <img src="public/icon.svg" alt="OpenKanban Logo" width="80"/>
+  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M9 20V12" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M15 20V4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M3 20V16" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M21 20V8" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
   <h1>OpenKanban</h1>
   <p>
     <strong>A modern, open-source Kanban board to streamline your workflow.</strong>
@@ -31,6 +36,7 @@ OpenKanban is packed with features designed to make project management intuitive
 | **Task Priorities**     | Assign priorities (Urgent, High, Medium, Low) to focus on what matters most.                                 |   ✅   |
 | **Task Labels**         | Assign color-coded labels to tasks for better categorization. (Optional)                                     |   ✅   |
 | **Task Search**         | Quickly find tasks within a project using the board-level search bar.                                        |   ✅   |
+| **Advanced Task Filtering** | Filter tasks on the board by assignee, priority, and labels to focus on specific work.                   |   ✅   |
 | **Activity Log**        | Track the history of changes for each task.                                                                  |   ✅   |
 | **User Collaboration**  | Invite members to your projects via email for seamless teamwork.                                             |   ✅   |
 | **Task Assignment**     | Assign tasks to specific project members.                                                                    |   ✅   |
@@ -39,6 +45,7 @@ OpenKanban is packed with features designed to make project management intuitive
 | **Responsive Design**   | A fully responsive UI that works beautifully on desktop and mobile devices.                                  |   ✅   |
 | **Toast Notifications** | Get instant feedback for your actions with clean, modern toast alerts.                                       |   ✅   |
 | **Dark Mode**           | A beautiful dark mode for comfortable viewing in low-light conditions.                                       |   ✅   |
+| **Customizable Themes** | Personalize your board with multiple color themes.                                                           |   ✅   |
 | **State Persistence**   | Your session is cached, so refreshing the page won't log you out or lose your place.                         |   ✅   |
 
 ---

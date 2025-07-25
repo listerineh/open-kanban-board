@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { DashboardSkeleton } from '@/components/common/skeletons';
 import { Badge } from '@/components/ui/badge';
 import { useNewProjectDialog } from '@/hooks/use-new-project-dialog';
 import { Notifications } from '@/components/notifications/Notifications';
+import { AppIcon } from '@/components/common/AppIcon';
 
 export default function RootPage() {
   const store = useKanbanStore();
@@ -58,7 +58,7 @@ export default function RootPage() {
       <header className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
         <div className="relative">
           <Link href="/" className="flex items-center gap-3" onClick={handleHomeClick}>
-            <Image src="/icon.svg" width={24} height={24} alt="OpenKanban icon" />
+            <AppIcon className="h-6 w-6" />
             <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
           </Link>
           <Badge
