@@ -53,6 +53,17 @@ export const metadata: Metadata = {
   },
 };
 
+const defaultIconSvg = `
+<svg width="512" height="512" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="24" height="24" rx="4" fill="transparent"/>
+  <path d="M9 20V12" stroke="hsl(173 64% 48%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M15 20V4" stroke="hsl(173 64% 48%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M3 20V16" stroke="hsl(173 64% 48%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M21 20V8" stroke="hsl(173 64% 48%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+`.trim();
+const defaultIconUri = `data:image/svg+xml;base64,${btoa(defaultIconSvg)}`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -72,8 +83,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ð±</text></svg>" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ð±</text></svg>" />
+        <link id="favicon" rel="icon" href={defaultIconUri} type="image/svg+xml" />
+        <link id="apple-touch-icon" rel="apple-touch-icon" href={defaultIconUri} />
         <link rel="manifest" href="data:application/json;base64,e30=" />
       </head>
       <body className="font-body antialiased">

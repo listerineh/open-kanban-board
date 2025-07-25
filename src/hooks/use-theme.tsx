@@ -92,7 +92,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       `.trim();
 
       const faviconUri = `data:image/svg+xml;base64,${btoa(svgTemplate(512))}?v=${Date.now()}`;
-      let faviconLink: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+      let faviconLink: HTMLLinkElement | null = document.querySelector("link[id='favicon']");
       if (faviconLink) {
         faviconLink.href = faviconUri;
       }
@@ -145,14 +145,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
       const appleTouchIcon = manifestIcons.find((icon) => icon && (icon as any).sizes === '192x192');
       if (appleTouchIcon) {
-        let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
+        let appleLink: HTMLLinkElement | null = document.querySelector("link[id='apple-touch-icon']");
         if (appleLink) {
-          appleLink.href = (appleTouchIcon as any).src;
+          appleLink.href = `${(appleTouchIcon as any).src}?v=${Date.now()}`;
         }
       }
     };
 
-    setTimeout(updateDynamicAssets, 100);
+    requestAnimationFrame(updateDynamicAssets);
   }, [theme, accent]);
 
   const value = {

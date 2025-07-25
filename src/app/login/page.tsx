@@ -75,7 +75,7 @@ export default function LoginPage() {
           <Button
             variant="default"
             size="lg"
-            className="w-full text-sm bg-white hover:bg-white/90"
+            className="w-full text-sm bg-white hover:bg-white/90 text-black"
             onClick={handleGoogleLogin}
           >
             <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5">
