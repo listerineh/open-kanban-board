@@ -82,12 +82,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
       const svgTemplate = (size: number) =>
         `
-        <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="24" height="24" rx="4" fill="${primaryColor}"/>
-          <path d="M9 20V12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M15 20V4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3 20V16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M21 20V8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg width=${size} height=${size} viewBox="0 0 24 24" fill="transparent" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 20V12" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 20V4" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3 20V16" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 20V8" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       `.trim();
 
