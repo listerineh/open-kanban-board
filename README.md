@@ -36,6 +36,7 @@ OpenKanban is packed with features designed to make project management intuitive
 | **Task Priorities**     | Assign priorities (Urgent, High, Medium, Low) to focus on what matters most.                                 |   ✅   |
 | **Task Labels**         | Assign color-coded labels to tasks for better categorization. (Optional)                                     |   ✅   |
 | **Task Search**         | Quickly find tasks within a project using the board-level search bar.                                        |   ✅   |
+| **Advanced Task Filtering** | Filter tasks on the board by assignee, priority, and labels to focus on specific work.                   |   ✅   |
 | **Activity Log**        | Track the history of changes for each task.                                                                  |   ✅   |
 | **User Collaboration**  | Invite members to your projects via email for seamless teamwork.                                             |   ✅   |
 | **Task Assignment**     | Assign tasks to specific project members.                                                                    |   ✅   |
