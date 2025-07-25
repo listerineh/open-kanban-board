@@ -69,18 +69,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.classList.add(`theme-${accent}`);
     }
 
-    const primaryColor = getComputedStyle(root).getPropertyValue('--primary').trim();
-    if (primaryColor) {
+    const primaryColorHsl = getComputedStyle(root).getPropertyValue('--primary').trim();
+    if (primaryColorHsl) {
+      const primaryColor = `hsl(${primaryColorHsl})`;
+      
+      const themeColorMeta: HTMLMetaElement | null = document.querySelector("meta[name='theme-color']");
+      if(themeColorMeta) {
+        themeColorMeta.content = primaryColor;
+      }
       const svg = `
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M9 20V12" stroke="hsl(${primaryColor})" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M15 20V4" stroke="hsl(${primaryColor})" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3 20V16" stroke="hsl(${primaryColor})" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M21 20V8" stroke="hsl(${primaryColor})" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 20V12" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 20V4" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3 20V16" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 20V8" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       `.trim();
 
-      const faviconUri = `data:image/svg+xml;base64,${btoa(svg)}`;
+      const faviconUri = `data:image/svg+xml;base64,${btoa(svg)}?v=${Date.now()}`;
 
       const link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
       if (link) {
