@@ -73,9 +73,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="hsl(173 64% 48%)" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -86,9 +85,9 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <link id="favicon" rel="icon" href={defaultIconUri} type="image/svg+xml" />
-        <link id="apple-touch-icon" rel="apple-touch-icon" href={defaultIconUri} />
-        <link rel="manifest" href="data:application/json;base64,e30=" />
+        <link id="favicon" rel="icon" href="/icons/default.svg" type="image/svg+xml" />
+        <link id="apple-touch-icon" rel="apple-touch-icon" href="/icons/default.svg" />
+        <link id="manifest" rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiT3BlbthhbmJhbiIsInNob3J0X25hbWUiOiJPcGVuS2FuYmFuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJzdGFydF91cmwiOiIvIiwiaWNvbnMiOlt7InNyYyI6Ii9pY29ucy9kZWZhdWx0LnN2ZyIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9zdmcifV19" />
       </head>
       <body className="font-body antialiased">
         <ThemeProvider>

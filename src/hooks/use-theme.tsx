@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
@@ -21,147 +22,122 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
+const accentColorMap: Record<Accent, string> = {
+    default: 'hsl(173 64% 48%)',
+    zinc: 'hsl(220 9% 46%)',
+    rose: 'hsl(347 89% 61%)',
+    blue: 'hsl(221 83% 53%)',
+    orange: 'hsl(25 95% 53%)',
+};
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
   const [accent, setAccent] = useState<Accent>('default');
 
   useEffect(() => {
     try {
-      const storedTheme = localStorage.getItem('theme-mode') as Theme | null;
-      const storedAccent = localStorage.getItem('theme-accent') as Accent | null;
+        const storedTheme = localStorage.getItem('theme-mode') as Theme | null;
+        const storedAccent = localStorage.getItem('theme-accent') as Accent | null;
 
-      if (storedTheme) {
-        setTheme(storedTheme);
-      }
-      if (storedAccent) {
-        setAccent(storedAccent);
-      }
+        if (storedTheme) {
+            setTheme(storedTheme);
+        }
+        if (storedAccent) {
+            setAccent(storedAccent);
+        }
     } catch (e) {
-      console.error('Could not access localStorage', e);
+        console.error("Could not access localStorage", e);
     }
   }, []);
 
   const handleSetTheme = (newTheme: Theme) => {
     try {
-      localStorage.setItem('theme-mode', newTheme);
+        localStorage.setItem('theme-mode', newTheme);
     } catch (e) {
-      console.error('Could not access localStorage', e);
+        console.error("Could not access localStorage", e);
     }
     setTheme(newTheme);
   };
-
+  
   const handleSetAccent = (newAccent: Accent) => {
     try {
-      localStorage.setItem('theme-accent', newAccent);
+        localStorage.setItem('theme-accent', newAccent);
     } catch (e) {
-      console.error('Could not access localStorage', e);
+        console.error("Could not access localStorage", e);
     }
     setAccent(newAccent);
-  };
+  }
 
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
 
-    ['theme-zinc', 'theme-rose', 'theme-blue', 'theme-orange'].forEach((t) => root.classList.remove(t));
+    ['theme-zinc', 'theme-rose', 'theme-blue', 'theme-orange'].forEach(t => root.classList.remove(t));
     if (accent !== 'default') {
-      root.classList.add(`theme-${accent}`);
+        root.classList.add(`theme-${accent}`);
     }
-
-    const updateDynamicAssets = async () => {
-      const primaryColorHsl = getComputedStyle(root).getPropertyValue('--primary').trim();
-      if (!primaryColorHsl) return;
-
-      const primaryColor = `hsl(${primaryColorHsl})`;
+    
+    const updateDynamicAssets = () => {
+      const primaryColor = accentColorMap[accent];
+      const iconPath = `/icons/${accent}.svg`;
 
       const themeColorMeta: HTMLMetaElement | null = document.querySelector("meta[name='theme-color']");
-      if (themeColorMeta) {
+      if(themeColorMeta) {
         themeColorMeta.content = primaryColor;
       }
-
-      const svgTemplate = (size: number) =>
-        `
-        <svg width=${size} height=${size} viewBox="0 0 24 24" fill="transparent" xmlns="http://www.w3.org/2000/svg">
-          <path d="M9 20V12" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M15 20V4" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3 20V16" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M21 20V8" stroke="${primaryColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      `.trim();
-
-      const faviconUri = `data:image/svg+xml;base64,${btoa(svgTemplate(512))}?v=${Date.now()}`;
+      
       let faviconLink: HTMLLinkElement | null = document.querySelector("link[id='favicon']");
-      if (faviconLink) {
-        faviconLink.href = faviconUri;
+      if(faviconLink) {
+        faviconLink.href = iconPath;
+      }
+      
+      let appleLink: HTMLLinkElement | null = document.querySelector("link[id='apple-touch-icon']");
+      if(appleLink) {
+          appleLink.href = iconPath;
       }
 
-      // Generate PNG icons for manifest and apple-touch-icon
-      const iconSizes = [48, 72, 96, 128, 144, 192, 512];
-      const iconPromises = iconSizes.map((size) => {
-        return new Promise((resolve) => {
-          const img = new Image();
-          const canvas = document.createElement('canvas');
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
-          img.onload = () => {
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, size, size);
-              resolve({
-                src: canvas.toDataURL('image/png'),
-                sizes: `${size}x${size}`,
-                type: 'image/png',
-              });
-            } else {
-              resolve(null);
-            }
-          };
-          img.src = `data:image/svg+xml;base64,${btoa(svgTemplate(size))}`;
-        });
-      });
-
-      const manifestIcons = (await Promise.all(iconPromises)).filter(Boolean);
-
       const manifest = {
-        name: 'OpenKanban',
-        short_name: 'OpenKanban',
-        description: 'A modern, open-source Kanban board to streamline your workflow.',
-        start_url: '/',
-        display: 'standalone',
-        background_color: '#18181b',
+        name: "OpenKanban",
+        short_name: "OpenKanban",
+        description: "A modern, open-source Kanban board to streamline your workflow.",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#0F172A",
         theme_color: primaryColor,
-        icons: manifestIcons,
+        icons: [192, 512].map(size => ({
+          src: iconPath,
+          sizes: `${size}x${size}`,
+          type: "image/svg+xml",
+          purpose: "any maskable"
+        }))
       };
 
       const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
       const manifestUrl = URL.createObjectURL(manifestBlob);
 
-      let manifestLink: HTMLLinkElement | null = document.querySelector("link[rel='manifest']");
+      let manifestLink: HTMLLinkElement | null = document.querySelector("link[id='manifest']");
       if (manifestLink) {
         manifestLink.href = manifestUrl;
       }
-
-      const appleTouchIcon = manifestIcons.find((icon) => icon && (icon as any).sizes === '192x192');
-      if (appleTouchIcon) {
-        let appleLink: HTMLLinkElement | null = document.querySelector("link[id='apple-touch-icon']");
-        if (appleLink) {
-          appleLink.href = `${(appleTouchIcon as any).src}?v=${Date.now()}`;
-        }
-      }
     };
-
+    
     requestAnimationFrame(updateDynamicAssets);
+
   }, [theme, accent]);
 
   const value = {
     theme,
     setTheme: handleSetTheme,
     accent,
-    setAccent: handleSetAccent,
+    setAccent: handleSetAccent
   };
 
-  return <ThemeProviderContext.Provider value={value}>{children}</ThemeProviderContext.Provider>;
+  return (
+    <ThemeProviderContext.Provider value={value}>
+      {children}
+    </ThemeProviderContext.Provider>
+  );
 }
 
 export const useTheme = () => {
@@ -171,6 +147,6 @@ export const useTheme = () => {
   }
   return {
     theme: context.accent,
-    setTheme: context.setAccent,
+    setTheme: context.setAccent
   };
 };
