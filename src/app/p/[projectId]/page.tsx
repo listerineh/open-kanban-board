@@ -8,8 +8,9 @@ import { UserNav } from '@/components/auth/user-nav';
 import { Suspense, useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import type { Project, Task, KanbanUser, Label as LabelType } from '@/types/kanban';
+import type { Project, Task, KanbanUser } from '@/types/kanban';
 import { KanbanBoardSkeleton } from '@/components/common/skeletons';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,7 @@ import { AppIcon } from '@/components/common/AppIcon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 
 function ProjectPageContent() {
@@ -348,82 +349,83 @@ function ProjectPageContent() {
 
           {/* Mobile Layout */}
           <div className="w-full flex flex-col items-center gap-4 md:hidden">
-            <div className="relative text-center">
-              <Link href="/" className="inline-flex items-center justify-center gap-3" onClick={handleHomeClick}>
-                <AppIcon className="h-6 w-6" />
-                <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
-              </Link>
-              <Badge
-                variant="secondary"
-                className="absolute -right-4 -bottom-2 text-[10px] scale-90 px-1.5 py-0.5 pointer-events-none"
-              >
-                alpha
-              </Badge>
-            </div>
-
-            <div className="w-full flex items-center justify-center gap-2">
-              <div className="relative flex-grow">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={`Search in ${project.name}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-full"
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                    onClick={() => setSearchQuery('')}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
+          <div className="w-full flex items-center justify-between">
+                  <div className="relative">
+                      <Link href="/" className="inline-flex items-center justify-center gap-3" onClick={handleHomeClick}>
+                          <AppIcon className="h-6 w-6" />
+                          <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
+                      </Link>
+                      <Badge variant="secondary" className="absolute -right-4 -bottom-2 text-[10px] scale-90 px-1.5 py-0.5 pointer-events-none">alpha</Badge>
+                  </div>
+                   <div className="flex items-center gap-1">
+                      {enableDashboard && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Link href={`/p/${project.id}/dashboard`} passHref>
+                                <Button variant="ghost" size="icon" className="hidden sm:inline-flex h-8 w-8 rounded-full">
+                                <LayoutDashboard className="h-5 w-5" />
+                                    </Button>
+                                </Link>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Dashboard</p>
+                            </TooltipContent>
+                        </Tooltip>
+                      )}
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Link href={`/p/${project.id}/config`} passHref>
+                              <Button variant="ghost" size="icon" className="hidden sm:inline-flex h-8 w-8 rounded-full">
+                              <Settings className="h-5 w-5" />
+                                  </Button>
+                              </Link>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                              <p>Project Settings</p>
+                          </TooltipContent>
+                      </Tooltip>
+                      <div className="sm:hidden">
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                  <ChevronDown className="h-5 w-5" />
+                                  </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                              {enableDashboard && <DropdownMenuItem onSelect={() => router.push(`/p/${project.id}/dashboard`)}><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</DropdownMenuItem>}
+                              <DropdownMenuItem onSelect={() => router.push(`/p/${project.id}/config`)}><Settings className="mr-2 h-4 w-4" />Settings</DropdownMenuItem>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+                      </div>
+                      <Notifications />
+                      <UserNav />
+                  </div>
               </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="relative flex-shrink-0">
-                    <Filter className="h-4 w-4" />
-                    {activeFilterCount > 0 && (
-                      <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">
-                        {activeFilterCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <FilterPopoverContent />
-              </Popover>
-            </div>
-            <div className="w-full flex items-center justify-center gap-1">
-              {enableDashboard && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link href={`/p/${project.id}/dashboard`} passHref>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                        <LayoutDashboard className="h-5 w-5" />
-                      </Button>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Dashboard</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link href={`/p/${project.id}/config`} passHref>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                      <Settings className="h-5 w-5" />
-                    </Button>
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Project Settings</p>
-                </TooltipContent>
-              </Tooltip>
-              <Notifications />
-              <UserNav />
+              
+              <div className="w-full flex items-center justify-center gap-2">
+                  <div className="relative flex-grow">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                          placeholder={`Search in ${project.name}...`}
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          className="pl-10 w-full"
+                      />
+                      {searchQuery && (
+                          <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setSearchQuery('')}>
+                              <X className="h-4 w-4" />
+                          </Button>
+                      )}
+                  </div>
+                   <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" size="icon" className="relative flex-shrink-0">
+                                <Filter className="h-4 w-4" />
+                                {activeFilterCount > 0 && <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">{activeFilterCount}</Badge>}
+                            </Button>
+                        </PopoverTrigger>
+                        <FilterPopoverContent />
+                    </Popover>
             </div>
           </div>
         </header>
