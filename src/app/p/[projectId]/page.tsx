@@ -8,7 +8,6 @@ import { UserNav } from '@/components/auth/user-nav';
 import { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import type { Project, Task, KanbanUser } from '@/types/kanban';
 import { KanbanBoardSkeleton } from '@/components/common/skeletons';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Notifications } from '@/components/notifications/Notifications';
 import { TaskDetailsDialog } from '@/components/kanban/TaskDetailsDialog';
+import { AppIcon } from '@/components/common/AppIcon';
 
 function ProjectPageContent() {
   const store = useKanbanStore();
@@ -106,7 +106,7 @@ function ProjectPageContent() {
           <div className="hidden md:flex flex-1 items-center justify-start">
             <div className="relative">
               <Link href="/" className="flex items-center gap-3" onClick={handleHomeClick}>
-                <Image src="/icon.svg" width={24} height={24} alt="OpenKanban icon" />
+                <AppIcon className="h-6 w-6" />
                 <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
               </Link>
               <Badge
@@ -175,7 +175,7 @@ function ProjectPageContent() {
           <div className="w-full flex flex-col items-center gap-4 md:hidden">
             <div className="relative text-center">
               <Link href="/" className="inline-flex items-center justify-center gap-3" onClick={handleHomeClick}>
-                <Image src="/icon.svg" width={24} height={24} alt="OpenKanban icon" />
+                <AppIcon className="h-6 w-6" />
                 <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
               </Link>
               <Badge
