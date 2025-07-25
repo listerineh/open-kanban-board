@@ -25,28 +25,28 @@
 
 OpenKanban is packed with features designed to make project management intuitive and collaborative.
 
-| Feature                 | Description                                                                                                  | Status |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------ | :----: |
-| **Project Dashboard**   | Visualize project progress with insightful charts for task status, priority, and member workload. (Optional) |   ✅   |
-| **Project Management**  | Create, edit, and delete projects with ease.                                                                 |   ✅   |
-| **Task Organization**   | Add, update, and delete tasks within columns.                                                                |   ✅   |
-| **Drag & Drop**         | Intuitively move tasks between columns and reorder columns on your board.                                    |   ✅   |
-| **Sub-tasks**           | Break down complex tasks into smaller, manageable sub-tasks. (Optional)                                      |   ✅   |
-| **Task Deadlines**      | Set deadlines for tasks to keep your projects on track. (Optional)                                           |   ✅   |
-| **Task Priorities**     | Assign priorities (Urgent, High, Medium, Low) to focus on what matters most.                                 |   ✅   |
-| **Task Labels**         | Assign color-coded labels to tasks for better categorization. (Optional)                                     |   ✅   |
-| **Task Search**         | Quickly find tasks within a project using the board-level search bar.                                        |   ✅   |
-| **Advanced Task Filtering** | Filter tasks on the board by assignee, priority, and labels to focus on specific work.                   |   ✅   |
-| **Activity Log**        | Track the history of changes for each task.                                                                  |   ✅   |
-| **User Collaboration**  | Invite members to your projects via email for seamless teamwork.                                             |   ✅   |
-| **Task Assignment**     | Assign tasks to specific project members.                                                                    |   ✅   |
-| **User Authentication** | Secure Google Authentication to protect your projects.                                                       |   ✅   |
-| **Notifications**       | Receive alerts for important events like task assignments and project invitations.                           |   ✅   |
-| **Responsive Design**   | A fully responsive UI that works beautifully on desktop and mobile devices.                                  |   ✅   |
-| **Toast Notifications** | Get instant feedback for your actions with clean, modern toast alerts.                                       |   ✅   |
-| **Dark Mode**           | A beautiful dark mode for comfortable viewing in low-light conditions.                                       |   ✅   |
-| **Customizable Themes** | Personalize your board with multiple color themes.                                                           |   ✅   |
-| **State Persistence**   | Your session is cached, so refreshing the page won't log you out or lose your place.                         |   ✅   |
+| Feature                     | Description                                                                                                  | Status |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ | :----: |
+| **Project Dashboard**       | Visualize project progress with insightful charts for task status, priority, and member workload. (Optional) |   ✅   |
+| **Project Management**      | Create, edit, and delete projects with ease.                                                                 |   ✅   |
+| **Task Organization**       | Add, update, and delete tasks within columns.                                                                |   ✅   |
+| **Drag & Drop**             | Intuitively move tasks between columns and reorder columns on your board.                                    |   ✅   |
+| **Sub-tasks**               | Break down complex tasks into smaller, manageable sub-tasks. (Optional)                                      |   ✅   |
+| **Task Deadlines**          | Set deadlines for tasks to keep your projects on track. (Optional)                                           |   ✅   |
+| **Task Priorities**         | Assign priorities (Urgent, High, Medium, Low) to focus on what matters most.                                 |   ✅   |
+| **Task Labels**             | Assign color-coded labels to tasks for better categorization. (Optional)                                     |   ✅   |
+| **Task Search**             | Quickly find tasks within a project using the board-level search bar.                                        |   ✅   |
+| **Advanced Task Filtering** | Filter tasks on the board by assignee, priority, and labels to focus on specific work.                       |   ✅   |
+| **Activity Log**            | Track the history of changes for each task.                                                                  |   ✅   |
+| **User Collaboration**      | Invite members to your projects via email for seamless teamwork.                                             |   ✅   |
+| **Task Assignment**         | Assign tasks to specific project members.                                                                    |   ✅   |
+| **User Authentication**     | Secure Google Authentication to protect your projects.                                                       |   ✅   |
+| **Notifications**           | Receive alerts for important events like task assignments and project invitations.                           |   ✅   |
+| **Responsive Design**       | A fully responsive UI that works beautifully on desktop and mobile devices.                                  |   ✅   |
+| **Toast Notifications**     | Get instant feedback for your actions with clean, modern toast alerts.                                       |   ✅   |
+| **Dark Mode**               | A beautiful dark mode for comfortable viewing in low-light conditions.                                       |   ✅   |
+| **Customizable Themes**     | Personalize your board with multiple color themes.                                                           |   ✅   |
+| **State Persistence**       | Your session is cached, so refreshing the page won't log you out or lose your place.                         |   ✅   |
 
 ---
 

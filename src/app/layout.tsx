@@ -12,7 +12,6 @@ export const metadata: Metadata = {
     'Manage your projects with this free-to-use Kanban Board. Create, edit, and delete projects, as well as add, move, and delete tasks.',
   keywords: ['Kanban', 'Project Management', 'Task Management', 'Free Kanban Board', 'Open Source Kanban'],
   generator: 'Next.js',
-  manifest: '/manifest.json',
   referrer: 'origin',
   publisher: 'Vercel',
   authors: [
@@ -75,13 +74,14 @@ export default function RootLayout({
         />
         <link
           rel="icon"
-          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ð±</text></svg>"
+          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚫</text></svg>"
           type="image/svg+xml"
         />
         <link
           rel="apple-touch-icon"
-          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>ð±</text></svg>"
+          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚫</text></svg>"
         />
+        <link rel="manifest" href="data:application/json;base64,e30=" />
       </head>
       <body className="font-body antialiased">
         <ThemeProvider>
