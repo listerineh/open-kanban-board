@@ -5,6 +5,7 @@ import type { Project, Column, Task, KanbanUser, Activity, Label, Notification, 
 import { useAuth } from './use-auth';
 import { toast } from './use-toast';
 import { db } from '@/lib/firebase';
+import { DEFAULT_PROJECT_SETTINGS, DEFAULT_LABELS, DEFAULT_COLUMNS } from '@/lib/constants';
 import {
   collection,
   query,
@@ -183,20 +184,22 @@ export function useKanbanStore(): KanbanStore {
         pendingMembers: [],
         createdAt: now,
         updatedAt: now,
-        enableSubtasks: true,
-        enableDeadlines: true,
-        enableLabels: true,
-        enableDashboard: true,
-        labels: [
-          { id: `label-${Date.now()}-1`, name: 'Bug', color: '#ef4444' },
-          { id: `label-${Date.now()}-2`, name: 'Feature', color: '#3b82f6' },
-          { id: `label-${Date.now()}-3`, name: 'Improvement', color: '#22c55e' },
-        ],
-        columns: [
-          { id: `col-${Date.now()}-1`, title: 'To Do', tasks: [], createdAt: now, updatedAt: now },
-          { id: `col-${Date.now()}-2`, title: 'In Progress', tasks: [], createdAt: now, updatedAt: now },
-          { id: `col-${Date.now()}-3`, title: 'Done', tasks: [], createdAt: now, updatedAt: now },
-        ],
+        enableSubtasks: DEFAULT_PROJECT_SETTINGS.ENABLE_SUBTASKS,
+        enableDeadlines: DEFAULT_PROJECT_SETTINGS.ENABLE_DEADLINES,
+        enableLabels: DEFAULT_PROJECT_SETTINGS.ENABLE_LABELS,
+        enableDashboard: DEFAULT_PROJECT_SETTINGS.ENABLE_DASHBOARD,
+        labels: DEFAULT_LABELS.map((label, index) => ({
+          id: `label-${Date.now()}-${index + 1}`,
+          name: label.name,
+          color: label.color,
+        })),
+        columns: DEFAULT_COLUMNS.map((column, index) => ({
+          id: `col-${Date.now()}-${index + 1}`,
+          title: column.title,
+          tasks: [],
+          createdAt: now,
+          updatedAt: now,
+        })),
       };
       try {
         const docRef = await addDoc(collection(db, 'projects'), newProjectData);

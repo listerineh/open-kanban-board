@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNewProjectDialog } from '@/hooks/use-new-project-dialog';
 import { Notifications } from '@/components/notifications/Notifications';
 import { AppIcon } from '@/components/common/AppIcon';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 export default function RootPage() {
   const store = useKanbanStore();
@@ -25,7 +26,7 @@ export default function RootPage() {
   useEffect(() => {
     if (store.isLoaded && user) {
       try {
-        const lastProjectId = localStorage.getItem('lastActiveProjectId');
+        const lastProjectId = localStorage.getItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
         if (lastProjectId && store.projects.some((p) => p.id === lastProjectId)) {
           router.replace(`/p/${lastProjectId}`);
         } else {
@@ -42,7 +43,7 @@ export default function RootPage() {
 
   const handleHomeClick = () => {
     try {
-      localStorage.removeItem('lastActiveProjectId');
+      localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
       setIsRedirecting(false);
     } catch (error) {
       console.error('Failed to remove from localStorage', error);

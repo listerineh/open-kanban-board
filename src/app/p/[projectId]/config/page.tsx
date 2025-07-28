@@ -43,25 +43,7 @@ import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-
-const colorSwatches = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#84cc16',
-  '#22c55e',
-  '#14b8a6',
-  '#06b6d4',
-  '#3b82f6',
-  '#6366f1',
-  '#8b5cf6',
-  '#a855f7',
-  '#d946ef',
-  '#ec4899',
-  '#f43f5e',
-  '#78716c',
-  '#64748b',
-];
+import { COLOR_SWATCHES, SEARCH_CONSTANTS } from '@/lib/constants';
 
 export default function ProjectConfigPage() {
   const router = useRouter();
@@ -87,7 +69,7 @@ export default function ProjectConfigPage() {
   const [columnToDelete, setColumnToDelete] = useState<Column | null>(null);
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
   const [newLabelName, setNewLabelName] = useState('');
-  const [newLabelColor, setNewLabelColor] = useState(colorSwatches[0]);
+  const [newLabelColor, setNewLabelColor] = useState<string>(COLOR_SWATCHES[0]);
   const [editingLabel, setEditingLabel] = useState<LabelType | null>(null);
 
   const allTasks = useMemo(() => project?.columns.flatMap((c) => c.tasks) ?? [], [project]);
@@ -130,7 +112,7 @@ export default function ProjectConfigPage() {
   const handleSearchUsers = useCallback(
     async (query: string) => {
       setInviteSearch(query);
-      if (query.trim().length < 2) {
+      if (query.trim().length < SEARCH_CONSTANTS.MIN_QUERY_LENGTH) {
         setSearchResults([]);
         return;
       }
@@ -260,7 +242,7 @@ export default function ProjectConfigPage() {
     if (!newLabelName.trim() || !project) return;
     await store.createLabel(project.id, newLabelName, newLabelColor);
     setNewLabelName('');
-    setNewLabelColor(colorSwatches[0]);
+    setNewLabelColor(COLOR_SWATCHES[0]);
   };
 
   const handleUpdateLabel = async () => {
@@ -434,7 +416,7 @@ export default function ProjectConfigPage() {
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-2">
                         <div className="grid grid-cols-4 gap-2">
-                          {colorSwatches.map((color) => (
+                          {COLOR_SWATCHES.map((color) => (
                             <Button
                               key={color}
                               variant="outline"
@@ -484,7 +466,7 @@ export default function ProjectConfigPage() {
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-2">
                               <div className="grid grid-cols-4 gap-2">
-                                {colorSwatches.map((color) => (
+                                {COLOR_SWATCHES.map((color) => (
                                   <Button
                                     key={color}
                                     variant="outline"
