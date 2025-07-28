@@ -2,6 +2,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { THEME_ACCENT_COLORS, STORAGE_KEYS, APP_METADATA } from '@/lib/constants';
 
 type Theme = 'dark' | 'light';
 type Accent = 'default' | 'zinc' | 'rose' | 'blue' | 'orange';
@@ -22,22 +23,14 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
-const accentColorMap: Record<Accent, string> = {
-    default: 'hsl(173 64% 48%)',
-    zinc: 'hsl(220 9% 46%)',
-    rose: 'hsl(347 89% 61%)',
-    blue: 'hsl(221 83% 53%)',
-    orange: 'hsl(25 95% 53%)',
-};
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
   const [accent, setAccent] = useState<Accent>('default');
 
   useEffect(() => {
     try {
-        const storedTheme = localStorage.getItem('theme-mode') as Theme | null;
-        const storedAccent = localStorage.getItem('theme-accent') as Accent | null;
+        const storedTheme = localStorage.getItem(STORAGE_KEYS.THEME_MODE) as Theme | null;
+        const storedAccent = localStorage.getItem(STORAGE_KEYS.THEME_ACCENT) as Accent | null;
 
         if (storedTheme) {
             setTheme(storedTheme);
@@ -52,7 +45,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const handleSetTheme = (newTheme: Theme) => {
     try {
-        localStorage.setItem('theme-mode', newTheme);
+        localStorage.setItem(STORAGE_KEYS.THEME_MODE, newTheme);
     } catch (e) {
         console.error("Could not access localStorage", e);
     }
@@ -61,7 +54,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   
   const handleSetAccent = (newAccent: Accent) => {
     try {
-        localStorage.setItem('theme-accent', newAccent);
+        localStorage.setItem(STORAGE_KEYS.THEME_ACCENT, newAccent);
     } catch (e) {
         console.error("Could not access localStorage", e);
     }
@@ -79,7 +72,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     
     const updateDynamicAssets = () => {
-      const primaryColor = accentColorMap[accent];
+      const primaryColor = THEME_ACCENT_COLORS[accent];
       const iconPath = `/icons/${accent}.svg`;
 
       const themeColorMeta: HTMLMetaElement | null = document.querySelector("meta[name='theme-color']");
@@ -98,12 +91,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
 
       const manifest = {
-        name: "OpenKanban",
-        short_name: "OpenKanban",
-        description: "A modern, open-source Kanban board to streamline your workflow.",
-        start_url: "/",
-        display: "standalone",
-        background_color: "#0F172A",
+        name: APP_METADATA.NAME,
+        short_name: APP_METADATA.SHORT_NAME,
+        description: APP_METADATA.DESCRIPTION,
+        start_url: APP_METADATA.START_URL,
+        display: APP_METADATA.DISPLAY,
+        background_color: APP_METADATA.BACKGROUND_COLOR,
         theme_color: primaryColor,
         icons: [192, 512].map(size => ({
           src: iconPath,

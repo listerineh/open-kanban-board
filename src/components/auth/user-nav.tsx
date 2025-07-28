@@ -22,14 +22,7 @@ import { useRouter } from 'next/navigation';
 import { useNewProjectDialog } from '@/hooks/use-new-project-dialog';
 import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
-
-const themes = [
-  { name: 'Default', value: 'default', color: 'hsl(173 64% 48%)' },
-  { name: 'Zinc', value: 'zinc', color: 'hsl(220 9% 46%)' },
-  { name: 'Rose', value: 'rose', color: 'hsl(347 89% 61%)' },
-  { name: 'Blue', value: 'blue', color: 'hsl(221 83% 53%)' },
-  { name: 'Orange', value: 'orange', color: 'hsl(25 95% 53%)' },
-];
+import { THEME_OPTIONS } from '@/lib/constants';
 
 export function UserNav() {
   const { user } = useAuth();
@@ -75,7 +68,7 @@ export function UserNav() {
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              {themes.map((t) => (
+              {THEME_OPTIONS.map((t) => (
                 <DropdownMenuCheckboxItem key={t.value} checked={theme === t.value} onSelect={() => setTheme(t.value)}>
                   <div className="w-4 h-4 rounded-full mr-2" style={{ backgroundColor: t.color }}></div>
                   {t.name}

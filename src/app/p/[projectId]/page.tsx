@@ -28,6 +28,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { TASK_PRIORITIES, STORAGE_KEYS } from '@/lib/constants';
 
 function ProjectPageContent() {
   const store = useKanbanStore();
@@ -56,7 +57,7 @@ function ProjectPageContent() {
       setProject(foundProject);
       store.getProjectMembers(projectId).then(setMembers);
       try {
-        localStorage.setItem('lastActiveProjectId', projectId);
+        localStorage.setItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT, projectId);
       } catch (error) {
         console.error('Failed to write to localStorage', error);
       }
@@ -73,7 +74,7 @@ function ProjectPageContent() {
       }
     } else {
       try {
-        localStorage.removeItem('lastActiveProjectId');
+        localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
       } catch (error) {
         console.error('Failed to remove from localStorage', error);
       }
@@ -88,7 +89,7 @@ function ProjectPageContent() {
 
   const handleHomeClick = () => {
     try {
-      localStorage.removeItem('lastActiveProjectId');
+      localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
     } catch (error) {
       console.error('Failed to remove from localStorage', error);
     }
@@ -166,7 +167,7 @@ function ProjectPageContent() {
   const enableDashboard = project.enableDashboard ?? true;
   const allTasks = project.columns.flatMap((c) => c.tasks);
   const projectLabels = project.labels || [];
-  const priorities: Task['priority'][] = ['Urgent', 'High', 'Medium', 'Low'];
+  const priorities: Task['priority'][] = [...TASK_PRIORITIES];
 
   const FilterPopoverContent = () => (
     <PopoverContent className="w-80 p-0" align="end">

@@ -40,6 +40,7 @@ import { format, setHours, setMinutes, isPast, isAfter, formatDistanceToNow } fr
 import { cn } from '@/lib/utils';
 import { Calendar } from '../ui/calendar';
 import { Checkbox } from '../ui/checkbox';
+import { TIME_OPTIONS } from '@/lib/constants';
 import { Progress } from '../ui/progress';
 import { Separator } from '../ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -117,8 +118,8 @@ export function TaskDetailsDialog({
 
   const [activeTab, setActiveTab] = useState('details');
 
-  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-  const minutes = ['00', '15', '30', '45'];
+  const hours = TIME_OPTIONS.HOURS;
+  const minutes = TIME_OPTIONS.MINUTES;
 
   const [showMentionPopover, setShowMentionPopover] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');

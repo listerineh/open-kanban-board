@@ -4,19 +4,11 @@ import { useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { Task } from '@/types/kanban';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PRIORITY_COLORS, TASK_PRIORITIES } from '@/lib/constants';
 
 type TasksByPriorityChartProps = {
   tasks: Task[];
 };
-
-const COLORS = {
-  Urgent: 'hsl(var(--destructive))',
-  High: 'hsl(var(--warning))',
-  Medium: 'hsl(var(--primary))',
-  Low: 'hsl(var(--muted-foreground))',
-};
-
-const priorities: Task['priority'][] = ['Urgent', 'High', 'Medium', 'Low'];
 
 export function TasksByPriorityChart({ tasks }: TasksByPriorityChartProps) {
   const chartData = useMemo(() => {
@@ -29,7 +21,7 @@ export function TasksByPriorityChart({ tasks }: TasksByPriorityChartProps) {
       {} as Record<string, number>,
     );
 
-    return priorities
+    return TASK_PRIORITIES
       .map((p) => ({
         name: p!,
         value: priorityCounts[p!] || 0,
@@ -72,7 +64,7 @@ export function TasksByPriorityChart({ tasks }: TasksByPriorityChartProps) {
                 nameKey="name"
               >
                 {chartData.map((entry) => (
-                  <Cell key={`cell-${entry.name}`} fill={COLORS[entry.name as keyof typeof COLORS]} />
+                  <Cell key={`cell-${entry.name}`} fill={PRIORITY_COLORS[entry.name as keyof typeof PRIORITY_COLORS]} />
                 ))}
               </Pie>
               <Tooltip

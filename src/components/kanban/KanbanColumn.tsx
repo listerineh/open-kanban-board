@@ -11,6 +11,7 @@ import type { KanbanStore } from '@/hooks/use-kanban-store';
 import { Input } from '@/components/ui/input';
 import { Separator } from '../ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { PRIORITY_ORDER } from '@/lib/constants';
 
 type KanbanColumnProps = {
   projectId: string;
@@ -58,14 +59,7 @@ export function KanbanColumn({
 
   const isDoneColumn = column.title === 'Done';
 
-  const priorityOrder: Record<Task['priority'] & string, number> = {
-    Urgent: 4,
-    High: 3,
-    Medium: 2,
-    Low: 1,
-  };
-
-  const getPriority = (task: Task) => priorityOrder[task.priority ?? 'Medium'] ?? 2;
+  const getPriority = (task: Task) => PRIORITY_ORDER[task.priority ?? 'Medium'] ?? 2;
 
   const parentTasks = useMemo(() => column.tasks.filter((task) => !task.parentId), [column.tasks]);
 

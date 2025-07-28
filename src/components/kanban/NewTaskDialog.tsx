@@ -16,6 +16,7 @@ import { format, setHours, setMinutes } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
+import { TIME_OPTIONS } from '@/lib/constants';
 
 type NewTaskDialogProps = {
   isOpen: boolean;
@@ -53,8 +54,8 @@ export function NewTaskDialog({
   const [time, setTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-  const minutes = ['00', '15', '30', '45'];
+  const hours = TIME_OPTIONS.HOURS;
+  const minutes = TIME_OPTIONS.MINUTES;
 
   const resetForm = () => {
     setTitle('');
