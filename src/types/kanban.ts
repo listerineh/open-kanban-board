@@ -29,7 +29,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   deadline?: string;
-  completedAt?: string;
+  completedAt?: string | null;
   parentId?: string;
   labelIds?: string[];
   activity?: Activity[];
