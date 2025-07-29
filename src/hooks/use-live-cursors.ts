@@ -7,6 +7,7 @@ import type { OtherUserPresence } from '@/types/kanban';
 import { db } from '@/lib/firebase';
 import { collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useThrottle } from './use-throttle';
+import { CURSOR_INACTIVITY_TIMEOUT_SECONDS } from '@/lib/constants';
 
 export function useLiveCursors(projectId: string) {
   const { user } = useAuth();
@@ -60,27 +61,18 @@ export function useLiveCursors(projectId: string) {
 
       hideCursorTimeoutRef.current = setTimeout(() => {
         updatePresence(null);
-      }, 5000);
+      }, CURSOR_INACTIVITY_TIMEOUT_SECONDS * 1000);
     };
-
-    const handlePointerLeave = () => {
-      if (hideCursorTimeoutRef.current) {
-        clearTimeout(hideCursorTimeoutRef.current);
-      }
-      updatePresence(null);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerleave', handlePointerLeave);
 
     const handleBeforeUnload = () => {
       deleteDoc(presenceRef);
     };
+
+    window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       if (hideCursorTimeoutRef.current) {
         clearTimeout(hideCursorTimeoutRef.current);
