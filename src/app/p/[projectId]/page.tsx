@@ -5,10 +5,10 @@ import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { Search, X, Settings, LayoutDashboard, Filter, Check, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
-import { Suspense, useEffect, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import type { Project, Task, KanbanUser } from '@/types/kanban';
+import type { Project, Task, KanbanUser, Label } from '@/types/kanban';
 import { KanbanBoardSkeleton } from '@/components/common/skeletons';
 import {
   DropdownMenu,
@@ -28,14 +28,16 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { TASK_PRIORITIES, STORAGE_KEYS } from '@/lib/constants';
+import { STORAGE_KEYS } from '@/lib/constants';
+import { LiveCursors } from '@/components/kanban/LiveCursors';
 
 function ProjectPageContent() {
-  const store = useKanbanStore();
-  const { loading: authLoading } = useAuth();
   const { projectId } = useParams() as { projectId: string };
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const { projects, isLoaded, actions } = useKanbanStore();
+  const { loading: authLoading } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
@@ -47,15 +49,15 @@ function ProjectPageContent() {
   const [selectedLabels, setSelectedLabels] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (authLoading || !store.isLoaded) {
+    if (authLoading || !isLoaded) {
       return;
     }
 
-    const foundProject = store.projects.find((p) => p.id === projectId);
+    const foundProject = projects.find((p) => p.id === projectId);
 
     if (foundProject) {
       setProject(foundProject);
-      store.getProjectMembers(projectId).then(setMembers);
+      actions.getProjectMembers(projectId).then(setMembers);
       try {
         localStorage.setItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT, projectId);
       } catch (error) {
@@ -80,71 +82,92 @@ function ProjectPageContent() {
       }
       router.replace('/');
     }
-  }, [projectId, authLoading, store.isLoaded, store.projects, router, searchParams, store]);
+  }, [projectId, authLoading, isLoaded, projects, router, searchParams, actions]);
 
-  const closeTaskDialog = () => {
+  const closeTaskDialog = useCallback(() => {
     setEditingTask(null);
     router.replace(`/p/${projectId}`, { scroll: false });
-  };
+  }, [projectId, router]);
 
-  const handleHomeClick = () => {
+  const handleHomeClick = useCallback(() => {
     try {
-      localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
+      localStorage.removeItem('lastActiveProjectId');
     } catch (error) {
       console.error('Failed to remove from localStorage', error);
     }
-  };
+  }, []);
 
-  const toggleFilter = (set: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
-    set((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(value)) {
-        newSet.delete(value);
-      } else {
-        newSet.add(value);
-      }
-      return newSet;
-    });
-  };
+  const toggleFilter = useCallback((type: 'assignees' | 'priorities' | 'labels', value: string) => {
+    const updater = (set: React.Dispatch<React.SetStateAction<Set<string>>>) => {
+      set((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(value)) {
+          newSet.delete(value);
+        } else {
+          newSet.add(value);
+        }
+        return newSet;
+      });
+    };
 
-  const clearFilters = () => {
+    switch (type) {
+      case 'assignees':
+        updater(setSelectedAssignees);
+        break;
+      case 'priorities':
+        updater(setSelectedPriorities);
+        break;
+      case 'labels':
+        updater(setSelectedLabels);
+        break;
+    }
+  }, []);
+
+  const clearFilters = useCallback(() => {
     setSelectedAssignees(new Set());
     setSelectedPriorities(new Set());
     setSelectedLabels(new Set());
-  };
+  }, []);
 
-  const activeFilterCount = selectedAssignees.size + selectedPriorities.size + selectedLabels.size;
+  const activeFilterCount = useMemo(
+    () => selectedAssignees.size + selectedPriorities.size + selectedLabels.size,
+    [selectedAssignees, selectedPriorities, selectedLabels],
+  );
 
   const filteredProject = useMemo(() => {
     if (!project) return null;
 
+    const hasFilters =
+      searchQuery || selectedAssignees.size > 0 || selectedPriorities.size > 0 || selectedLabels.size > 0;
+
+    if (!hasFilters) {
+      return project;
+    }
+
     const allTasks = project.columns.flatMap((c) => c.tasks);
     let filteredTasks = new Set(allTasks);
 
-    // Search query filter
     if (searchQuery) {
+      const lowerCaseQuery = searchQuery.toLowerCase();
       filteredTasks = new Set(
         [...filteredTasks].filter(
           (task) =>
-            task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            task.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+            task.title.toLowerCase().includes(lowerCaseQuery) ||
+            task.description?.toLowerCase().includes(lowerCaseQuery),
         ),
       );
     }
 
-    // Assignee filter
     if (selectedAssignees.size > 0) {
       filteredTasks = new Set(
         [...filteredTasks].filter((task) => selectedAssignees.has(task.assignee || 'unassigned')),
       );
     }
 
-    // Priority filter
     if (selectedPriorities.size > 0) {
       filteredTasks = new Set([...filteredTasks].filter((task) => selectedPriorities.has(task.priority || 'Medium')));
     }
 
-    // Label filter
     if (selectedLabels.size > 0) {
       filteredTasks = new Set(
         [...filteredTasks].filter((task) => task.labelIds?.some((labelId) => selectedLabels.has(labelId))),
@@ -160,114 +183,24 @@ function ProjectPageContent() {
     };
   }, [project, searchQuery, selectedAssignees, selectedPriorities, selectedLabels]);
 
-  if (authLoading || !store.isLoaded || !project || !filteredProject) {
+  const onTaskClick = useCallback(
+    (task: Task, columnId: string) => {
+      setEditingTask({ task, columnId });
+      router.push(`/p/${projectId}?taskId=${task.id}`, { scroll: false });
+    },
+    [projectId, router],
+  );
+
+  if (authLoading || !isLoaded || !project || !filteredProject) {
     return <KanbanBoardSkeleton />;
   }
 
   const enableDashboard = project.enableDashboard ?? true;
   const allTasks = project.columns.flatMap((c) => c.tasks);
-  const projectLabels = project.labels || [];
-  const priorities: Task['priority'][] = [...TASK_PRIORITIES];
-
-  const FilterPopoverContent = () => (
-    <PopoverContent className="w-80 p-0" align="end">
-      <Command>
-        <div className="flex items-center justify-between p-3 border-b">
-          <h4 className="font-medium text-sm">Filters</h4>
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0"
-            onClick={clearFilters}
-            disabled={activeFilterCount === 0}
-          >
-            Clear all
-          </Button>
-        </div>
-        <CommandList className="max-h-[400px]">
-          <CommandGroup heading="Assignee">
-            {members.map((member) => (
-              <CommandItem key={member.uid} onSelect={() => toggleFilter(setSelectedAssignees, member.uid)}>
-                <div
-                  className={cn(
-                    'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                    selectedAssignees.has(member.uid)
-                      ? 'bg-primary text-primary-foreground'
-                      : 'opacity-50 [&_svg]:invisible',
-                  )}
-                >
-                  <Check className="h-4 w-4" />
-                </div>
-                <Avatar className="h-6 w-6 mr-2">
-                  <AvatarImage src={member.photoURL ?? ''} />
-                  <AvatarFallback>{member.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
-                </Avatar>
-                <span>{member.displayName}</span>
-              </CommandItem>
-            ))}
-            <CommandItem onSelect={() => toggleFilter(setSelectedAssignees, 'unassigned')}>
-              <div
-                className={cn(
-                  'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                  selectedAssignees.has('unassigned')
-                    ? 'bg-primary text-primary-foreground'
-                    : 'opacity-50 [&_svg]:invisible',
-                )}
-              >
-                <Check className="h-4 w-4" />
-              </div>
-              <Avatar className="h-6 w-6 mr-2">
-                <AvatarFallback>?</AvatarFallback>
-              </Avatar>
-              <span>Unassigned</span>
-            </CommandItem>
-          </CommandGroup>
-          <Separator />
-          <CommandGroup heading="Priority">
-            {priorities.map((p) => (
-              <CommandItem key={p} onSelect={() => toggleFilter(setSelectedPriorities, p!)}>
-                <div
-                  className={cn(
-                    'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                    selectedPriorities.has(p!) ? 'bg-primary text-primary-foreground' : 'opacity-50 [&_svg]:invisible',
-                  )}
-                >
-                  <Check className="h-4 w-4" />
-                </div>
-                <span>{p}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          {projectLabels.length > 0 && (
-            <>
-              <Separator />
-              <CommandGroup heading="Labels">
-                {projectLabels.map((label) => (
-                  <CommandItem key={label.id} onSelect={() => toggleFilter(setSelectedLabels, label.id)}>
-                    <div
-                      className={cn(
-                        'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                        selectedLabels.has(label.id)
-                          ? 'bg-primary text-primary-foreground'
-                          : 'opacity-50 [&_svg]:invisible',
-                      )}
-                    >
-                      <Check className="h-4 w-4" />
-                    </div>
-                    <div className="h-4 w-4 rounded-full mr-2" style={{ backgroundColor: label.color }}></div>
-                    <span>{label.name}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </>
-          )}
-        </CommandList>
-      </Command>
-    </PopoverContent>
-  );
 
   return (
     <>
+      <LiveCursors projectId={project.id} />
       <div className="w-full flex flex-col bg-background text-foreground font-body min-h-0 h-dvh max-h-dvh">
         <header className="px-4 py-3 border-b border-border flex flex-col md:flex-row items-center justify-between gap-4 shrink-0">
           {/* Desktop Layout */}
@@ -306,20 +239,17 @@ function ProjectPageContent() {
                 </Button>
               )}
             </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="relative">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                  {activeFilterCount > 0 && (
-                    <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">
-                      {activeFilterCount}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <FilterPopoverContent />
-            </Popover>
+            <FilterPopover
+              members={members}
+              priorities={['Urgent', 'High', 'Medium', 'Low']}
+              projectLabels={project.labels || []}
+              selectedAssignees={selectedAssignees}
+              selectedLabels={selectedLabels}
+              selectedPriorities={selectedPriorities}
+              toggleFilter={toggleFilter}
+              clearFilters={clearFilters}
+              activeFilterCount={activeFilterCount}
+            />
           </div>
 
           <div className="hidden md:flex flex-1 items-center justify-end gap-2">
@@ -441,32 +371,23 @@ function ProjectPageContent() {
                   </Button>
                 )}
               </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="relative flex-shrink-0">
-                    <Filter className="h-4 w-4" />
-                    {activeFilterCount > 0 && (
-                      <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">
-                        {activeFilterCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <FilterPopoverContent />
-              </Popover>
+              <FilterPopover
+                members={members}
+                priorities={['Urgent', 'High', 'Medium', 'Low']}
+                projectLabels={project.labels || []}
+                selectedAssignees={selectedAssignees}
+                selectedLabels={selectedLabels}
+                selectedPriorities={selectedPriorities}
+                toggleFilter={toggleFilter}
+                clearFilters={clearFilters}
+                activeFilterCount={activeFilterCount}
+                isMobile
+              />
             </div>
           </div>
         </header>
         <main className="flex-1 min-w-0 min-h-0 w-full max-w-full overflow-x-auto flex flex-col h-screen max-h-screen">
-          <KanbanBoard
-            key={project.id}
-            project={filteredProject}
-            store={store}
-            onTaskClick={(task, columnId) => {
-              setEditingTask({ task, columnId });
-              router.push(`/p/${projectId}?taskId=${task.id}`, { scroll: false });
-            }}
-          />
+          <KanbanBoard key={project.id} project={filteredProject} onTaskClick={onTaskClick} />
         </main>
       </div>
       <TaskDetailsDialog
@@ -478,18 +399,160 @@ function ProjectPageContent() {
         columns={project.columns}
         allTasks={allTasks}
         members={members}
-        onUpdateTask={store.updateTask}
-        onDeleteTask={store.deleteTask}
-        onMoveTask={store.moveTask}
-        onAddTask={store.addTask}
-        onTaskClick={(task, columnId) => {
-          setEditingTask({ task, columnId });
-          router.push(`/p/${projectId}?taskId=${task.id}`, { scroll: false });
-        }}
+        onTaskClick={onTaskClick}
       />
     </>
   );
 }
+
+const FilterPopover = memo(function FilterPopover({
+  members,
+  priorities,
+  projectLabels,
+  selectedAssignees,
+  selectedPriorities,
+  selectedLabels,
+  toggleFilter,
+  clearFilters,
+  activeFilterCount,
+  isMobile = false,
+}: {
+  members: KanbanUser[];
+  priorities: (Task['priority'] | undefined)[];
+  projectLabels: Label[];
+  selectedAssignees: Set<string>;
+  selectedPriorities: Set<string>;
+  selectedLabels: Set<string>;
+  toggleFilter: (type: 'assignees' | 'priorities' | 'labels', value: string) => void;
+  clearFilters: () => void;
+  activeFilterCount: number;
+  isMobile?: boolean;
+}) {
+  const content = (
+    <PopoverContent className="w-80 p-0" align="end">
+      <Command>
+        <div className="flex items-center justify-between p-3 border-b">
+          <h4 className="font-medium text-sm">Filters</h4>
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0"
+            onClick={clearFilters}
+            disabled={activeFilterCount === 0}
+          >
+            Clear all
+          </Button>
+        </div>
+        <CommandList className="max-h-[400px]">
+          <CommandGroup heading="Assignee">
+            {members.map((member) => (
+              <CommandItem key={member.uid} onSelect={() => toggleFilter('assignees', member.uid)}>
+                <div
+                  className={cn(
+                    'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                    selectedAssignees.has(member.uid)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'opacity-50 [&_svg]:invisible',
+                  )}
+                >
+                  <Check className="h-4 w-4" />
+                </div>
+                <Avatar className="h-6 w-6 mr-2">
+                  <AvatarImage src={member.photoURL ?? ''} />
+                  <AvatarFallback>{member.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
+                </Avatar>
+                <span>{member.displayName}</span>
+              </CommandItem>
+            ))}
+            <CommandItem onSelect={() => toggleFilter('assignees', 'unassigned')}>
+              <div
+                className={cn(
+                  'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                  selectedAssignees.has('unassigned')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'opacity-50 [&_svg]:invisible',
+                )}
+              >
+                <Check className="h-4 w-4" />
+              </div>
+              <Avatar className="h-6 w-6 mr-2">
+                <AvatarFallback>?</AvatarFallback>
+              </Avatar>
+              <span>Unassigned</span>
+            </CommandItem>
+          </CommandGroup>
+          <Separator />
+          <CommandGroup heading="Priority">
+            {priorities.map((p) => (
+              <CommandItem key={p} onSelect={() => toggleFilter('priorities', p!)}>
+                <div
+                  className={cn(
+                    'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                    selectedPriorities.has(p!) ? 'bg-primary text-primary-foreground' : 'opacity-50 [&_svg]:invisible',
+                  )}
+                >
+                  <Check className="h-4 w-4" />
+                </div>
+                <span>{p}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+          {projectLabels.length > 0 && (
+            <>
+              <Separator />
+              <CommandGroup heading="Labels">
+                {projectLabels.map((label) => (
+                  <CommandItem key={label.id} onSelect={() => toggleFilter('labels', label.id)}>
+                    <div
+                      className={cn(
+                        'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                        selectedLabels.has(label.id)
+                          ? 'bg-primary text-primary-foreground'
+                          : 'opacity-50 [&_svg]:invisible',
+                      )}
+                    >
+                      <Check className="h-4 w-4" />
+                    </div>
+                    <div className="h-4 w-4 rounded-full mr-2" style={{ backgroundColor: label.color }}></div>
+                    <span>{label.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </>
+          )}
+        </CommandList>
+      </Command>
+    </PopoverContent>
+  );
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        {isMobile ? (
+          <Button variant="outline" size="icon" className="relative flex-shrink-0">
+            <Filter className="h-4 w-4" />
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">
+                {activeFilterCount}
+              </Badge>
+            )}
+          </Button>
+        ) : (
+          <Button variant="outline" className="relative">
+            <Filter className="h-4 w-4 mr-2" />
+            Filter
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">
+                {activeFilterCount}
+              </Badge>
+            )}
+          </Button>
+        )}
+      </PopoverTrigger>
+      {content}
+    </Popover>
+  );
+});
 
 export default function ProjectPage() {
   return (

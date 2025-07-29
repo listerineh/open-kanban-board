@@ -76,7 +76,11 @@ export default function RootLayout({
         />
         <link id="favicon" rel="icon" href="/icons/default.svg" type="image/svg+xml" />
         <link id="apple-touch-icon" rel="apple-touch-icon" href="/icons/default.svg" />
-        <link id="manifest" rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiT3BlbthhbmJhbiIsInNob3J0X25hbWUiOiJPcGVuS2FuYmFuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJzdGFydF91cmwiOiIvIiwiaWNvbnMiOlt7InNyYyI6Ii9pY29ucy9kZWZhdWx0LnN2ZyIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9zdmcifV19" />
+        <link
+          id="manifest"
+          rel="manifest"
+          href="data:application/json;base64,eyJuYW1lIjoiT3BlbthhbmJhbiIsInNob3J0X25hbWUiOiJPcGVuS2FuYmFuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJzdGFydF91cmwiOiIvIiwiaWNvbnMiOlt7InNyYyI6Ii9pY29ucy9kZWZhdWx0LnN2ZyIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9zdmcifV19"
+        />
       </head>
       <body className="font-body antialiased">
         <ThemeProvider>

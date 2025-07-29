@@ -4,11 +4,12 @@ import type { KanbanUser, Task, Label } from '@/types/kanban';
 import { Card, CardContent } from '@/components/ui/card';
 import { GripVertical, Calendar, CheckCircle2, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Progress } from '../ui/progress';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '../ui/badge';
+import { PRIORITY_STYLES } from '@/lib/constants';
 
 type KanbanTaskCardProps = {
   task: Task;
@@ -18,12 +19,10 @@ type KanbanTaskCardProps = {
   projectLabels: Label[];
   enableDeadlines: boolean;
   enableLabels: boolean;
-  onDragStart: (task: Task, fromColumnId: string) => void;
-  onDragEnd: () => void;
-  onClick: () => void;
+  onClick: (task: Task) => void;
 };
 
-export function KanbanTaskCard({
+export const KanbanTaskCard = memo(function KanbanTaskCard({
   task,
   subtasks,
   columnId,
@@ -31,8 +30,6 @@ export function KanbanTaskCard({
   projectLabels,
   enableDeadlines,
   enableLabels,
-  onDragStart,
-  onDragEnd,
   onClick,
 }: KanbanTaskCardProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -40,9 +37,15 @@ export function KanbanTaskCard({
   const [isOverdue, setIsOverdue] = useState(false);
   const [deadlineText, setDeadlineText] = useState('');
 
-  const completedSubtasks = subtasks.filter((st) => !!st.completedAt).length;
-  const subtaskProgress = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
-  const taskLabels = projectLabels.filter((label) => task.labelIds?.includes(label.id));
+  const completedSubtasks = useMemo(() => subtasks.filter((st) => !!st.completedAt).length, [subtasks]);
+  const subtaskProgress = useMemo(
+    () => (subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0),
+    [subtasks, completedSubtasks],
+  );
+  const taskLabels = useMemo(
+    () => projectLabels.filter((label) => task.labelIds?.includes(label.id)),
+    [projectLabels, task.labelIds],
+  );
 
   useEffect(() => {
     if (task.completedAt) {
@@ -111,33 +114,24 @@ export function KanbanTaskCard({
     }
     e.dataTransfer.setData('application/json', JSON.stringify({ taskId: task.id, fromColumnId: columnId }));
     e.dataTransfer.effectAllowed = 'move';
-    onDragStart(task, columnId);
     setIsDragging(true);
   };
 
   const handleDragEnd = () => {
     setIsDragging(false);
-    onDragEnd();
   };
 
-  const assignee = members.find((m) => m.uid === task.assignee);
-
-  const priorityStyles: Record<string, string> = {
-    Urgent: 'border-l-red-500',
-    High: 'border-l-orange-400',
-    Medium: 'border-l-blue-400',
-    Low: 'border-l-zinc-500',
-  };
+  const assignee = useMemo(() => members.find((m) => m.uid === task.assignee), [members, task.assignee]);
 
   const priority = task.priority ?? 'Medium';
-  const borderClass = priorityStyles[priority];
+  const borderClass = PRIORITY_STYLES[priority];
 
   return (
     <Card
       draggable={!task.parentId}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onClick={onClick}
+      onClick={() => onClick(task)}
       data-task-id={task.id}
       className={cn(
         'group cursor-pointer active:cursor-grabbing bg-card md:hover:bg-card/80 transition-all border-l-4',
@@ -234,4 +228,4 @@ export function KanbanTaskCard({
       </CardContent>
     </Card>
   );
-}
+});

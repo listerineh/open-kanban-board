@@ -21,12 +21,10 @@ export function TasksByPriorityChart({ tasks }: TasksByPriorityChartProps) {
       {} as Record<string, number>,
     );
 
-    return TASK_PRIORITIES
-      .map((p) => ({
-        name: p!,
-        value: priorityCounts[p!] || 0,
-      }))
-      .filter((d) => d.value > 0);
+    return TASK_PRIORITIES.map((p) => ({
+      name: p!,
+      value: priorityCounts[p!] || 0,
+    })).filter((d) => d.value > 0);
   }, [tasks]);
 
   if (chartData.length === 0) {

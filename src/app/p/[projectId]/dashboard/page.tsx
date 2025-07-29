@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CheckCircle, Clock, ListTodo, Users, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, ListTodo, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Project, KanbanUser, Task } from '@/types/kanban';
 import { FullPageLoader } from '@/components/common/loader';
@@ -18,24 +18,24 @@ import { TasksByPriorityChart } from '@/components/dashboard/TasksByPriorityChar
 export default function ProjectDashboardPage() {
   const router = useRouter();
   const { projectId } = useParams() as { projectId: string };
-  const store = useKanbanStore();
+  const { projects, isLoaded, actions } = useKanbanStore();
   const { loading: authLoading } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
 
   useEffect(() => {
-    if (authLoading || !store.isLoaded) return;
+    if (authLoading || !isLoaded) return;
 
-    const foundProject = store.projects.find((p) => p.id === projectId);
+    const foundProject = projects.find((p) => p.id === projectId);
 
     if (foundProject) {
       setProject(foundProject);
-      store.getProjectMembers(projectId).then(setMembers);
+      actions.getProjectMembers(projectId).then(setMembers);
     } else {
-      router.replace('/');
+      router.replace('/404');
     }
-  }, [projectId, store.projects, store.isLoaded, authLoading, router, store]);
+  }, [projectId, projects, isLoaded, authLoading, router, actions]);
 
   const allTasks = useMemo(() => project?.columns.flatMap((c) => c.tasks) ?? [], [project]);
 
@@ -56,7 +56,7 @@ export default function ProjectDashboardPage() {
     };
   }, [project, allTasks, members]);
 
-  if (authLoading || !store.isLoaded || !project || !stats) {
+  if (authLoading || !isLoaded || !project || !stats) {
     return <FullPageLoader text="Loading dashboard..." />;
   }
 

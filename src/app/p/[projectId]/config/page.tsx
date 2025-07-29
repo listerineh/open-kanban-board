@@ -42,13 +42,12 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { COLOR_SWATCHES, SEARCH_CONSTANTS } from '@/lib/constants';
 
 export default function ProjectConfigPage() {
   const router = useRouter();
   const { projectId } = useParams() as { projectId: string };
-  const store = useKanbanStore();
+  const { projects, isLoaded, actions } = useKanbanStore();
   const { toast } = useToast();
   const { user: currentUser, loading: authLoading } = useAuth();
 
@@ -60,7 +59,6 @@ export default function ProjectConfigPage() {
   const [pendingMembers, setPendingMembers] = useState<Invitation[]>([]);
   const [inviteSearch, setInviteSearch] = useState('');
   const [searchResults, setSearchResults] = useState<KanbanUser[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [enableSubtasks, setEnableSubtasks] = useState(true);
   const [enableDeadlines, setEnableDeadlines] = useState(true);
   const [enableLabels, setEnableLabels] = useState(true);
@@ -74,24 +72,16 @@ export default function ProjectConfigPage() {
 
   const allTasks = useMemo(() => project?.columns.flatMap((c) => c.tasks) ?? [], [project]);
 
-  const hasSubtasks = useMemo(() => {
-    return allTasks.some((t) => !!t.parentId);
-  }, [allTasks]);
-
-  const hasDeadlines = useMemo(() => {
-    return allTasks.some((t) => !!t.deadline);
-  }, [allTasks]);
-
-  const hasLabels = useMemo(() => {
-    return allTasks.some((t) => t.labelIds && t.labelIds.length > 0);
-  }, [allTasks]);
+  const hasSubtasks = useMemo(() => allTasks.some((t) => !!t.parentId), [allTasks]);
+  const hasDeadlines = useMemo(() => allTasks.some((t) => !!t.deadline), [allTasks]);
+  const hasLabels = useMemo(() => allTasks.some((t) => t.labelIds && t.labelIds.length > 0), [allTasks]);
 
   useEffect(() => {
-    if (authLoading || !store.isLoaded) {
+    if (authLoading || !isLoaded) {
       return;
     }
 
-    const foundProject = store.projects.find((p) => p.id === projectId);
+    const foundProject = projects.find((p) => p.id === projectId);
 
     if (foundProject) {
       setProject(foundProject);
@@ -103,11 +93,11 @@ export default function ProjectConfigPage() {
       setEnableDeadlines(foundProject.enableDeadlines ?? true);
       setEnableLabels(foundProject.enableLabels ?? true);
       setEnableDashboard(foundProject.enableDashboard ?? true);
-      store.getProjectMembers(projectId).then(setMembers);
+      actions.getProjectMembers(projectId).then(setMembers);
     } else {
-      router.replace('/');
+      router.replace('/404');
     }
-  }, [projectId, store.projects, store.isLoaded, authLoading, router, store]);
+  }, [projectId, projects, isLoaded, authLoading, router, actions]);
 
   const handleSearchUsers = useCallback(
     async (query: string) => {
@@ -116,21 +106,19 @@ export default function ProjectConfigPage() {
         setSearchResults([]);
         return;
       }
-      setIsSearching(true);
-      const results = await store.searchUsers(query);
+      const results = await actions.searchUsers(query);
       const currentMemberIds = new Set([
         ...members.map((m) => m.uid),
         ...(project?.pendingMembers?.map((pm) => pm.userId) ?? []),
       ]);
       setSearchResults(results.filter((u) => u.uid !== currentUser?.uid && !currentMemberIds.has(u.uid)));
-      setIsSearching(false);
     },
-    [store, members, project, currentUser],
+    [actions, members, project, currentUser],
   );
 
   const handleProjectNameSave = async () => {
     if (project && projectName.trim()) {
-      await store.updateProject(project.id, { name: projectName.trim() });
+      await actions.updateProject(project.id, { name: projectName.trim() });
       toast({ title: 'Success', description: 'Project name updated.' });
     }
   };
@@ -142,7 +130,7 @@ export default function ProjectConfigPage() {
   const handleColumnTitleBlur = async (columnId: string, title: string) => {
     const originalColumn = project?.columns.find((c) => c.id === columnId);
     if (title.trim() && title.trim() !== originalColumn?.title) {
-      await store.updateColumnTitle(projectId, columnId, title.trim());
+      await actions.updateColumnTitle(projectId, columnId, title.trim());
     } else if (originalColumn) {
       setColumns((current) => current.map((c) => (c.id === columnId ? originalColumn : c)));
     }
@@ -162,22 +150,22 @@ export default function ProjectConfigPage() {
 
   const confirmDeleteColumn = async () => {
     if (columnToDelete) {
-      await store.deleteColumn(projectId, columnToDelete.id);
+      await actions.deleteColumn(projectId, columnToDelete.id);
       setColumnToDelete(null);
     }
   };
 
   const handleConfirmDeleteProject = async () => {
     if (project) {
-      await store.deleteProject(project.id);
+      await actions.deleteProject(project.id);
       router.push('/');
     }
     setIsDeleteProjectDialogOpen(false);
   };
 
   const handleInviteUser = async (userToInvite: KanbanUser) => {
-    if (!project || !currentUser) return;
-    const { success, message } = await store.inviteUserToProject(project.id, userToInvite, currentUser);
+    if (!project) return;
+    const { success, message } = await actions.inviteUserToProject(project.id, userToInvite);
     toast({ title: success ? 'Success' : 'Error', description: message, variant: success ? 'default' : 'destructive' });
     if (success) {
       setInviteSearch('');
@@ -187,21 +175,21 @@ export default function ProjectConfigPage() {
 
   const handleCancelInvitation = async (userId: string) => {
     if (!project) return;
-    await store.cancelInvitation(project.id, userId);
+    await actions.cancelInvitation(project.id, userId);
     toast({ title: 'Success', description: 'Invitation cancelled.' });
   };
 
   const handleRemoveUser = async (userId: string) => {
     if (!project) return;
-    await store.removeUserFromProject(project.id, userId);
+    await actions.removeUserFromProject(project.id, userId);
     toast({ title: 'Success', description: 'User removed from project.' });
-    store.getProjectMembers(projectId).then(setMembers);
+    actions.getProjectMembers(projectId).then(setMembers);
   };
 
   const handleSubtaskToggle = async (checked: boolean) => {
     if (!project) return;
     setEnableSubtasks(checked);
-    await store.updateProject(project.id, { enableSubtasks: checked });
+    await actions.updateProject(project.id, { enableSubtasks: checked });
     toast({
       title: 'Success',
       description: `Sub-tasks have been ${checked ? 'enabled' : 'disabled'}.`,
@@ -211,7 +199,7 @@ export default function ProjectConfigPage() {
   const handleDeadlineToggle = async (checked: boolean) => {
     if (!project) return;
     setEnableDeadlines(checked);
-    await store.updateProject(project.id, { enableDeadlines: checked });
+    await actions.updateProject(project.id, { enableDeadlines: checked });
     toast({
       title: 'Success',
       description: `Deadlines have been ${checked ? 'enabled' : 'disabled'}.`,
@@ -221,7 +209,7 @@ export default function ProjectConfigPage() {
   const handleLabelToggle = async (checked: boolean) => {
     if (!project) return;
     setEnableLabels(checked);
-    await store.updateProject(project.id, { enableLabels: checked });
+    await actions.updateProject(project.id, { enableLabels: checked });
     toast({
       title: 'Success',
       description: `Labels have been ${checked ? 'enabled' : 'disabled'}.`,
@@ -231,7 +219,7 @@ export default function ProjectConfigPage() {
   const handleDashboardToggle = async (checked: boolean) => {
     if (!project) return;
     setEnableDashboard(checked);
-    await store.updateProject(project.id, { enableDashboard: checked });
+    await actions.updateProject(project.id, { enableDashboard: checked });
     toast({
       title: 'Success',
       description: `Dashboard has been ${checked ? 'enabled' : 'disabled'}.`,
@@ -240,25 +228,25 @@ export default function ProjectConfigPage() {
 
   const handleAddLabel = async () => {
     if (!newLabelName.trim() || !project) return;
-    await store.createLabel(project.id, newLabelName, newLabelColor);
+    await actions.createLabel(project.id, newLabelName, newLabelColor);
     setNewLabelName('');
     setNewLabelColor(COLOR_SWATCHES[0]);
   };
 
   const handleUpdateLabel = async () => {
     if (!editingLabel || !editingLabel.name.trim() || !project) return;
-    await store.updateLabel(project.id, editingLabel.id, editingLabel.name, editingLabel.color);
+    await actions.updateLabel(project.id, editingLabel.id, editingLabel.name, editingLabel.color);
     setEditingLabel(null);
   };
 
   const handleDeleteLabel = async (labelId: string) => {
     if (!project) return;
-    await store.deleteLabel(project.id, labelId);
+    await actions.deleteLabel(project.id, labelId);
   };
 
   const isOwner = project && currentUser && project.ownerId === currentUser.uid;
 
-  if (authLoading || !store.isLoaded || !project) {
+  if (authLoading || !isLoaded || !project) {
     return <FullPageLoader text="Loading project settings..." />;
   }
 

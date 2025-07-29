@@ -17,17 +17,13 @@ import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
 import { TIME_OPTIONS } from '@/lib/constants';
+import { useKanbanStore } from '@/hooks/use-kanban-store';
 
 type NewTaskDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
   columnId: string;
-  onAddTask: (
-    projectId: string,
-    columnId: string,
-    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>,
-  ) => Promise<void>;
   members: KanbanUser[];
   projectLabels: LabelType[];
   enableDeadlines: boolean;
@@ -37,7 +33,6 @@ type NewTaskDialogProps = {
 export function NewTaskDialog({
   isOpen,
   onClose,
-  onAddTask,
   members,
   projectLabels,
   projectId,
@@ -53,6 +48,7 @@ export function NewTaskDialog({
   const [labelIds, setLabelIds] = useState<string[]>([]);
   const [time, setTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const addTask = useKanbanStore((state) => state.actions.addTask);
 
   const hours = TIME_OPTIONS.HOURS;
   const minutes = TIME_OPTIONS.MINUTES;
@@ -89,7 +85,7 @@ export function NewTaskDialog({
       if (finalDeadline && enableDeadlines) taskData.deadline = finalDeadline.toISOString();
       if (labelIds.length > 0 && enableLabels) taskData.labelIds = labelIds;
 
-      await onAddTask(projectId, columnId, taskData);
+      await addTask(projectId, columnId, taskData);
       setIsSubmitting(false);
       resetForm();
       onClose();

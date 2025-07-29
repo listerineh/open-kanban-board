@@ -3,7 +3,7 @@ import { useState, useEffect, createContext, useContext, type ReactNode } from '
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useRouter, usePathname } from 'next/navigation';
+import { useKanbanStore } from './use-kanban-store';
 
 type AuthContextType = {
   user: User | null;
@@ -18,8 +18,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
+  const { init: initKanbanStore, clear: clearKanbanStore } = useKanbanStore((state) => state.actions);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -36,26 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
           { merge: true },
         );
+        initKanbanStore(user);
+      } else {
+        clearKanbanStore();
       }
       setUser(user);
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (loading) return;
-
-    const isAuthPage = pathname === '/login';
-
-    if (!user && !isAuthPage) {
-      router.push('/login');
-    }
-
-    if (user && isAuthPage) {
-      router.push('/');
-    }
-  }, [user, loading, router, pathname]);
+  }, [initKanbanStore, clearKanbanStore]);
 
   return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
 }

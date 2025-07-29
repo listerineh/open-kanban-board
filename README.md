@@ -39,6 +39,7 @@ OpenKanban is packed with features designed to make project management intuitive
 | **Advanced Task Filtering** | Filter tasks on the board by assignee, priority, and labels to focus on specific work.                       |   ✅   |
 | **Activity Log**            | Track the history of changes for each task.                                                                  |   ✅   |
 | **User Collaboration**      | Invite members to your projects via email for seamless teamwork.                                             |   ✅   |
+| **Live Cursors**            | See other team members' cursors in real-time for a live collaborative feel.                                  |   ✅   |
 | **Task Assignment**         | Assign tasks to specific project members.                                                                    |   ✅   |
 | **User Authentication**     | Secure Google Authentication to protect your projects.                                                       |   ✅   |
 | **Notifications**           | Receive alerts for important events like task assignments and project invitations.                           |   ✅   |

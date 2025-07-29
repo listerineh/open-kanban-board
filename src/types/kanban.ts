@@ -29,7 +29,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   deadline?: string;
-  completedAt?: string;
+  completedAt?: string | null;
   parentId?: string;
   labelIds?: string[];
   activity?: Activity[];
@@ -79,3 +79,11 @@ export interface KanbanUser {
   displayName: string | null;
   photoURL: string | null;
 }
+
+export type OtherUserPresence = {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+  theme: string;
+  cursor: { x: number; y: number } | null;
+};

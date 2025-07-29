@@ -6,21 +6,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
+import { useKanbanStore } from '@/hooks/use-kanban-store';
 
 type NewColumnDialogProps = {
   projectId: string;
-  onAddColumn: (projectId: string, title: string) => Promise<void>;
 };
 
-export function NewColumnDialog({ projectId, onAddColumn }: NewColumnDialogProps) {
+export function NewColumnDialog({ projectId }: NewColumnDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const addColumn = useKanbanStore((state) => state.actions.addColumn);
 
   const handleAddColumn = async () => {
     if (title.trim() && !isSubmitting) {
       setIsSubmitting(true);
-      await onAddColumn(projectId, title.trim());
+      await addColumn(projectId, title.trim());
       setIsSubmitting(false);
       setTitle('');
       setIsOpen(false);
