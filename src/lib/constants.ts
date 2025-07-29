@@ -112,3 +112,5 @@ export const MAX_TITLE_LENGTH = 100;
 export const MAX_DESC_LENGTH = 500;
 export const MAX_SUBTASK_TITLE_LENGTH = 100;
 export const MAX_COMMENT_LENGTH = 500;
+
+export const CURSOR_INACTIVITY_TIMEOUT_SECONDS = 5;
