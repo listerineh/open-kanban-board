@@ -385,7 +385,7 @@ export function TaskDetailsDialog({
                   {description.length} / {MAX_DESC_LENGTH}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="task-priority">Priority</Label>
                   <Select
@@ -450,12 +450,12 @@ export function TaskDetailsDialog({
                       <SelectItem value="unassigned">Unassigned</SelectItem>
                       {members.map((member) => (
                         <SelectItem key={member.uid} value={member.uid}>
-                          <div className="flex flex-row justify-between items-center gap-2">
-                            <Avatar className="h-6 w-6 sm:h-8 sm:w-8">
+                          <div className="flex flex-row items-center gap-2">
+                            <Avatar className="h-6 w-6">
                               <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
                               <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                             </Avatar>
-                            <p className="sm:text-md text-sm">{member.displayName ?? member.email}</p>
+                            <p className="text-sm">{member.displayName ?? member.email}</p>
                           </div>
                         </SelectItem>
                       ))}
@@ -486,7 +486,7 @@ export function TaskDetailsDialog({
                           projectLabels.map((label) => (
                             <div
                               key={label.id}
-                              className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted cursor-pointer"
+                              className="flex items-center gap-2 p-1.5 rounded-md md:hover:bg-muted cursor-pointer"
                               onClick={() => handleLabelToggle(label.id)}
                             >
                               <Checkbox checked={labelIds.includes(label.id)} />
@@ -514,7 +514,7 @@ export function TaskDetailsDialog({
               {enableDeadlines && (
                 <div className="space-y-2">
                   <Label>Deadline</Label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col md:flex-row gap-2">
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -542,7 +542,7 @@ export function TaskDetailsDialog({
                     </Popover>
                     <div className="flex items-center gap-1">
                       <Select value={currentHour} onValueChange={handleHourChange} disabled={!deadline}>
-                        <SelectTrigger className="w-[75px]">
+                        <SelectTrigger className="w-full md:w-[75px]">
                           <SelectValue placeholder="Hour" />
                         </SelectTrigger>
                         <SelectContent>
@@ -555,7 +555,7 @@ export function TaskDetailsDialog({
                       </Select>
                       <span className="font-bold text-muted-foreground">:</span>
                       <Select value={currentMinute} onValueChange={handleMinuteChange} disabled={!deadline}>
-                        <SelectTrigger className="w-[75px]">
+                        <SelectTrigger className="w-full md:w-[75px]">
                           <SelectValue placeholder="Min" />
                         </SelectTrigger>
                         <SelectContent>
@@ -587,7 +587,7 @@ export function TaskDetailsDialog({
                     )}
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                       {subtasks.map((subtask) => (
-                        <div key={subtask.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50">
+                        <div key={subtask.id} className="flex items-center gap-2 p-2 rounded-md md:hover:bg-muted/50">
                           <Checkbox
                             id={`subtask-${subtask.id}`}
                             checked={!!subtask.completedAt}
@@ -694,7 +694,7 @@ export function TaskDetailsDialog({
                         <div
                           key={member.uid}
                           onClick={() => handleMentionSelect(member)}
-                          className="flex items-center gap-2 p-2 rounded-md hover:bg-accent cursor-pointer"
+                          className="flex items-center gap-2 p-2 rounded-md md:hover:bg-accent cursor-pointer"
                         >
                           <Avatar className="h-6 w-6">
                             <AvatarImage src={member.photoURL ?? ''} />

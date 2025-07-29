@@ -67,7 +67,7 @@ export default function RootPage() {
   };
 
   return (
-    <div className="w-screen h-dvh flex flex-col bg-background text-foreground font-body overflow-x-hidden">
+    <div className="w-full h-dvh flex flex-col bg-background text-foreground font-body overflow-x-hidden">
       <header className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
         <div className="relative">
           <Link href="/" className="flex items-center gap-3" onClick={handleHomeClick}>
@@ -81,8 +81,10 @@ export default function RootPage() {
             alpha
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
-          <Notifications />
+        <div className="flex items-center gap-0 md:gap-2">
+          <div className="hidden md:block">
+            <Notifications />
+          </div>
           <UserNav />
         </div>
       </header>

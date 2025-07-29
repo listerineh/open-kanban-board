@@ -141,7 +141,7 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
       )}
     >
       <CardContent className="p-3 flex items-start gap-2">
-        <GripVertical className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0 group-hover:text-foreground" />
+        <GripVertical className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0 md:group-hover:text-foreground" />
         <div className="flex-grow space-y-2">
           <div>
             <p className="font-medium">{task.title}</p>

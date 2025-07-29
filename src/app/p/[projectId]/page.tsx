@@ -10,9 +10,9 @@ import {
   Filter,
   Check,
   ChevronDown,
-  MoreHorizontal,
   ChevronRight,
   Home,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
@@ -209,7 +209,7 @@ function ProjectPageContent() {
   const enableDashboard = project.enableDashboard ?? true;
   const allTasks = project.columns.flatMap((c) => c.tasks);
 
-  const truncatedProjectName = project.name.length > 50 ? `${project.name.substring(0, 50)}` : project.name;
+  const truncatedProjectName = project.name.length > 25 ? `${project.name.substring(0, 25)}...` : project.name;
 
   return (
     <>
@@ -219,7 +219,11 @@ function ProjectPageContent() {
           {/* Desktop Layout */}
           <div className="hidden md:flex flex-1 items-center justify-start min-w-0">
             <div className="relative">
-              <Link href="/" className="flex items-center gap-3" onClick={handleHomeClick}>
+              <Link
+                href="/"
+                className="flex items-center gap-2 md:hover:text-muted-foreground transition-colors"
+                onClick={handleHomeClick}
+              >
                 <AppIcon className="h-6 w-6" />
                 <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
               </Link>
@@ -300,7 +304,11 @@ function ProjectPageContent() {
           <div className="w-full flex flex-col items-center gap-4 md:hidden">
             <div className="w-full flex items-center justify-between">
               <div className="relative">
-                <Link href="/" className="inline-flex items-center justify-center gap-3" onClick={handleHomeClick}>
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 md:hover:text-muted-foreground transition-colors"
+                  onClick={handleHomeClick}
+                >
                   <AppIcon className="h-6 w-6" />
                   <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
                 </Link>
@@ -312,54 +320,6 @@ function ProjectPageContent() {
                 </Badge>
               </div>
               <div className="flex items-center gap-1">
-                {enableDashboard && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link href={`/p/${project.id}/dashboard`} passHref>
-                        <Button variant="ghost" size="icon" className="hidden sm:inline-flex h-8 w-8 rounded-full">
-                          <LayoutDashboard className="h-5 w-5" />
-                        </Button>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Dashboard</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link href={`/p/${project.id}/config`} passHref>
-                      <Button variant="ghost" size="icon" className="hidden sm:inline-flex h-8 w-8 rounded-full">
-                        <Settings className="h-5 w-5" />
-                      </Button>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Project Settings</p>
-                  </TooltipContent>
-                </Tooltip>
-                <div className="sm:hidden">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                        <ChevronDown className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {enableDashboard && (
-                        <DropdownMenuItem onSelect={() => router.push(`/p/${project.id}/dashboard`)}>
-                          <LayoutDashboard className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onSelect={() => router.push(`/p/${project.id}/config`)}>
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <Notifications />
                 <UserNav />
               </div>
             </div>
@@ -368,7 +328,7 @@ function ProjectPageContent() {
               <div className="relative flex-grow">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder={`Search in ${truncatedProjectName}...`}
+                  placeholder={`Search...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 w-full"
@@ -396,6 +356,25 @@ function ProjectPageContent() {
                 activeFilterCount={activeFilterCount}
                 isMobile
               />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="flex-shrink-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {enableDashboard && (
+                    <DropdownMenuItem onSelect={() => router.push(`/p/${project.id}/dashboard`)}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onSelect={() => router.push(`/p/${project.id}/config`)}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
@@ -403,7 +382,7 @@ function ProjectPageContent() {
         <div className="px-4 md:px-6 py-2 border-b border-border text-sm text-muted-foreground flex items-center gap-2">
           <Link
             href="/"
-            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 md:hover:text-foreground transition-colors"
             onClick={handleHomeClick}
           >
             <Home className="h-4 w-4" />
