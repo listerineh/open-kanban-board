@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { Input } from '@/components/ui/input';
 import { Separator } from '../ui/separator';
-import { PRIORITY_ORDER } from '@/lib/constants';
+import { MAX_COLUMN_TITLE_LENGTH, PRIORITY_ORDER } from '@/lib/constants';
 
 type KanbanColumnProps = {
   projectId: string;
@@ -236,14 +236,16 @@ export const KanbanColumn = memo(function KanbanColumn({
             autoFocus
             className="h-8 border-transparent focus-visible:border-input focus-visible:ring-ring focus-visible:ring-1 bg-transparent text-lg font-headline font-semibold p-1 -m-1 w-full"
             disabled={isDoneColumn}
+            maxLength={MAX_COLUMN_TITLE_LENGTH}
           />
         ) : (
           <h3
             onClick={() => !isDoneColumn && setIsEditingTitle(true)}
             className={cn(
-              'font-headline font-semibold text-lg w-full p-1 -m-1 rounded',
+              'font-headline font-semibold text-lg w-full p-1 -m-1 rounded truncate',
               !isDoneColumn ? 'cursor-text md:hover:bg-muted/50' : 'cursor-default',
             )}
+            title={column.title}
           >
             {column.title}
           </h3>

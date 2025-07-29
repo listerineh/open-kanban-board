@@ -209,6 +209,8 @@ function ProjectPageContent() {
   const enableDashboard = project.enableDashboard ?? true;
   const allTasks = project.columns.flatMap((c) => c.tasks);
 
+  const truncatedProjectName = project.name.length > 50 ? `${project.name.substring(0, 50)}` : project.name;
+
   return (
     <>
       <LiveCursors projectId={project.id} />
@@ -234,7 +236,7 @@ function ProjectPageContent() {
             <div className="relative w-full max-w-lg">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={`Search in ${project.name}...`}
+                placeholder={`Search in ${truncatedProjectName}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 w-full"
@@ -366,7 +368,7 @@ function ProjectPageContent() {
               <div className="relative flex-grow">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder={`Search in ${project.name}...`}
+                  placeholder={`Search in ${truncatedProjectName}...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 w-full"
@@ -408,7 +410,7 @@ function ProjectPageContent() {
             <span>Home</span>
           </Link>
           <ChevronRight className="h-4 w-4" />
-          <span className="font-medium text-foreground truncate">{project.name}</span>
+          <span className="font-medium text-foreground truncate">{`${truncatedProjectName}`}</span>
         </div>
 
         <main className="flex-1 min-w-0 min-h-0 w-full max-w-full overflow-x-auto flex flex-col h-screen max-h-screen">

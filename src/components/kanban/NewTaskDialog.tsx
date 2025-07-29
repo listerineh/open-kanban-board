@@ -16,7 +16,7 @@ import { format, setHours, setMinutes } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
-import { TIME_OPTIONS } from '@/lib/constants';
+import { MAX_DESC_LENGTH, MAX_TITLE_LENGTH, TIME_OPTIONS } from '@/lib/constants';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
 
 type NewTaskDialogProps = {
@@ -133,7 +133,11 @@ export function NewTaskDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Design the landing page"
+              maxLength={MAX_TITLE_LENGTH}
             />
+            <p className="text-xs text-muted-foreground text-right">
+              {title.length} / {MAX_TITLE_LENGTH}
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="task-description">Description (optional)</Label>
@@ -142,7 +146,11 @@ export function NewTaskDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add more details about the task"
+              maxLength={MAX_DESC_LENGTH}
             />
+            <p className="text-xs text-muted-foreground text-right">
+              {description.length} / {MAX_DESC_LENGTH}
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="task-priority">Priority</Label>

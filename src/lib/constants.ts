@@ -103,3 +103,12 @@ export const STORAGE_KEYS = {
 export const SEARCH_CONSTANTS = {
   MIN_QUERY_LENGTH: 2,
 } as const;
+
+export const MAX_PROJECT_NAME_LENGTH = 50;
+export const MAX_PROJECT_DESC_LENGTH = 200;
+export const MAX_COLUMN_TITLE_LENGTH = 30;
+export const MAX_LABEL_NAME_LENGTH = 20;
+export const MAX_TITLE_LENGTH = 100;
+export const MAX_DESC_LENGTH = 500;
+export const MAX_SUBTASK_TITLE_LENGTH = 100;
+export const MAX_COMMENT_LENGTH = 500;

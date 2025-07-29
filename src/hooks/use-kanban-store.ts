@@ -468,9 +468,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
               updatedTask.activity = addActivity(updatedTask, text, user.uid);
             }
 
-            if (project.enableLabels && cleanUpdatedData.labelIds) {
+            if (project.enableLabels && updatedData.labelIds) {
               const oldLabels = oldTask.labelIds || [];
-              const newLabels = cleanUpdatedData.labelIds;
+              const newLabels = updatedData.labelIds;
               const added = newLabels.filter((l) => !oldLabels.includes(l));
               const removed = oldLabels.filter((l) => !newLabels.includes(l));
 
