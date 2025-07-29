@@ -21,7 +21,7 @@ export function useLiveCursors(projectId: string) {
     return collection(db, 'projectPresence', pId, 'users');
   }, []);
 
-  const throttledUpdatePresence = useThrottle((cursor: { x: number; y: number }) => {
+  const throttledUpdatePresence = useThrottle((cursor: { x: number; y: number } | null) => {
     if (user && projectId) {
       const presenceRef = getPresenceDocRef(projectId, user.uid);
       setDoc(
@@ -49,15 +49,21 @@ export function useLiveCursors(projectId: string) {
     };
 
     const handlePointerLeave = () => {
-      setDoc(presenceRef, { cursor: null }, { merge: true });
+      throttledUpdatePresence(null);
     };
 
     window.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerleave', handlePointerLeave);
 
+    const handleBeforeUnload = () => {
+      deleteDoc(presenceRef);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       deleteDoc(presenceRef);
     };
   }, [user, projectId, accentColor, throttledUpdatePresence, getPresenceDocRef]);
@@ -70,7 +76,7 @@ export function useLiveCursors(projectId: string) {
       const users: OtherUserPresence[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data() as any;
-        if (doc.id !== user.uid && data.cursor) {
+        if (doc.id !== user.uid) {
           users.push({
             uid: doc.id,
             displayName: data.displayName,

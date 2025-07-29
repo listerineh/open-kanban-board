@@ -12,6 +12,7 @@ type Props = {
 const cursorVariants = {
   hidden: { opacity: 0, scale: 0.8 },
   visible: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
+  exit: { opacity: 0, scale: 0.8, transition: { duration: 0.2 } },
 };
 
 export function OtherUserCursor({ x, y, displayName, theme }: Props) {
@@ -24,6 +25,7 @@ export function OtherUserCursor({ x, y, displayName, theme }: Props) {
       }}
       initial="hidden"
       animate="visible"
+      exit="exit"
       variants={cursorVariants}
     >
       <svg
