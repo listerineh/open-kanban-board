@@ -116,6 +116,14 @@ body {
     --accent-foreground: 0 0% 98%;
     --ring: 25 95% 53%;
   }
+
+  .dark.theme-violet {
+    --primary: 270 60% 50%;
+    --accent: 270 60% 50%;
+    --primary-foreground: 0 0% 98%;
+    --accent-foreground: 0 0% 98%;
+    --ring: 270 60% 50%;
+  }
 }
 
 @layer base {

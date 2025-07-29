@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { THEME_ACCENT_COLORS, STORAGE_KEYS, APP_METADATA } from '@/lib/constants';
 
 type Theme = 'dark' | 'light';
-type Accent = 'default' | 'zinc' | 'rose' | 'blue' | 'orange';
+type Accent = 'default' | 'zinc' | 'rose' | 'blue' | 'orange' | 'violet';
 
 type ThemeProviderState = {
   theme: Theme;
@@ -70,7 +70,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
 
-    ['theme-zinc', 'theme-rose', 'theme-blue', 'theme-orange'].forEach((t) => root.classList.remove(t));
+    ['theme-zinc', 'theme-rose', 'theme-blue', 'theme-orange', 'theme-violet'].forEach((t) => root.classList.remove(t));
     if (accent !== 'default') {
       root.classList.add(`theme-${accent}`);
     }
@@ -112,11 +112,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         ],
       };
 
-      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-      const manifestUrl = URL.createObjectURL(manifestBlob);
-
       let manifestLink: HTMLLinkElement | null = document.querySelector("link[id='manifest']");
       if (manifestLink) {
+        try {
+            const oldManifestUrl = manifestLink.href;
+            if (oldManifestUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(oldManifestUrl);
+            }
+        } catch (e) {
+            console.error('Error revoking object URL', e);
+        }
+        const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        const manifestUrl = URL.createObjectURL(manifestBlob);
         manifestLink.href = manifestUrl;
       }
     };
