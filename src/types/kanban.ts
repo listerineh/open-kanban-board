@@ -62,6 +62,7 @@ export interface Project {
   name: string;
   columns: Column[];
   ownerId: string;
+  description?: string;
   members: string[];
   pendingMembers?: Invitation[];
   createdAt: string;

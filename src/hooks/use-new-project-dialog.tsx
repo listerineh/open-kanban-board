@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useKanbanStore } from './use-kanban-store';
 import { useRouter } from 'next/navigation';
+import { Textarea } from '@/components/ui/textarea';
 
 type NewProjectDialogContextType = {
   openDialog: () => void;
@@ -25,21 +26,24 @@ export function useNewProjectDialog() {
 export function NewProjectDialogProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const addProject = useKanbanStore((state) => state.actions.addProject);
   const router = useRouter();
 
   const openDialog = useCallback(() => {
     setNewProjectName('');
+    setNewProjectDescription('');
     setIsOpen(true);
   }, []);
 
   const handleProjectSubmit = async () => {
     if (newProjectName.trim() && !isSubmitting) {
       setIsSubmitting(true);
-      const newProjectId = await addProject(newProjectName.trim());
+      const newProjectId = await addProject(newProjectName.trim(), newProjectDescription.trim());
       setIsSubmitting(false);
       setNewProjectName('');
+      setNewProjectDescription('');
       setIsOpen(false);
       if (newProjectId) {
         router.push(`/p/${newProjectId}`);
@@ -67,6 +71,18 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
                 className="col-span-3"
                 placeholder="e.g. Website Redesign"
                 onKeyDown={(e) => e.key === 'Enter' && handleProjectSubmit()}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="description" className="text-right pt-2">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                value={newProjectDescription}
+                onChange={(e) => setNewProjectDescription(e.target.value)}
+                className="col-span-3"
+                placeholder="A short description of the project (optional)"
               />
             </div>
           </div>
