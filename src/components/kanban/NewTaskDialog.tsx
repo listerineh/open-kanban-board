@@ -189,7 +189,7 @@ export function NewTaskDialog({
           {enableDeadlines && (
             <div className="space-y-2">
               <Label>Deadline (optional)</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -206,7 +206,7 @@ export function NewTaskDialog({
                 </Popover>
                 <div className="flex items-center gap-1">
                   <Select value={currentHour} onValueChange={handleHourChange} disabled={!deadline}>
-                    <SelectTrigger className="w-[75px]">
+                    <SelectTrigger className="w-full sm:w-[75px]">
                       <SelectValue placeholder="Hour" />
                     </SelectTrigger>
                     <SelectContent>
@@ -219,7 +219,7 @@ export function NewTaskDialog({
                   </Select>
                   <span className="font-bold text-muted-foreground">:</span>
                   <Select value={currentMinute} onValueChange={handleMinuteChange} disabled={!deadline}>
-                    <SelectTrigger className="w-[75px]">
+                    <SelectTrigger className="w-full sm:w-[75px]">
                       <SelectValue placeholder="Min" />
                     </SelectTrigger>
                     <SelectContent>
@@ -244,12 +244,12 @@ export function NewTaskDialog({
                 <SelectItem value="unassigned">Unassigned</SelectItem>
                 {members.map((member) => (
                   <SelectItem key={member.uid} value={member.uid}>
-                    <div className="flex flex-row justify-between items-center gap-2">
-                      <Avatar className="h-5 w-5 sm:h-8 sm:w-8">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
                         <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
                         <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                       </Avatar>
-                      <p className="sm:text-sm text-xs">{member.displayName ?? member.email}</p>
+                      <p className="text-sm">{member.displayName ?? member.email}</p>
                     </div>
                   </SelectItem>
                 ))}

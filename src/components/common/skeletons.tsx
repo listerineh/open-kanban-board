@@ -15,13 +15,15 @@ export function DashboardSkeleton() {
           <Skeleton className="absolute -right-8 -bottom-2 h-4 w-12" />
         </div>
         <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-8 rounded-full" />
+          <div className="hidden md:block">
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
           <Skeleton className="h-8 w-8 rounded-full" />
         </div>
       </header>
-      <main className="flex-1 w-full flex flex-col items-center p-4 sm:p-8 overflow-y-auto">
-        <div className="w-full max-w-4xl flex-grow flex flex-col justify-center">
-          <div className="mb-8 text-center">
+      <main className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-8 overflow-y-auto">
+        <div className="w-full max-w-4xl">
+          <div className="mb-8 text-center mt-32 sm:mt-0">
             <Skeleton className="h-9 w-48 sm:w-64 mx-auto" />
             <Skeleton className="h-5 w-full max-w-xs sm:max-w-md mx-auto mt-3" />
           </div>
@@ -87,14 +89,6 @@ export function KanbanBoardSkeleton() {
               <Skeleton className="h-6 w-6" />
             </div>
             <div className="flex items-center gap-1">
-              <div className="hidden sm:flex items-center gap-1">
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <Skeleton className="h-8 w-8 rounded-full" />
-              </div>
-              <div className="sm:hidden">
-                <Skeleton className="h-8 w-8 rounded-full" />
-              </div>
-              <Skeleton className="h-8 w-8 rounded-full" />
               <Skeleton className="h-8 w-8 rounded-full" />
             </div>
           </div>
@@ -103,6 +97,7 @@ export function KanbanBoardSkeleton() {
             <div className="flex-grow">
               <Skeleton className="h-10 w-full" />
             </div>
+            <Skeleton className="h-10 w-10 flex-shrink-0" />
             <Skeleton className="h-10 w-10 flex-shrink-0" />
           </div>
         </div>
