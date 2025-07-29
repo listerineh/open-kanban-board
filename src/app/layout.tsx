@@ -5,7 +5,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import './globals.css';
 import { NewProjectDialogProvider } from '@/hooks/use-new-project-dialog';
 import { ThemeProvider } from '@/hooks/use-theme';
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'OpenKanban',
@@ -89,7 +89,7 @@ export default function RootLayout({
             <NewProjectDialogProvider>
               <TooltipProvider>{children}</TooltipProvider>
               <Toaster />
-              <Analytics/>
+              <Analytics />
             </NewProjectDialogProvider>
           </AuthProvider>
         </ThemeProvider>

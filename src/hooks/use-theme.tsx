@@ -1,82 +1,121 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { THEME_ACCENT_COLORS, STORAGE_KEYS, APP_METADATA } from '@/lib/constants';
+import { createContext, useContext, useEffect, useState, type ReactNode, useCallback } from 'react';
 
-type Theme = 'dark' | 'light';
+type Mode = 'light' | 'dark' | 'black';
 type Accent = 'default' | 'zinc' | 'rose' | 'blue' | 'orange' | 'violet';
 
 type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  mode: Mode;
+  setMode: (mode: Mode) => void;
+  cycleMode: () => void;
   accent: Accent;
   setAccent: (accent: Accent) => void;
   accentColor: string;
 };
 
 const initialState: ThemeProviderState = {
-  theme: 'dark',
-  setTheme: () => null,
+  mode: 'dark',
+  setMode: () => null,
+  cycleMode: () => null,
   accent: 'default',
   setAccent: () => null,
-  accentColor: THEME_ACCENT_COLORS.default,
+  accentColor: 'hsl(173 64% 48%)',
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
+const accentColorMap: Record<Accent, string> = {
+  default: 'hsl(173 64% 48%)',
+  zinc: 'hsl(220 9% 46%)',
+  rose: 'hsl(347 89% 61%)',
+  blue: 'hsl(221 83% 53%)',
+  orange: 'hsl(25 95% 53%)',
+  violet: 'hsl(270 60% 50%)',
+};
+
+const modeOrder: Mode[] = ['light', 'dark', 'black'];
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [mode, setMode] = useState<Mode>('dark');
   const [accent, setAccent] = useState<Accent>('default');
-  const [accentColor, setAccentColor] = useState<string>(THEME_ACCENT_COLORS.default);
+  const [accentColor, setAccentColor] = useState(accentColorMap.default);
 
   useEffect(() => {
     try {
-      const storedTheme = localStorage.getItem(STORAGE_KEYS.THEME_MODE) as Theme | null;
-      const storedAccent = localStorage.getItem(STORAGE_KEYS.THEME_ACCENT) as Accent | null;
+      const storedMode = localStorage.getItem('theme-mode') as Mode | null;
+      const storedAccent = localStorage.getItem('theme-accent') as Accent | null;
 
-      if (storedTheme) {
-        setTheme(storedTheme);
+      if (storedMode) {
+        setMode(storedMode);
+      } else {
+        setMode('dark');
       }
       if (storedAccent) {
         setAccent(storedAccent);
-        setAccentColor(THEME_ACCENT_COLORS[storedAccent]);
+        setAccentColor(accentColorMap[storedAccent] || accentColorMap.default);
+      } else {
+        setAccent('default');
+        setAccentColor(accentColorMap.default);
       }
     } catch (e) {
       console.error('Could not access localStorage', e);
     }
   }, []);
 
-  const handleSetTheme = (newTheme: Theme) => {
+  const handleSetMode = (newMode: Mode) => {
     try {
-      localStorage.setItem(STORAGE_KEYS.THEME_MODE, newTheme);
+      localStorage.setItem('theme-mode', newMode);
     } catch (e) {
       console.error('Could not access localStorage', e);
     }
-    setTheme(newTheme);
+    setMode(newMode);
   };
 
   const handleSetAccent = (newAccent: Accent) => {
     try {
-      localStorage.setItem(STORAGE_KEYS.THEME_ACCENT, newAccent);
+      localStorage.setItem('theme-accent', newAccent);
     } catch (e) {
       console.error('Could not access localStorage', e);
     }
     setAccent(newAccent);
-    setAccentColor(THEME_ACCENT_COLORS[newAccent]);
+    setAccentColor(accentColorMap[newAccent]);
   };
+
+  const cycleMode = useCallback(() => {
+    const currentIndex = modeOrder.indexOf(mode);
+    const nextIndex = (currentIndex + 1) % modeOrder.length;
+    handleSetMode(modeOrder[nextIndex]);
+  }, [mode]);
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
 
-    ['theme-zinc', 'theme-rose', 'theme-blue', 'theme-orange', 'theme-violet'].forEach((t) => root.classList.remove(t));
-    if (accent !== 'default') {
-      root.classList.add(`theme-${accent}`);
+    // Clear all theme-related classes
+    root.classList.remove('light', 'dark', 'theme-black');
+    Object.keys(accentColorMap).forEach((key) => {
+      root.classList.remove(`theme-${key}`);
+    });
+
+    // Apply mode and accent classes
+    if (mode === 'light') {
+      root.classList.add('light');
+    } else {
+      root.classList.add('dark');
+      if (mode === 'black') {
+        root.classList.add('theme-black');
+      }
     }
 
+    if (accent !== 'default') {
+      root.classList.add(`theme-${accent}`);
+    } else {
+      root.classList.add('theme-default');
+    }
+
+    // Update dynamic assets
     const updateDynamicAssets = () => {
-      const primaryColor = THEME_ACCENT_COLORS[accent];
+      const primaryColor = accentColorMap[accent];
       const iconPath = `/icons/${accent}.svg`;
 
       const themeColorMeta: HTMLMetaElement | null = document.querySelector("meta[name='theme-color']");
@@ -95,32 +134,30 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
 
       const manifest = {
-        name: APP_METADATA.NAME,
-        short_name: APP_METADATA.SHORT_NAME,
-        description: APP_METADATA.DESCRIPTION,
-        start_url: APP_METADATA.START_URL,
-        display: APP_METADATA.DISPLAY,
-        background_color: APP_METADATA.BACKGROUND_COLOR,
+        name: 'OpenKanban',
+        short_name: 'OpenKanban',
+        description: 'A modern, open-source Kanban board to streamline your workflow.',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#0F172A',
         theme_color: primaryColor,
-        icons: [
-          {
-            src: iconPath,
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
-          },
-        ],
+        icons: [192, 512].map((size) => ({
+          src: iconPath,
+          sizes: `${size}x${size}`,
+          type: 'image/svg+xml',
+          purpose: 'any maskable',
+        })),
       };
 
       let manifestLink: HTMLLinkElement | null = document.querySelector("link[id='manifest']");
       if (manifestLink) {
         try {
-            const oldManifestUrl = manifestLink.href;
-            if (oldManifestUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(oldManifestUrl);
-            }
+          const oldManifestUrl = manifestLink.href;
+          if (oldManifestUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(oldManifestUrl);
+          }
         } catch (e) {
-            console.error('Error revoking object URL', e);
+          console.error('Error revoking object URL', e);
         }
         const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
         const manifestUrl = URL.createObjectURL(manifestBlob);
@@ -129,11 +166,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
 
     requestAnimationFrame(updateDynamicAssets);
-  }, [theme, accent]);
+  }, [mode, accent]);
 
   const value = {
-    theme,
-    setTheme: handleSetTheme,
+    mode,
+    setMode: handleSetMode,
+    cycleMode,
     accent,
     setAccent: handleSetAccent,
     accentColor,
@@ -150,6 +188,9 @@ export const useTheme = () => {
   return {
     theme: context.accent,
     setTheme: context.setAccent,
+    mode: context.mode,
+    setMode: context.setMode,
+    cycleMode: context.cycleMode,
     accentColor: context.accentColor,
   };
 };
