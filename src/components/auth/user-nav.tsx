@@ -17,18 +17,17 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
-import { Code, Github, LogOut, PlusCircle, Palette, Check } from 'lucide-react';
+import { Code, Github, LogOut, PlusCircle, Palette, Check, Moon, Sun, Monitor } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNewProjectDialog } from '@/hooks/use-new-project-dialog';
 import { useTheme } from '@/hooks/use-theme';
-import { cn } from '@/lib/utils';
 import { THEME_OPTIONS } from '@/lib/constants';
 
 export function UserNav() {
   const { user } = useAuth();
+  const { theme: colorTheme, setTheme: setColorTheme, mode, setMode } = useTheme();
   const router = useRouter();
   const { openDialog } = useNewProjectDialog();
-  const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -63,13 +62,38 @@ export function UserNav() {
         </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
-            <Palette className="mr-2 h-4 w-4 text-primary" />
+            {mode === 'light' && <Sun className="mr-2 h-4 w-4 text-primary" />}
+            {mode === 'dark' && <Moon className="mr-2 h-4 w-4 text-primary" />}
+            {mode === 'black' && <Monitor className="mr-2 h-4 w-4 text-primary" />}
             Theme
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
+              <DropdownMenuCheckboxItem checked={mode === 'light'} onSelect={() => setMode('light')}>
+                <Sun className="mr-2 h-4 w-4" /> Light
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={mode === 'dark'} onSelect={() => setMode('dark')}>
+                <Moon className="mr-2 h-4 w-4" /> Dark
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={mode === 'black'} onSelect={() => setMode('black')}>
+                <Monitor className="mr-2 h-4 w-4" /> Black
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Palette className="mr-2 h-4 w-4 text-primary" />
+            Accent Color
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
               {THEME_OPTIONS.map((t) => (
-                <DropdownMenuCheckboxItem key={t.value} checked={theme === t.value} onSelect={() => setTheme(t.value)}>
+                <DropdownMenuCheckboxItem
+                  key={t.value}
+                  checked={colorTheme === t.value}
+                  onSelect={() => setColorTheme(t.value as any)}
+                >
                   <div className="w-4 h-4 rounded-full mr-2" style={{ backgroundColor: t.color }}></div>
                   {t.name}
                 </DropdownMenuCheckboxItem>

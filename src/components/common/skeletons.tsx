@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export function DashboardSkeleton() {
   return (
-    <div className="w-screen h-dvh flex flex-col bg-background text-foreground font-body overflow-x-hidden">
+    <div className="w-full h-dvh flex flex-col bg-background text-foreground font-body overflow-x-hidden">
       <header className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
         <div className="relative">
           <div className="flex items-center gap-3">
@@ -19,11 +19,11 @@ export function DashboardSkeleton() {
           <Skeleton className="h-8 w-8 rounded-full" />
         </div>
       </header>
-      <main className="flex-1 w-full flex flex-col items-center justify-center p-4 sm:p-8 overflow-y-auto">
-        <div className="w-full max-w-4xl">
-          <div className="mb-8 text-center mt-32 sm:mt-0">
-            <Skeleton className="h-9 w-64 mx-auto" />
-            <Skeleton className="h-5 w-96 mx-auto mt-3" />
+      <main className="flex-1 w-full flex flex-col items-center p-4 sm:p-8 overflow-y-auto">
+        <div className="w-full max-w-4xl flex-grow flex flex-col justify-center">
+          <div className="mb-8 text-center">
+            <Skeleton className="h-9 w-48 sm:w-64 mx-auto" />
+            <Skeleton className="h-5 w-full max-w-xs sm:max-w-md mx-auto mt-3" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -41,7 +41,7 @@ export function DashboardSkeleton() {
                 </CardContent>
               </Card>
             ))}
-            <Card className="border-dashed border-2 flex flex-col items-center justify-center">
+            <Card className="border-dashed border-2 flex flex-col items-center justify-center min-h-[150px]">
               <CardContent className="p-6 flex flex-col items-center justify-center gap-2">
                 <Skeleton className="h-8 w-8 rounded-full" />
                 <Skeleton className="h-5 w-32" />
@@ -59,13 +59,12 @@ export function KanbanBoardSkeleton() {
     <div className="w-full flex flex-col bg-background text-foreground font-body min-h-0 h-dvh max-h-dvh">
       <header className="px-4 py-3 border-b border-border flex flex-col md:flex-row items-center justify-between gap-4 shrink-0">
         {/* Desktop Skeleton */}
-        <div className="hidden md:flex flex-1 items-center justify-start">
-          <div className="relative">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-6 w-6 rounded-md" />
+        <div className="hidden md:flex flex-1 items-center justify-start min-w-0">
+          <div className="flex items-center gap-2 text-xl font-headline font-bold">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-6 w-6" />
               <Skeleton className="h-6 w-32" />
             </div>
-            <Skeleton className="absolute -right-8 -bottom-2 h-4 w-12" />
           </div>
         </div>
 
@@ -84,12 +83,8 @@ export function KanbanBoardSkeleton() {
         {/* Mobile Skeleton */}
         <div className="w-full flex flex-col items-center gap-4 md:hidden">
           <div className="w-full flex items-center justify-between">
-            <div className="relative">
-              <div className="flex items-center gap-3">
-                <Skeleton className="h-6 w-6 rounded-md" />
-                <Skeleton className="h-6 w-32" />
-              </div>
-              <Skeleton className="absolute -right-4 -bottom-2 h-4 w-12" />
+            <div className="flex items-center gap-1.5 text-xl font-headline font-bold">
+              <Skeleton className="h-6 w-6" />
             </div>
             <div className="flex items-center gap-1">
               <div className="hidden sm:flex items-center gap-1">
@@ -112,6 +107,16 @@ export function KanbanBoardSkeleton() {
           </div>
         </div>
       </header>
+
+      <div className="px-4 md:px-6 py-2 border-b border-border flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <Skeleton className="h-4 w-4" />
+        <Skeleton className="h-5 w-40" />
+      </div>
+
       <main className="flex-1 min-w-0 min-h-0 w-full max-w-full overflow-x-auto flex flex-col sm:flex-row h-screen max-h-screen">
         <div className="w-full sm:flex-1 sm:w-auto p-2 sm:p-4 md:p-6 flex flex-col sm:flex-row gap-4 overflow-x-auto max-w-screen min-w-0 min-h-0 h-full max-h-screen">
           {Array.from({ length: 3 }).map((_, i) => (
