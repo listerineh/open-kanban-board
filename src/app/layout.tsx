@@ -89,6 +89,7 @@ export default function RootLayout({
             <NewProjectDialogProvider>
               <TooltipProvider>{children}</TooltipProvider>
               <Toaster />
+              <Analytics/>
             </NewProjectDialogProvider>
           </AuthProvider>
         </ThemeProvider>
