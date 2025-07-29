@@ -45,8 +45,8 @@ OpenKanban is packed with features designed to make project management intuitive
 | **Notifications**           | Receive alerts for important events like task assignments and project invitations.                           |   ✅   |
 | **Responsive Design**       | A fully responsive UI that works beautifully on desktop and mobile devices.                                  |   ✅   |
 | **Toast Notifications**     | Get instant feedback for your actions with clean, modern toast alerts.                                       |   ✅   |
-| **Dark Mode**               | A beautiful dark mode for comfortable viewing in low-light conditions.                                       |   ✅   |
-| **Customizable Themes**     | Personalize your board with multiple color themes.                                                           |   ✅   |
+| **Theme Modes**             | Switch between Light, Dark, and Black modes for comfortable viewing.                                         |   ✅   |
+| **Customizable Themes**     | Personalize your board with multiple color schemas for the whole application.                                |   ✅   |
 | **State Persistence**       | Your session is cached, so refreshing the page won't log you out or lose your place.                         |   ✅   |
 
 ---
