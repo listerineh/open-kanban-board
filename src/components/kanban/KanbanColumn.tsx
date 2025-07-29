@@ -7,17 +7,15 @@ import { Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NewTaskDialog } from './NewTaskDialog';
 import { cn } from '@/lib/utils';
-import type { KanbanStore } from '@/hooks/use-kanban-store';
+import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { Input } from '@/components/ui/input';
 import { Separator } from '../ui/separator';
-import { useToast } from '@/hooks/use-toast';
 import { PRIORITY_ORDER } from '@/lib/constants';
 
 type KanbanColumnProps = {
   projectId: string;
   column: Column;
   allTasks: Task[];
-  store: KanbanStore;
   members: KanbanUser[];
   projectLabels: Label[];
   enableDeadlines: boolean;
@@ -35,7 +33,6 @@ export function KanbanColumn({
   projectId,
   column,
   allTasks,
-  store,
   members,
   projectLabels,
   enableDeadlines,
@@ -48,6 +45,7 @@ export function KanbanColumn({
   draggedColumnId,
   onTaskClick,
 }: KanbanColumnProps) {
+  const actions = useKanbanStore((state) => state.actions);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isTaskDragOver, setIsTaskDragOver] = useState(false);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -55,7 +53,6 @@ export function KanbanColumn({
   const [title, setTitle] = useState(column.title);
   const isDraggingThisColumn = draggedColumnId === column.id;
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const { toast } = useToast();
 
   const isDoneColumn = column.title === 'Done';
 
@@ -85,7 +82,7 @@ export function KanbanColumn({
       return;
     }
     if (title.trim() && title.trim() !== column.title) {
-      await store.updateColumnTitle(projectId, column.id, title.trim());
+      await actions.updateColumnTitle(projectId, column.id, title.trim());
     } else {
       setTitle(column.title);
     }
@@ -132,7 +129,7 @@ export function KanbanColumn({
           }
         }
 
-        store.moveTask(projectId, taskId, fromColumnId, column.id, targetIndex);
+        actions.moveTask(projectId, taskId, fromColumnId, column.id, targetIndex);
       }
     } catch (error) {
       console.error('Failed to parse task data:', error);
@@ -284,7 +281,7 @@ export function KanbanColumn({
         onClose={() => setIsAddingTask(false)}
         projectId={projectId}
         columnId={column.id}
-        onAddTask={store.addTask}
+        onAddTask={actions.addTask}
         members={members}
         projectLabels={projectLabels}
         enableDeadlines={enableDeadlines}

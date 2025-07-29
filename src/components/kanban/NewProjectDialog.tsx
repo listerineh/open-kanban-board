@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useKanbanStore } from './use-kanban-store';
+import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { useRouter } from 'next/navigation';
+import { shallow } from 'zustand/shallow';
 
 type NewProjectDialogContextType = {
   openDialog: () => void;
@@ -26,7 +27,7 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
   const [isOpen, setIsOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const addProject = useKanbanStore((state) => state.actions.addProject);
+  const { addProject } = useKanbanStore((state) => ({ addProject: state.actions.addProject }), shallow);
   const router = useRouter();
 
   const openDialog = useCallback(() => {

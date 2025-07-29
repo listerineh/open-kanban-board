@@ -23,18 +23,15 @@ import {
   ArrowDown,
   ArrowUp,
   Calendar as CalendarIcon,
-  Check,
   Plus,
   Trash2,
   ListTodo,
-  CheckCircle2,
   Minus,
   Tag,
   History,
-  MessageSquare,
   Send,
 } from 'lucide-react';
-import type { Task, Column, KanbanUser, Project, Label as LabelType, Activity } from '@/types/kanban';
+import type { Task, Column, KanbanUser, Project } from '@/types/kanban';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format, setHours, setMinutes, isPast, isAfter, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -58,26 +55,6 @@ type TaskDetailsDialogProps = {
   columns: Column[];
   allTasks: Task[];
   members: KanbanUser[];
-  onUpdateTask: (
-    projectId: string,
-    taskId: string,
-    columnId: string,
-    updatedData: Partial<Omit<Task, 'id'>>,
-    meta?: { subtaskTitle?: string },
-  ) => Promise<void>;
-  onDeleteTask: (projectId: string, taskId: string, columnId: string) => Promise<void>;
-  onMoveTask: (
-    projectId: string,
-    taskId: string,
-    fromColumnId: string,
-    toColumnId: string,
-    toIndex: number,
-  ) => Promise<void>;
-  onAddTask: (
-    projectId: string,
-    columnId: string,
-    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>,
-  ) => Promise<void>;
   onTaskClick: (task: Task, columnId: string) => void;
 };
 
@@ -90,13 +67,9 @@ export function TaskDetailsDialog({
   columns,
   allTasks: allProjectTasks,
   members,
-  onUpdateTask,
-  onDeleteTask,
-  onMoveTask,
-  onAddTask,
   onTaskClick,
 }: TaskDetailsDialogProps) {
-  const store = useKanbanStore();
+  const actions = useKanbanStore((state) => state.actions);
   const { user: currentUser } = useAuth();
   const [task, setTask] = useState(initialTask);
   const [columnId, setColumnId] = useState(initialColumnId);
@@ -228,7 +201,6 @@ export function TaskDetailsDialog({
       updatedData.labelIds = sortedLabelIds;
     }
 
-    // Handle deadline changes carefully
     const currentDeadlineISO = task.deadline ? new Date(task.deadline).toISOString() : undefined;
     if (finalDeadlineISO !== currentDeadlineISO) {
       updatedData.deadline = enableDeadlines ? finalDeadlineISO : undefined;
@@ -236,7 +208,7 @@ export function TaskDetailsDialog({
 
     const updatePromise =
       Object.keys(updatedData).length > 0
-        ? onUpdateTask(project.id, task.id, columnId, updatedData)
+        ? actions.updateTask(project.id, task.id, columnId, updatedData)
         : Promise.resolve();
 
     const movePromise =
@@ -244,7 +216,7 @@ export function TaskDetailsDialog({
         ? () => {
             const destinationColumn = columns.find((c) => c.id === status);
             const toIndex = destinationColumn ? destinationColumn.tasks.length : 0;
-            return onMoveTask(project.id, task.id, columnId, status, toIndex);
+            return actions.moveTask(project.id, task.id, columnId, status, toIndex);
           }
         : () => Promise.resolve();
 
@@ -257,7 +229,7 @@ export function TaskDetailsDialog({
 
   const handleDelete = async () => {
     if (!task || !columnId) return;
-    await onDeleteTask(project.id, task.id, columnId);
+    await actions.deleteTask(project.id, task.id, columnId);
     setIsDeleteDialogOpen(false);
     onClose();
   };
@@ -269,7 +241,7 @@ export function TaskDetailsDialog({
       parentId: task.id,
       priority: 'Medium',
     };
-    await onAddTask(project.id, columnId, subtaskData);
+    await actions.addTask(project.id, columnId, subtaskData);
     setNewSubtaskTitle('');
   };
 
@@ -278,7 +250,7 @@ export function TaskDetailsDialog({
     const updatedData = {
       completedAt: isChecked ? new Date().toISOString() : null,
     };
-    await onUpdateTask(project.id, subtask.id, columnId, updatedData as any, {
+    await actions.updateTask(project.id, subtask.id, columnId, updatedData as any, {
       subtaskTitle: subtask.title,
     });
   };
@@ -326,7 +298,7 @@ export function TaskDetailsDialog({
 
     const mentions = members.filter((m) => newComment.includes(`@${m.displayName}`)).map((m) => m.uid);
 
-    await store.addComment(project.id, task.id, newComment, mentions);
+    await actions.addComment(project.id, task.id, newComment, mentions);
     setNewComment('');
     setIsCommenting(false);
   };

@@ -76,11 +76,7 @@ export const DEFAULT_LABELS = [
   { name: 'Improvement', color: '#22c55e' },
 ] as const;
 
-export const DEFAULT_COLUMNS = [
-  { title: 'To Do' },
-  { title: 'In Progress' },
-  { title: 'Done' },
-] as const;
+export const DEFAULT_COLUMNS = [{ title: 'To Do' }, { title: 'In Progress' }, { title: 'Done' }] as const;
 
 export const APP_METADATA = {
   NAME: 'OpenKanban',
@@ -99,4 +95,4 @@ export const STORAGE_KEYS = {
 
 export const SEARCH_CONSTANTS = {
   MIN_QUERY_LENGTH: 2,
-} as const; 
+} as const;

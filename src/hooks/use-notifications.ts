@@ -23,7 +23,7 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const store = useKanbanStore();
+  const handleInvitation = useKanbanStore((state) => state.actions.handleInvitation);
 
   useEffect(() => {
     if (!user) {
@@ -81,7 +81,7 @@ export function useNotifications() {
   const handleInvitationAction = useCallback(
     async (action: 'accept' | 'decline', projectId: string, invitationId: string, notificationId: string) => {
       try {
-        await store.handleInvitation(action, projectId, invitationId);
+        await handleInvitation(action, projectId, invitationId);
         await deleteDoc(doc(db, 'notifications', notificationId));
         toast({
           title: `Invitation ${action === 'accept' ? 'Accepted' : 'Declined'}`,
@@ -97,7 +97,7 @@ export function useNotifications() {
         });
       }
     },
-    [store],
+    [handleInvitation],
   );
 
   return { notifications, unreadCount, loading, markAsRead, markAllAsRead, handleInvitationAction };

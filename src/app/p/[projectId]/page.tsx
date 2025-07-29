@@ -31,11 +31,12 @@ import { cn } from '@/lib/utils';
 import { TASK_PRIORITIES, STORAGE_KEYS } from '@/lib/constants';
 
 function ProjectPageContent() {
-  const store = useKanbanStore();
-  const { loading: authLoading } = useAuth();
   const { projectId } = useParams() as { projectId: string };
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const { projects, isLoaded, actions } = useKanbanStore();
+  const { loading: authLoading } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
@@ -47,15 +48,15 @@ function ProjectPageContent() {
   const [selectedLabels, setSelectedLabels] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (authLoading || !store.isLoaded) {
+    if (authLoading || !isLoaded) {
       return;
     }
 
-    const foundProject = store.projects.find((p) => p.id === projectId);
+    const foundProject = projects.find((p) => p.id === projectId);
 
     if (foundProject) {
       setProject(foundProject);
-      store.getProjectMembers(projectId).then(setMembers);
+      actions.getProjectMembers(projectId).then(setMembers);
       try {
         localStorage.setItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT, projectId);
       } catch (error) {
@@ -80,7 +81,7 @@ function ProjectPageContent() {
       }
       router.replace('/');
     }
-  }, [projectId, authLoading, store.isLoaded, store.projects, router, searchParams, store]);
+  }, [projectId, authLoading, isLoaded, projects, router, searchParams, actions]);
 
   const closeTaskDialog = () => {
     setEditingTask(null);
@@ -160,7 +161,7 @@ function ProjectPageContent() {
     };
   }, [project, searchQuery, selectedAssignees, selectedPriorities, selectedLabels]);
 
-  if (authLoading || !store.isLoaded || !project || !filteredProject) {
+  if (authLoading || !isLoaded || !project || !filteredProject) {
     return <KanbanBoardSkeleton />;
   }
 
@@ -461,7 +462,6 @@ function ProjectPageContent() {
           <KanbanBoard
             key={project.id}
             project={filteredProject}
-            store={store}
             onTaskClick={(task, columnId) => {
               setEditingTask({ task, columnId });
               router.push(`/p/${projectId}?taskId=${task.id}`, { scroll: false });
@@ -478,10 +478,6 @@ function ProjectPageContent() {
         columns={project.columns}
         allTasks={allTasks}
         members={members}
-        onUpdateTask={store.updateTask}
-        onDeleteTask={store.deleteTask}
-        onMoveTask={store.moveTask}
-        onAddTask={store.addTask}
         onTaskClick={(task, columnId) => {
           setEditingTask({ task, columnId });
           router.push(`/p/${projectId}?taskId=${task.id}`, { scroll: false });

@@ -4,20 +4,20 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import type { Project, Task, KanbanUser, Label } from '@/types/kanban';
 import { KanbanColumn } from './KanbanColumn';
 import { NewColumnDialog } from './NewColumnDialog';
-import type { KanbanStore } from '@/hooks/use-kanban-store';
+import { useKanbanStore } from '@/hooks/use-kanban-store';
 import Confetti from 'react-confetti';
 
 type KanbanBoardProps = {
   project: Project;
-  store: KanbanStore;
   onTaskClick: (task: Task, columnId: string) => void;
 };
 
-export function KanbanBoard({ project, store, onTaskClick }: KanbanBoardProps) {
+export function KanbanBoard({ project, onTaskClick }: KanbanBoardProps) {
   const [_, setDraggedTask] = useState<{
     task: Task;
     fromColumnId: string;
   } | null>(null);
+  const actions = useKanbanStore((state) => state.actions);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -60,9 +60,9 @@ export function KanbanBoard({ project, store, onTaskClick }: KanbanBoardProps) {
 
   useEffect(() => {
     if (project.id) {
-      store.getProjectMembers(project.id).then(setMembers);
+      actions.getProjectMembers(project.id).then(setMembers);
     }
-  }, [project.id, store]);
+  }, [project.id, actions]);
 
   const handleTaskDragStart = (task: Task, fromColumnId: string) => {
     setDraggedTask({ task, fromColumnId });
@@ -78,7 +78,7 @@ export function KanbanBoard({ project, store, onTaskClick }: KanbanBoardProps) {
 
   const handleColumnDrop = (targetColumnId: string) => {
     if (draggedColumnId && draggedColumnId !== targetColumnId) {
-      store.moveColumn(project.id, draggedColumnId, targetColumnId);
+      actions.moveColumn(project.id, draggedColumnId, targetColumnId);
     }
   };
 
@@ -103,7 +103,6 @@ export function KanbanBoard({ project, store, onTaskClick }: KanbanBoardProps) {
             projectId={project.id}
             column={column}
             allTasks={allTasks}
-            store={store}
             members={members}
             projectLabels={projectLabels}
             enableDeadlines={enableDeadlines}
@@ -118,7 +117,7 @@ export function KanbanBoard({ project, store, onTaskClick }: KanbanBoardProps) {
           />
         ))}
         <div className="flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[100px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow">
-          <NewColumnDialog projectId={project.id} onAddColumn={store.addColumn} />
+          <NewColumnDialog projectId={project.id} onAddColumn={actions.addColumn} />
         </div>
       </div>
     </>

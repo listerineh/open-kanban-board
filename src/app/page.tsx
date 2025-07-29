@@ -17,17 +17,24 @@ import { AppIcon } from '@/components/common/AppIcon';
 import { STORAGE_KEYS } from '@/lib/constants';
 
 export default function RootPage() {
-  const store = useKanbanStore();
+  const { projects, isLoaded } = useKanbanStore();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [isRedirecting, setIsRedirecting] = useState(true);
   const { openDialog } = useNewProjectDialog();
 
   useEffect(() => {
-    if (store.isLoaded && user) {
+    if (authLoading) return;
+
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    if (isLoaded) {
       try {
         const lastProjectId = localStorage.getItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
-        if (lastProjectId && store.projects.some((p) => p.id === lastProjectId)) {
+        if (lastProjectId && projects.some((p) => p.id === lastProjectId)) {
           router.replace(`/p/${lastProjectId}`);
         } else {
           setIsRedirecting(false);
@@ -39,7 +46,7 @@ export default function RootPage() {
     } else if (!authLoading && !user) {
       router.push('/login');
     }
-  }, [store.isLoaded, user, authLoading, store.projects, router]);
+  }, [isLoaded, user, authLoading, projects, router]);
 
   const handleHomeClick = () => {
     try {
@@ -50,7 +57,7 @@ export default function RootPage() {
     }
   };
 
-  if (authLoading || !store.isLoaded || isRedirecting) {
+  if (authLoading || !isLoaded || isRedirecting) {
     return <DashboardSkeleton />;
   }
 
@@ -83,9 +90,9 @@ export default function RootPage() {
             </p>
           </div>
 
-          {store.projects.length > 0 ? (
+          {projects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {store.projects.map((project) => (
+              {projects.map((project) => (
                 <Card
                   key={project.id}
                   className="md:hover:border-primary md:hover:shadow-lg transition-all cursor-pointer flex flex-col"

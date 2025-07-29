@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { create } from 'zustand';
 import type { Project, Column, Task, KanbanUser, Activity, Label, Notification, Invitation } from '@/types/kanban';
-import { useAuth } from './use-auth';
 import { toast } from './use-toast';
 import { db } from '@/lib/firebase';
-import { DEFAULT_PROJECT_SETTINGS, DEFAULT_LABELS, DEFAULT_COLUMNS } from '@/lib/constants';
+import type { User } from 'firebase/auth';
 import {
   collection,
   query,
@@ -23,11 +22,19 @@ import {
   endAt,
   orderBy,
   writeBatch,
+  getDoc,
 } from 'firebase/firestore';
 
-export type KanbanStore = {
+export interface KanbanState {
   projects: Project[];
   isLoaded: boolean;
+  user: User | null;
+  actions: KanbanStoreActions;
+}
+
+export interface KanbanStoreActions {
+  init: (user: User) => () => void;
+  clear: () => void;
   addProject: (name: string) => Promise<string | null>;
   addColumn: (projectId: string, title: string) => Promise<void>;
   addTask: (
@@ -56,11 +63,7 @@ export type KanbanStore = {
   deleteColumn: (projectId: string, columnId: string) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   searchUsers: (searchTerm: string) => Promise<KanbanUser[]>;
-  inviteUserToProject: (
-    projectId: string,
-    userToInvite: KanbanUser,
-    currentUser: KanbanUser,
-  ) => Promise<{ success: boolean; message: string }>;
+  inviteUserToProject: (projectId: string, userToInvite: KanbanUser) => Promise<{ success: boolean; message: string }>;
   getProjectMembers: (projectId: string) => Promise<KanbanUser[]>;
   removeUserFromProject: (projectId: string, userId: string) => Promise<void>;
   cancelInvitation: (projectId: string, userId: string) => Promise<void>;
@@ -69,113 +72,65 @@ export type KanbanStore = {
   updateLabel: (projectId: string, labelId: string, name: string, color: string) => Promise<void>;
   deleteLabel: (projectId: string, labelId: string) => Promise<void>;
   addComment: (projectId: string, taskId: string, commentText: string, mentions: string[]) => Promise<void>;
-  openNewProjectDialog: () => void;
-};
+}
 
-// This state is outside the hook to be accessible by the UserNav component
-// without causing re-renders of the entire app.
-let isNewProjectDialogOpen = false;
-const dialogListeners = new Set<(isOpen: boolean) => void>();
-
-const updateDialogState = (isOpen: boolean) => {
-  isNewProjectDialogOpen = isOpen;
-  dialogListeners.forEach((listener) => listener(isOpen));
-};
-
-export function useKanbanStore(): KanbanStore {
-  const { user } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  const getCacheKey = useCallback(() => (user ? `kanban-cache-${user.uid}` : null), [user]);
-
-  useEffect(() => {
-    if (!user) {
-      const cacheKey = getCacheKey();
-      if (cacheKey) {
-        try {
-          localStorage.removeItem(cacheKey);
-        } catch (e) {
-          console.error('Could not clear cache', e);
-        }
-      }
-      setProjects([]);
-      setIsLoaded(true);
-      return;
-    }
-
-    const cacheKey = getCacheKey();
-    if (cacheKey) {
-      try {
-        const cachedData = localStorage.getItem(cacheKey);
-        if (cachedData) {
-          setProjects(JSON.parse(cachedData));
-        }
-      } catch (e) {
-        console.error('Could not load from cache', e);
-      }
-    }
-    setIsLoaded(false);
-
-    const projectsRef = collection(db, 'projects');
-    const q = query(projectsRef, where('members', 'array-contains', user.uid));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const userProjects = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Project);
-        setProjects(userProjects);
-        setIsLoaded(true);
-
-        const cacheKey = getCacheKey();
-        if (cacheKey) {
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(userProjects));
-          } catch (e) {
-            console.error('Could not save to cache', e);
-          }
-        }
-      },
-      (error) => {
-        console.error('Error fetching projects:', error);
-        toast({
-          title: 'Error Loading Projects',
-          description: 'There was an error loading your projects. Please try again later.',
-          variant: 'destructive',
-        });
-        setIsLoaded(true);
-      },
-    );
-
-    return () => unsubscribe();
-  }, [user, getCacheKey]);
-
-  const updateProject = useCallback(async (projectId: string, data: Partial<Omit<Project, 'id'>>) => {
-    const projectRef = doc(db, 'projects', projectId);
-    const cleanData = { ...data };
-    // Firestore does not support undefined values.
-    Object.keys(cleanData).forEach((key) => {
-      if (cleanData[key as keyof typeof cleanData] === undefined) {
-        delete cleanData[key as keyof typeof cleanData];
-      }
-    });
-    await updateDoc(projectRef, { ...cleanData, updatedAt: new Date().toISOString() });
-  }, []);
-
-  const addActivity = (task: Task, text: string, userId: string, type: 'log' | 'comment' = 'log'): Activity[] => {
-    const newActivity: Activity = {
-      id: `activity-${Date.now()}`,
-      text,
-      timestamp: new Date().toISOString(),
-      userId,
-      type,
-    };
-    return [...(task.activity || []), newActivity];
+const addActivity = (task: Task, text: string, userId: string, type: 'log' | 'comment' = 'log'): Activity[] => {
+  const newActivity: Activity = {
+    id: `activity-${Date.now()}`,
+    text,
+    timestamp: new Date().toISOString(),
+    userId,
+    type,
   };
+  return [...(task.activity || []), newActivity];
+};
 
-  const addProject = useCallback(
-    async (name: string) => {
+export const useKanbanStore = create<KanbanState>((set, get) => ({
+  projects: [],
+  isLoaded: false,
+  user: null,
+  actions: {
+    init: (user: User) => {
+      set({ user, isLoaded: false });
+      const projectsRef = collection(db, 'projects');
+      const q = query(projectsRef, where('members', 'array-contains', user.uid));
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const userProjects = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Project);
+          set({ projects: userProjects, isLoaded: true });
+        },
+        (error) => {
+          console.error('Error fetching projects:', error);
+          toast({
+            title: 'Error Loading Projects',
+            description: 'There was an error loading your projects. Please try again later.',
+            variant: 'destructive',
+          });
+          set({ isLoaded: true });
+        },
+      );
+
+      return unsubscribe;
+    },
+    clear: () => {
+      set({ projects: [], isLoaded: false, user: null });
+    },
+    updateProject: async (projectId: string, data: Partial<Omit<Project, 'id'>>) => {
+      const projectRef = doc(db, 'projects', projectId);
+      const cleanData = { ...data };
+      Object.keys(cleanData).forEach((key) => {
+        if (cleanData[key as keyof typeof cleanData] === undefined) {
+          delete cleanData[key as keyof typeof cleanData];
+        }
+      });
+      await updateDoc(projectRef, { ...cleanData, updatedAt: new Date().toISOString() });
+    },
+    addProject: async (name: string) => {
+      const { user } = get();
       if (!user) return null;
+
       const now = new Date().toISOString();
       const newProjectData: Omit<Project, 'id'> = {
         name,
@@ -184,22 +139,20 @@ export function useKanbanStore(): KanbanStore {
         pendingMembers: [],
         createdAt: now,
         updatedAt: now,
-        enableSubtasks: DEFAULT_PROJECT_SETTINGS.ENABLE_SUBTASKS,
-        enableDeadlines: DEFAULT_PROJECT_SETTINGS.ENABLE_DEADLINES,
-        enableLabels: DEFAULT_PROJECT_SETTINGS.ENABLE_LABELS,
-        enableDashboard: DEFAULT_PROJECT_SETTINGS.ENABLE_DASHBOARD,
-        labels: DEFAULT_LABELS.map((label, index) => ({
-          id: `label-${Date.now()}-${index + 1}`,
-          name: label.name,
-          color: label.color,
-        })),
-        columns: DEFAULT_COLUMNS.map((column, index) => ({
-          id: `col-${Date.now()}-${index + 1}`,
-          title: column.title,
-          tasks: [],
-          createdAt: now,
-          updatedAt: now,
-        })),
+        enableSubtasks: true,
+        enableDeadlines: true,
+        enableLabels: true,
+        enableDashboard: true,
+        labels: [
+          { id: `label-${Date.now()}-1`, name: 'Bug', color: '#ef4444' },
+          { id: `label-${Date.now()}-2`, name: 'Feature', color: '#3b82f6' },
+          { id: `label-${Date.now()}-3`, name: 'Improvement', color: '#22c55e' },
+        ],
+        columns: [
+          { id: `col-${Date.now()}-1`, title: 'To Do', tasks: [], createdAt: now, updatedAt: now },
+          { id: `col-${Date.now()}-2`, title: 'In Progress', tasks: [], createdAt: now, updatedAt: now },
+          { id: `col-${Date.now()}-3`, title: 'Done', tasks: [], createdAt: now, updatedAt: now },
+        ],
       };
       try {
         const docRef = await addDoc(collection(db, 'projects'), newProjectData);
@@ -219,13 +172,11 @@ export function useKanbanStore(): KanbanStore {
         return null;
       }
     },
-    [user],
-  );
-
-  const addColumn = useCallback(
-    async (projectId: string, title: string) => {
+    addColumn: async (projectId: string, title: string) => {
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
+
       const now = new Date().toISOString();
       const newColumn: Column = { id: `col-${Date.now()}`, title, tasks: [], createdAt: now, updatedAt: now };
       const columns = [...project.columns];
@@ -238,7 +189,7 @@ export function useKanbanStore(): KanbanStore {
       }
 
       try {
-        await updateProject(project.id, { columns });
+        await actions.updateProject(project.id, { columns });
         toast({
           title: 'Column Created',
           description: `Column "${title.trim()}" has been created.`,
@@ -253,15 +204,12 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProject],
-  );
-
-  const addTask = useCallback(
-    async (
+    addTask: async (
       projectId: string,
       columnId: string,
       taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'activity'>,
     ) => {
+      const { projects, user, actions } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
@@ -295,7 +243,6 @@ export function useKanbanStore(): KanbanStore {
 
       let updatedColumns = project.columns.map((c) => (c.id === columnId ? { ...c, tasks: [newTask, ...c.tasks] } : c));
 
-      // If it's a subtask, add activity to parent
       if (taskData.parentId) {
         updatedColumns = updatedColumns.map((c) => ({
           ...c,
@@ -310,7 +257,7 @@ export function useKanbanStore(): KanbanStore {
       }
 
       try {
-        await updateProject(project.id, { columns: updatedColumns });
+        await actions.updateProject(project.id, { columns: updatedColumns });
         toast({
           title: taskData.parentId ? 'Sub-task Created' : 'Task Created',
           description: `Task "${newTask.title.trim()}" has been added.`,
@@ -325,11 +272,8 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProject, user],
-  );
-
-  const moveTask = useCallback(
-    async (projectId: string, taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => {
+    moveTask: async (projectId: string, taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => {
+      const { projects, user, actions } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
@@ -379,7 +323,7 @@ export function useKanbanStore(): KanbanStore {
       });
 
       try {
-        await updateProject(projectId, { columns: newColumns });
+        await actions.updateProject(projectId, { columns: newColumns });
       } catch (error) {
         console.error('Error moving task:', error);
         toast({
@@ -389,12 +333,9 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProject, user],
-  );
-
-  const moveColumn = useCallback(
-    async (projectId: string, draggedColumnId: string, targetColumnId: string) => {
+    moveColumn: async (projectId: string, draggedColumnId: string, targetColumnId: string) => {
       if (draggedColumnId === targetColumnId) return;
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
@@ -408,7 +349,7 @@ export function useKanbanStore(): KanbanStore {
       columns.splice(targetIndex, 0, draggedColumn);
 
       try {
-        await updateProject(project.id, { columns });
+        await actions.updateProject(project.id, { columns });
       } catch (error) {
         console.error('Error moving column:', error);
         toast({
@@ -418,17 +359,15 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProject],
-  );
-
-  const updateColumnTitle = useCallback(
-    async (projectId: string, columnId: string, title: string) => {
+    updateColumnTitle: async (projectId: string, columnId: string, title: string) => {
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
+
       const now = new Date().toISOString();
       const updatedColumns = project.columns.map((c) => (c.id === columnId ? { ...c, title, updatedAt: now } : c));
       try {
-        await updateProject(project.id, { columns: updatedColumns });
+        await actions.updateProject(project.id, { columns: updatedColumns });
         toast({
           title: 'Column Updated',
           description: `The column title has been changed to "${title.trim()}".`,
@@ -443,27 +382,23 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProject],
-  );
-
-  const updateTask = useCallback(
-    async (
+    updateTask: async (
       projectId: string,
       taskId: string,
       columnId: string,
       updatedData: Partial<Omit<Task, 'id'>>,
       meta?: { subtaskTitle?: string },
     ) => {
+      const { projects, user, actions } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
-      const allMembers = await getProjectMembers(projectId);
+      const allMembers = await actions.getProjectMembers(projectId);
       const now = new Date().toISOString();
 
       let parentTask: Task | undefined;
 
-      // Clean updatedData to remove any undefined values before processing
       const cleanUpdatedData = { ...updatedData };
       Object.keys(cleanUpdatedData).forEach((key) => {
         if (cleanUpdatedData[key as keyof typeof cleanUpdatedData] === undefined) {
@@ -486,11 +421,11 @@ export function useKanbanStore(): KanbanStore {
             }
             if (
               cleanUpdatedData.description !== undefined &&
-              cleanUpdatedData.description !== (oldTask.description ?? '')
+              cleanUpdatedData.description !== (oldTask.description || '')
             ) {
               updatedTask.activity = addActivity(updatedTask, `updated the description`, user.uid);
             }
-            if (cleanUpdatedData.assignee !== undefined && cleanUpdatedData.assignee !== (oldTask.assignee ?? '')) {
+            if (cleanUpdatedData.assignee !== undefined && cleanUpdatedData.assignee !== (oldTask.assignee || '')) {
               const oldName = allMembers.find((m) => m.uid === oldTask?.assignee)?.displayName ?? 'Unassigned';
               const newName = allMembers.find((m) => m.uid === cleanUpdatedData.assignee)?.displayName ?? 'Unassigned';
               updatedTask.activity = addActivity(
@@ -499,7 +434,6 @@ export function useKanbanStore(): KanbanStore {
                 user.uid,
               );
 
-              // Create notification for the new assignee
               if (cleanUpdatedData.assignee) {
                 addDoc(collection(db, 'notifications'), {
                   userId: cleanUpdatedData.assignee,
@@ -566,7 +500,6 @@ export function useKanbanStore(): KanbanStore {
           return t;
         });
 
-        // This is for logging subtask completion on the parent task.
         if (parentTask && cleanUpdatedData.hasOwnProperty('completedAt')) {
           const parentId = parentTask.id;
           tasks = tasks.map((t) => {
@@ -583,7 +516,7 @@ export function useKanbanStore(): KanbanStore {
       });
 
       try {
-        await updateProject(projectId, { columns: newColumns });
+        await actions.updateProject(projectId, { columns: newColumns });
 
         const allTasks = newColumns.flatMap((c) => c.tasks);
         const updatedTask = allTasks.find((t) => t.id === taskId);
@@ -612,11 +545,8 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProject, user],
-  );
-
-  const deleteTask = useCallback(
-    async (projectId: string, taskId: string, columnId: string) => {
+    deleteTask: async (projectId: string, taskId: string, columnId: string) => {
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
@@ -635,7 +565,7 @@ export function useKanbanStore(): KanbanStore {
       }));
 
       try {
-        await updateProject(project.id, { columns: updatedColumns });
+        await actions.updateProject(project.id, { columns: updatedColumns });
         toast({
           title: 'Task Deleted',
           description: `Task "${taskToDelete.title.trim()}" and its sub-tasks were deleted.`,
@@ -650,11 +580,8 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProject],
-  );
-
-  const deleteColumn = useCallback(
-    async (projectId: string, columnId: string) => {
+    deleteColumn: async (projectId: string, columnId: string) => {
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
       const column = project.columns.find((c) => c.id === columnId);
@@ -669,7 +596,7 @@ export function useKanbanStore(): KanbanStore {
       }
       const updatedColumns = project.columns.filter((c) => c.id !== columnId);
       try {
-        await updateProject(project.id, { columns: updatedColumns });
+        await actions.updateProject(project.id, { columns: updatedColumns });
         toast({
           title: 'Column Deleted',
           description: `Column "${column.title.trim()}" has been deleted.`,
@@ -684,11 +611,8 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects, updateProject],
-  );
-
-  const deleteProject = useCallback(
-    async (projectId: string) => {
+    deleteProject: async (projectId: string) => {
+      const { projects } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
       const projectRef = doc(db, 'projects', projectId);
@@ -708,54 +632,50 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [projects],
-  );
+    searchUsers: async (searchTerm: string): Promise<KanbanUser[]> => {
+      if (searchTerm.trim().length < 2) return [];
 
-  const searchUsers = useCallback(async (searchTerm: string): Promise<KanbanUser[]> => {
-    if (searchTerm.trim().length < 2) return [];
+      const usersRef = collection(db, 'users');
+      const searchTermLower = searchTerm.toLowerCase();
 
-    const usersRef = collection(db, 'users');
-    const searchTermLower = searchTerm.toLowerCase();
+      const nameQuery = query(
+        usersRef,
+        orderBy('displayName'),
+        startAt(searchTerm),
+        endAt(searchTerm + '\uf8ff'),
+        limit(5),
+      );
+      const emailQuery = query(
+        usersRef,
+        orderBy('email'),
+        startAt(searchTermLower),
+        endAt(searchTermLower + '\uf8ff'),
+        limit(5),
+      );
 
-    // This is a simplified search. For production, you'd use a dedicated search service like Algolia.
-    const nameQuery = query(
-      usersRef,
-      orderBy('displayName'),
-      startAt(searchTerm),
-      endAt(searchTerm + '\uf8ff'),
-      limit(5),
-    );
-    const emailQuery = query(
-      usersRef,
-      orderBy('email'),
-      startAt(searchTermLower),
-      endAt(searchTermLower + '\uf8ff'),
-      limit(5),
-    );
+      try {
+        const [nameSnapshot, emailSnapshot] = await Promise.all([getDocs(nameQuery), getDocs(emailQuery)]);
+        const usersMap = new Map<string, KanbanUser>();
 
-    try {
-      const [nameSnapshot, emailSnapshot] = await Promise.all([getDocs(nameQuery), getDocs(emailQuery)]);
-      const usersMap = new Map<string, KanbanUser>();
+        nameSnapshot.docs.forEach((doc) => {
+          const userData = doc.data() as KanbanUser;
+          usersMap.set(userData.uid, userData);
+        });
 
-      nameSnapshot.docs.forEach((doc) => {
-        const userData = doc.data() as KanbanUser;
-        usersMap.set(userData.uid, userData);
-      });
+        emailSnapshot.docs.forEach((doc) => {
+          const userData = doc.data() as KanbanUser;
+          usersMap.set(userData.uid, userData);
+        });
 
-      emailSnapshot.docs.forEach((doc) => {
-        const userData = doc.data() as KanbanUser;
-        usersMap.set(userData.uid, userData);
-      });
-
-      return Array.from(usersMap.values());
-    } catch (error) {
-      console.error('Error searching users:', error);
-      return [];
-    }
-  }, []);
-
-  const inviteUserToProject = useCallback(
-    async (projectId: string, userToInvite: KanbanUser, currentUser: KanbanUser) => {
+        return Array.from(usersMap.values());
+      } catch (error) {
+        console.error('Error searching users:', error);
+        return [];
+      }
+    },
+    inviteUserToProject: async (projectId: string, userToInvite: KanbanUser) => {
+      const { projects, user, actions } = get();
+      if (!user) return { success: false, message: 'Current user not found.' };
       const project = projects.find((p) => p.id === projectId);
       if (!project) return { success: false, message: 'Project not found.' };
 
@@ -777,13 +697,13 @@ export function useKanbanStore(): KanbanStore {
       };
 
       try {
-        await updateProject(projectId, {
+        await actions.updateProject(projectId, {
           pendingMembers: arrayUnion(newInvitation) as any,
         });
 
         await addDoc(collection(db, 'notifications'), {
           userId: userToInvite.uid,
-          text: `<b>${currentUser.displayName}</b> has invited you to join the project <b>${project.name}</b>`,
+          text: `<b>${user.displayName}</b> has invited you to join the project <b>${project.name}</b>`,
           link: '#',
           read: false,
           createdAt: new Date().toISOString(),
@@ -799,11 +719,8 @@ export function useKanbanStore(): KanbanStore {
         return { success: false, message: 'Error sending invitation.' };
       }
     },
-    [projects, updateProject],
-  );
-
-  const getProjectMembers = useCallback(
-    async (projectId: string): Promise<KanbanUser[]> => {
+    getProjectMembers: async (projectId: string): Promise<KanbanUser[]> => {
+      const { projects } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project || !project.members) return [];
 
@@ -813,7 +730,6 @@ export function useKanbanStore(): KanbanStore {
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map((doc) => doc.data() as KanbanUser);
       } catch (e) {
-        // This can happen if project.members is empty, which is a valid case.
         if (e instanceof Error && e.message.includes("at least one value for 'in' operator")) {
           return [];
         }
@@ -821,13 +737,10 @@ export function useKanbanStore(): KanbanStore {
         return [];
       }
     },
-    [projects],
-  );
-
-  const removeUserFromProject = useCallback(
-    async (projectId: string, userId: string) => {
+    removeUserFromProject: async (projectId: string, userId: string) => {
+      const { actions } = get();
       try {
-        await updateProject(projectId, {
+        await actions.updateProject(projectId, {
           members: arrayRemove(userId) as any,
         });
         toast({
@@ -844,18 +757,15 @@ export function useKanbanStore(): KanbanStore {
         });
       }
     },
-    [updateProject],
-  );
-
-  const cancelInvitation = useCallback(
-    async (projectId: string, userId: string) => {
+    cancelInvitation: async (projectId: string, userId: string) => {
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
       const invitation = project.pendingMembers?.find((pm) => pm.userId === userId);
       if (!invitation) return;
 
       try {
-        await updateProject(projectId, {
+        await actions.updateProject(projectId, {
           pendingMembers: arrayRemove(invitation) as any,
         });
       } catch (error) {
@@ -863,20 +773,16 @@ export function useKanbanStore(): KanbanStore {
         toast({ variant: 'destructive', title: 'Error', description: 'Could not cancel the invitation.' });
       }
     },
-    [projects, updateProject],
-  );
-
-  const handleInvitation = useCallback(
-    async (action: 'accept' | 'decline', projectId: string, invitationId: string) => {
+    handleInvitation: async (action: 'accept' | 'decline', projectId: string, invitationId: string) => {
+      const { user } = get();
       if (!user) return;
+
       const projectRef = doc(db, 'projects', projectId);
 
-      // This part is not fully reactive and might need a transaction in a real-world scenario
-      // to prevent race conditions. For this implementation, we fetch the project data directly.
-      const projectDoc = await getDocs(query(collection(db, 'projects'), where('__name__', '==', projectId)));
-      if (projectDoc.empty) return;
+      const projectDoc = await getDoc(projectRef);
+      if (!projectDoc.exists()) return;
 
-      const project = { id: projectDoc.docs[0].id, ...projectDoc.docs[0].data() } as Project;
+      const project = { id: projectDoc.id, ...projectDoc.data() } as Project;
       const invitation = project.pendingMembers?.find((pm) => pm.id === invitationId);
       if (!invitation || invitation.userId !== user.uid) return;
 
@@ -888,7 +794,6 @@ export function useKanbanStore(): KanbanStore {
       if (action === 'accept') {
         batch.update(projectRef, { members: arrayUnion(user.uid) });
 
-        // Notify owner of acceptance
         const ownerNotification: Omit<Notification, 'id'> = {
           userId: project.ownerId,
           text: `<b>${user.displayName}</b> has accepted your invitation to join <b>${project.name}</b>.`,
@@ -898,8 +803,6 @@ export function useKanbanStore(): KanbanStore {
         };
         batch.set(doc(collection(db, 'notifications')), ownerNotification);
       } else {
-        // decline
-        // Notify owner of decline
         const ownerNotification: Omit<Notification, 'id'> = {
           userId: project.ownerId,
           text: `<b>${user.displayName}</b> has declined your invitation to join <b>${project.name}</b>.`,
@@ -912,34 +815,25 @@ export function useKanbanStore(): KanbanStore {
 
       await batch.commit();
     },
-    [user],
-  );
-
-  const createLabel = useCallback(
-    async (projectId: string, name: string, color: string) => {
+    createLabel: async (projectId: string, name: string, color: string) => {
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
       const newLabel: Label = { id: `label-${Date.now()}`, name, color };
       const updatedLabels = [...(project.labels || []), newLabel];
-      await updateProject(projectId, { labels: updatedLabels });
+      await actions.updateProject(projectId, { labels: updatedLabels });
     },
-    [projects, updateProject],
-  );
-
-  const updateLabel = useCallback(
-    async (projectId: string, labelId: string, name: string, color: string) => {
+    updateLabel: async (projectId: string, labelId: string, name: string, color: string) => {
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
       const updatedLabels = (project.labels || []).map((label) =>
         label.id === labelId ? { ...label, name, color } : label,
       );
-      await updateProject(projectId, { labels: updatedLabels });
+      await actions.updateProject(projectId, { labels: updatedLabels });
     },
-    [projects, updateProject],
-  );
-
-  const deleteLabel = useCallback(
-    async (projectId: string, labelId: string) => {
+    deleteLabel: async (projectId: string, labelId: string) => {
+      const { projects, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
@@ -948,7 +842,6 @@ export function useKanbanStore(): KanbanStore {
 
       const updatedLabels = (project.labels || []).filter((label) => label.id !== labelId);
 
-      // Also remove this labelId from all tasks
       const updatedColumns = project.columns.map((column) => ({
         ...column,
         tasks: column.tasks.map((task) => {
@@ -960,18 +853,15 @@ export function useKanbanStore(): KanbanStore {
         }),
       }));
 
-      await updateProject(projectId, { labels: updatedLabels, columns: updatedColumns });
+      await actions.updateProject(projectId, { labels: updatedLabels, columns: updatedColumns });
       toast({
         title: 'Label Deleted',
         description: `Label "${labelToDelete.name}" was successfully removed.`,
         variant: 'default',
       });
     },
-    [projects, updateProject],
-  );
-
-  const addComment = useCallback(
-    async (projectId: string, taskId: string, commentText: string, mentions: string[]) => {
+    addComment: async (projectId: string, taskId: string, commentText: string, mentions: string[]) => {
+      const { projects, user, actions } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
@@ -986,7 +876,7 @@ export function useKanbanStore(): KanbanStore {
         }),
       }));
 
-      await updateProject(projectId, { columns: newColumns });
+      await actions.updateProject(projectId, { columns: newColumns });
 
       const task = project.columns.flatMap((c) => c.tasks).find((t) => t.id === taskId);
       if (task) {
@@ -1005,65 +895,5 @@ export function useKanbanStore(): KanbanStore {
         await batch.commit();
       }
     },
-    [user, projects, updateProject],
-  );
-
-  const openNewProjectDialog = useCallback(() => {
-    updateDialogState(true);
-  }, []);
-
-  return useMemo(
-    () => ({
-      projects,
-      isLoaded,
-      addProject,
-      addColumn,
-      addTask,
-      moveTask,
-      updateColumnTitle,
-      moveColumn,
-      updateProject,
-      updateTask,
-      deleteTask,
-      deleteColumn,
-      deleteProject,
-      searchUsers,
-      inviteUserToProject,
-      getProjectMembers,
-      removeUserFromProject,
-      cancelInvitation,
-      handleInvitation,
-      createLabel,
-      updateLabel,
-      deleteLabel,
-      addComment,
-      openNewProjectDialog,
-    }),
-    [
-      projects,
-      isLoaded,
-      addProject,
-      addColumn,
-      addTask,
-      moveTask,
-      updateColumnTitle,
-      moveColumn,
-      updateProject,
-      updateTask,
-      deleteTask,
-      deleteColumn,
-      deleteProject,
-      searchUsers,
-      inviteUserToProject,
-      getProjectMembers,
-      removeUserFromProject,
-      cancelInvitation,
-      handleInvitation,
-      createLabel,
-      updateLabel,
-      deleteLabel,
-      addComment,
-      openNewProjectDialog,
-    ],
-  );
-}
+  },
+}));
