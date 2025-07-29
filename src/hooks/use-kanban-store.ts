@@ -35,7 +35,7 @@ export interface KanbanState {
 export interface KanbanStoreActions {
   init: (user: User) => () => void;
   clear: () => void;
-  addProject: (name: string) => Promise<string | null>;
+  addProject: (name: string, description?: string) => Promise<string | null>;
   addColumn: (projectId: string, title: string) => Promise<void>;
   addTask: (
     projectId: string,
@@ -127,13 +127,14 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       });
       await updateDoc(projectRef, { ...cleanData, updatedAt: new Date().toISOString() });
     },
-    addProject: async (name: string) => {
+    addProject: async (name: string, description?: string) => {
       const { user } = get();
       if (!user) return null;
 
       const now = new Date().toISOString();
       const newProjectData: Omit<Project, 'id'> = {
         name,
+        description: description || '',
         ownerId: user.uid,
         members: [user.uid],
         pendingMembers: [],

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { DashboardSkeleton } from '@/components/common/skeletons';
@@ -98,18 +98,23 @@ export default function RootPage() {
                   className="md:hover:border-primary md:hover:shadow-lg transition-all cursor-pointer flex flex-col"
                   onClick={() => router.push(`/p/${project.id}`)}
                 >
-                  <CardHeader>
+                  <CardHeader className="pb-4">
                     <CardTitle className="truncate">{project.name}</CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-xs">
                       {project.columns.length} columns,{' '}
                       {project.columns.reduce((acc, col) => acc + col.tasks.length, 0)} tasks
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="flex-grow flex items-end">
+                  <CardContent className="flex-grow space-y-2">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {project.description || 'No description'}
+                    </p>
+                  </CardContent>
+                  <CardFooter>
                     <span className="text-xs text-muted-foreground">
                       Updated {new Date(project.updatedAt).toLocaleDateString()}
                     </span>
-                  </CardContent>
+                  </CardFooter>
                 </Card>
               ))}
               <Card

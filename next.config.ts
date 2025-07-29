@@ -12,16 +12,10 @@ const pwaConfig = withPWA({
 
 const nextConfig: NextConfig = {
   turbopack: {
-    resolveExtensions: [
-        ".tsx",
-        ".ts",
-        ".jsx",
-        ".js",
-        ".json",
-      ],
-      resolveAlias: {
-        '@': './src',
-      },
+    resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
+    resolveAlias: {
+      '@': './src',
+    },
   },
   typescript: {
     ignoreBuildErrors: true,

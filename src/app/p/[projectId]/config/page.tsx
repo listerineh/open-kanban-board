@@ -43,6 +43,7 @@ import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatDistanceToNow } from 'date-fns';
 import { COLOR_SWATCHES, SEARCH_CONSTANTS } from '@/lib/constants';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function ProjectConfigPage() {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function ProjectConfigPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
   const [columns, setColumns] = useState<Column[]>([]);
   const [labels, setLabels] = useState<LabelType[]>([]);
   const [members, setMembers] = useState<KanbanUser[]>([]);
@@ -76,6 +78,11 @@ export default function ProjectConfigPage() {
   const hasDeadlines = useMemo(() => allTasks.some((t) => !!t.deadline), [allTasks]);
   const hasLabels = useMemo(() => allTasks.some((t) => t.labelIds && t.labelIds.length > 0), [allTasks]);
 
+  const isGeneralInfoChanged = useMemo(() => {
+    if (!project) return false;
+    return projectName.trim() !== project.name || projectDescription.trim() !== (project.description || '');
+  }, [project, projectName, projectDescription]);
+
   useEffect(() => {
     if (authLoading || !isLoaded) {
       return;
@@ -86,6 +93,7 @@ export default function ProjectConfigPage() {
     if (foundProject) {
       setProject(foundProject);
       setProjectName(foundProject.name);
+      setProjectDescription(foundProject.description || '');
       setColumns(foundProject.columns);
       setLabels(foundProject.labels ?? []);
       setPendingMembers(foundProject.pendingMembers ?? []);
@@ -116,10 +124,13 @@ export default function ProjectConfigPage() {
     [actions, members, project, currentUser],
   );
 
-  const handleProjectNameSave = async () => {
-    if (project && projectName.trim()) {
-      await actions.updateProject(project.id, { name: projectName.trim() });
-      toast({ title: 'Success', description: 'Project name updated.' });
+  const handleGeneralChangesSave = async () => {
+    if (project && projectName.trim() && isGeneralInfoChanged) {
+      await actions.updateProject(project.id, {
+        name: projectName.trim(),
+        description: projectDescription.trim(),
+      });
+      toast({ title: 'Success', description: 'Project details updated.' });
     }
   };
 
@@ -269,24 +280,39 @@ export default function ProjectConfigPage() {
         <main className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>Project Name</CardTitle>
-              <CardDescription>
-                Change the name of your project. This will be visible across the application.
-              </CardDescription>
+              <CardTitle>General</CardTitle>
+              <CardDescription>Update your project's name and description.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="projectName">Project Name</Label>
                 <Input
                   id="projectName"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
-                  className="max-w-sm"
-                  onKeyDown={(e) => e.key === 'Enter' && handleProjectNameSave()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGeneralChangesSave()}
                   disabled={!isOwner}
                 />
-                <Button onClick={handleProjectNameSave} className="w-full sm:w-auto" disabled={!isOwner}>
-                  Save Name
-                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectDescription">Project Description</Label>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-4">
+                  <Textarea
+                    id="projectDescription"
+                    value={projectDescription}
+                    onChange={(e) => setProjectDescription(e.target.value)}
+                    placeholder="Add a short description for your project..."
+                    disabled={!isOwner}
+                    rows={3}
+                  />
+                </div>
+                {isOwner && (
+                  <div className="flex justify-end">
+                    <Button onClick={handleGeneralChangesSave} disabled={!isGeneralInfoChanged}>
+                      Save Changes
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
