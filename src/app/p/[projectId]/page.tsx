@@ -410,7 +410,7 @@ function ProjectPageContent() {
             <span>Home</span>
           </Link>
           <ChevronRight className="h-4 w-4" />
-          <span className="font-medium text-foreground truncate">{`${truncatedProjectName}...`}</span>
+          <span className="font-medium text-foreground truncate">{`${truncatedProjectName}`}</span>
         </div>
 
         <main className="flex-1 min-w-0 min-h-0 w-full max-w-full overflow-x-auto flex flex-col h-screen max-h-screen">
