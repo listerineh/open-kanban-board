@@ -37,7 +37,13 @@ import { format, setHours, setMinutes, isPast, isAfter, formatDistanceToNow } fr
 import { cn } from '@/lib/utils';
 import { Calendar } from '../ui/calendar';
 import { Checkbox } from '../ui/checkbox';
-import { TIME_OPTIONS } from '@/lib/constants';
+import {
+  MAX_COMMENT_LENGTH,
+  MAX_DESC_LENGTH,
+  MAX_SUBTASK_TITLE_LENGTH,
+  MAX_TITLE_LENGTH,
+  TIME_OPTIONS,
+} from '@/lib/constants';
 import { Progress } from '../ui/progress';
 import { Separator } from '../ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -359,7 +365,11 @@ export function TaskDetailsDialog({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Design the landing page"
+                  maxLength={MAX_TITLE_LENGTH}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {title.length} / {MAX_TITLE_LENGTH}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="task-description">Description</Label>
@@ -369,7 +379,11 @@ export function TaskDetailsDialog({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Add more details about the task"
                   rows={4}
+                  maxLength={MAX_DESC_LENGTH}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {description.length} / {MAX_DESC_LENGTH}
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -619,12 +633,18 @@ export function TaskDetailsDialog({
                       ))}
                     </div>
                     <div className="flex items-center gap-2 pt-2">
-                      <Input
-                        placeholder="Add a new sub-task..."
-                        value={newSubtaskTitle}
-                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
-                      />
+                      <div className="flex-grow space-y-1">
+                        <Input
+                          placeholder="Add a new sub-task..."
+                          value={newSubtaskTitle}
+                          onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
+                          maxLength={MAX_SUBTASK_TITLE_LENGTH}
+                        />
+                        <p className="text-xs text-muted-foreground text-right">
+                          {newSubtaskTitle.length} / {MAX_SUBTASK_TITLE_LENGTH}
+                        </p>
+                      </div>
                       <Button onClick={handleAddSubtask} size="sm">
                         <Plus className="h-4 w-4 mr-1" /> Add
                       </Button>
@@ -691,7 +711,7 @@ export function TaskDetailsDialog({
                     <AvatarImage src={currentUser?.photoURL ?? ''} />
                     <AvatarFallback>{currentUser?.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
                   </Avatar>
-                  <div className="flex-grow">
+                  <div className="flex-grow space-y-1">
                     <Textarea
                       ref={commentTextareaRef}
                       value={newComment}
@@ -699,7 +719,11 @@ export function TaskDetailsDialog({
                       placeholder="Add a comment... Type @ to mention a user."
                       className="min-h-[60px]"
                       disabled={isCommenting}
+                      maxLength={MAX_COMMENT_LENGTH}
                     />
+                    <p className="text-xs text-muted-foreground text-right">
+                      {newComment.length} / {MAX_COMMENT_LENGTH}
+                    </p>
                     <div className="mt-2 flex justify-end">
                       <Button size="sm" onClick={handleAddComment} disabled={!newComment.trim() || isCommenting}>
                         {isCommenting ? (

@@ -61,6 +61,11 @@ export default function RootPage() {
     return <DashboardSkeleton />;
   }
 
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
   return (
     <div className="w-screen h-dvh flex flex-col bg-background text-foreground font-body overflow-x-hidden">
       <header className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
@@ -99,15 +104,17 @@ export default function RootPage() {
                   onClick={() => router.push(`/p/${project.id}`)}
                 >
                   <CardHeader className="pb-4">
-                    <CardTitle className="truncate">{project.name}</CardTitle>
+                    <CardTitle className="truncate" title={project.name}>
+                      {truncateText(project.name, 50)}
+                    </CardTitle>
                     <CardDescription className="text-xs">
                       {project.columns.length} columns,{' '}
                       {project.columns.reduce((acc, col) => acc + col.tasks.length, 0)} tasks
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow space-y-2">
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {project.description || 'No description'}
+                    <p className="text-sm text-muted-foreground line-clamp-2" title={project.description}>
+                      {truncateText(project.description || 'No description', 100)}
                     </p>
                   </CardContent>
                   <CardFooter>

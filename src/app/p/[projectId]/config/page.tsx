@@ -42,7 +42,14 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatDistanceToNow } from 'date-fns';
-import { COLOR_SWATCHES, SEARCH_CONSTANTS } from '@/lib/constants';
+import {
+  COLOR_SWATCHES,
+  MAX_COLUMN_TITLE_LENGTH,
+  MAX_LABEL_NAME_LENGTH,
+  MAX_PROJECT_DESC_LENGTH,
+  MAX_PROJECT_NAME_LENGTH,
+  SEARCH_CONSTANTS,
+} from '@/lib/constants';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function ProjectConfigPage() {
@@ -292,7 +299,11 @@ export default function ProjectConfigPage() {
                   onChange={(e) => setProjectName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleGeneralChangesSave()}
                   disabled={!isOwner}
+                  maxLength={MAX_PROJECT_NAME_LENGTH}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {projectName.length} / {MAX_PROJECT_NAME_LENGTH}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="projectDescription">Project Description</Label>
@@ -304,7 +315,11 @@ export default function ProjectConfigPage() {
                     placeholder="Add a short description for your project..."
                     disabled={!isOwner}
                     rows={3}
+                    maxLength={MAX_PROJECT_DESC_LENGTH}
                   />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {projectDescription.length} / {MAX_PROJECT_DESC_LENGTH}
+                  </p>
                 </div>
                 {isOwner && (
                   <div className="flex justify-end">
@@ -421,6 +436,7 @@ export default function ProjectConfigPage() {
                       onChange={(e) => setNewLabelName(e.target.value)}
                       className="flex-grow bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-8"
                       onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
+                      maxLength={MAX_LABEL_NAME_LENGTH}
                     />
                     <Popover>
                       <PopoverTrigger asChild>
@@ -471,6 +487,7 @@ export default function ProjectConfigPage() {
                             }
                             className="flex-grow h-8 bg-transparent"
                             onKeyDown={(e) => e.key === 'Enter' && handleUpdateLabel()}
+                            maxLength={MAX_LABEL_NAME_LENGTH}
                           />
                           <Popover>
                             <PopoverTrigger asChild>
@@ -559,6 +576,7 @@ export default function ProjectConfigPage() {
                       onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                       className="flex-grow bg-transparent border-0 focus-visible:ring-1 focus-visible:ring-ring"
                       disabled={!isOwner || isDoneColumn}
+                      maxLength={MAX_COLUMN_TITLE_LENGTH}
                     />
                     {isOwner && !isDoneColumn && (
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteColumn(column)}>

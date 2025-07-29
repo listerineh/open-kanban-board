@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useKanbanStore } from './use-kanban-store';
 import { useRouter } from 'next/navigation';
 import { Textarea } from '@/components/ui/textarea';
+import { MAX_PROJECT_DESC_LENGTH, MAX_PROJECT_NAME_LENGTH } from '@/lib/constants';
 
 type NewProjectDialogContextType = {
   openDialog: () => void;
@@ -64,26 +65,38 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
               <Label htmlFor="name" className="text-right">
                 Name
               </Label>
-              <Input
-                id="name"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                className="col-span-3"
-                placeholder="e.g. Website Redesign"
-                onKeyDown={(e) => e.key === 'Enter' && handleProjectSubmit()}
-              />
+              <div className="col-span-3 space-y-1">
+                <Input
+                  id="name"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  className="w-full"
+                  placeholder="e.g. Website Redesign"
+                  onKeyDown={(e) => e.key === 'Enter' && handleProjectSubmit()}
+                  maxLength={MAX_PROJECT_NAME_LENGTH}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {newProjectName.length} / {MAX_PROJECT_NAME_LENGTH}
+                </p>
+              </div>
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="description" className="text-right pt-2">
                 Description
               </Label>
-              <Textarea
-                id="description"
-                value={newProjectDescription}
-                onChange={(e) => setNewProjectDescription(e.target.value)}
-                className="col-span-3"
-                placeholder="A short description of the project (optional)"
-              />
+              <div className="col-span-3 space-y-1">
+                <Textarea
+                  id="description"
+                  value={newProjectDescription}
+                  onChange={(e) => setNewProjectDescription(e.target.value)}
+                  className="w-full"
+                  placeholder="A short description of the project (optional)"
+                  maxLength={MAX_PROJECT_DESC_LENGTH}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {newProjectDescription.length} / {MAX_PROJECT_DESC_LENGTH}
+                </p>
+              </div>
             </div>
           </div>
           <DialogFooter>
