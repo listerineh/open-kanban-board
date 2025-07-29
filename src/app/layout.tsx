@@ -5,6 +5,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import './globals.css';
 import { NewProjectDialogProvider } from '@/hooks/use-new-project-dialog';
 import { ThemeProvider } from '@/hooks/use-theme';
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: 'OpenKanban',
