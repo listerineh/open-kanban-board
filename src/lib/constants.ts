@@ -4,6 +4,7 @@ export const THEME_ACCENT_COLORS = {
   rose: 'hsl(347 89% 61%)',
   blue: 'hsl(221 83% 53%)',
   orange: 'hsl(25 95% 53%)',
+  violet: 'hsl(270 60% 50%)',
 } as const;
 
 export const THEME_OPTIONS = [
@@ -12,6 +13,7 @@ export const THEME_OPTIONS = [
   { name: 'Rose', value: 'rose', color: 'hsl(347 89% 61%)' },
   { name: 'Blue', value: 'blue', color: 'hsl(221 83% 53%)' },
   { name: 'Orange', value: 'orange', color: 'hsl(25 95% 53%)' },
+  { name: 'Violet', value: 'violet', color: 'hsl(270 60% 50%)' },
 ] as const;
 
 export const COLOR_SWATCHES = [
