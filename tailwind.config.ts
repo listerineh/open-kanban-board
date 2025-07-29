@@ -100,4 +100,11 @@ export default {
     },
   },
   plugins: [require('tailwindcss-animate')],
+  safelist: [
+    'border-l-red-500',
+    'border-l-orange-400',
+    'border-l-blue-400',
+    'border-l-zinc-500',
+    'border-l-green-500',
+  ],
 } satisfies Config;

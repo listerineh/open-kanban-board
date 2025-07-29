@@ -79,3 +79,11 @@ export interface KanbanUser {
   displayName: string | null;
   photoURL: string | null;
 }
+
+export type OtherUserPresence = {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+  theme: string;
+  cursor: { x: number; y: number } | null;
+};

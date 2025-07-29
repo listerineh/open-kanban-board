@@ -11,6 +11,7 @@ type ThemeProviderState = {
   setTheme: (theme: Theme) => void;
   accent: Accent;
   setAccent: (accent: Accent) => void;
+  accentColor: string;
 };
 
 const initialState: ThemeProviderState = {
@@ -18,6 +19,7 @@ const initialState: ThemeProviderState = {
   setTheme: () => null,
   accent: 'default',
   setAccent: () => null,
+  accentColor: THEME_ACCENT_COLORS.default,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -25,6 +27,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
   const [accent, setAccent] = useState<Accent>('default');
+  const [accentColor, setAccentColor] = useState<string>(THEME_ACCENT_COLORS.default);
 
   useEffect(() => {
     try {
@@ -36,6 +39,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
       if (storedAccent) {
         setAccent(storedAccent);
+        setAccentColor(THEME_ACCENT_COLORS[storedAccent]);
       }
     } catch (e) {
       console.error('Could not access localStorage', e);
@@ -58,6 +62,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       console.error('Could not access localStorage', e);
     }
     setAccent(newAccent);
+    setAccentColor(THEME_ACCENT_COLORS[newAccent]);
   };
 
   useEffect(() => {
@@ -97,12 +102,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         display: APP_METADATA.DISPLAY,
         background_color: APP_METADATA.BACKGROUND_COLOR,
         theme_color: primaryColor,
-        icons: [192, 512].map((size) => ({
-          src: iconPath,
-          sizes: `${size}x${size}`,
-          type: 'image/svg+xml',
-          purpose: 'any maskable',
-        })),
+        icons: [
+          {
+            src: iconPath,
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable',
+          },
+        ],
       };
 
       const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
@@ -122,6 +129,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTheme: handleSetTheme,
     accent,
     setAccent: handleSetAccent,
+    accentColor,
   };
 
   return <ThemeProviderContext.Provider value={value}>{children}</ThemeProviderContext.Provider>;
@@ -135,5 +143,6 @@ export const useTheme = () => {
   return {
     theme: context.accent,
     setTheme: context.setAccent,
+    accentColor: context.accentColor,
   };
 };

@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { STORAGE_KEYS } from '@/lib/constants';
+import { LiveCursors } from '@/components/kanban/LiveCursors';
 
 function ProjectPageContent() {
   const { projectId } = useParams() as { projectId: string };
@@ -199,6 +200,7 @@ function ProjectPageContent() {
 
   return (
     <>
+      <LiveCursors projectId={project.id} />
       <div className="w-full flex flex-col bg-background text-foreground font-body min-h-0 h-dvh max-h-dvh">
         <header className="px-4 py-3 border-b border-border flex flex-col md:flex-row items-center justify-between gap-4 shrink-0">
           {/* Desktop Layout */}
@@ -416,7 +418,7 @@ const FilterPopover = memo(function FilterPopover({
   isMobile = false,
 }: {
   members: KanbanUser[];
-  priorities: Task['priority'][];
+  priorities: (Task['priority'] | undefined)[];
   projectLabels: Label[];
   selectedAssignees: Set<string>;
   selectedPriorities: Set<string>;
