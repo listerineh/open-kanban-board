@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, memo, useCallback } from 'react';
 import type { Column, KanbanUser, Task, Label } from '@/types/kanban';
 import { KanbanTaskCard } from './KanbanTaskCard';
 import { Plus, ArrowUp, ArrowDown } from 'lucide-react';
@@ -20,16 +20,16 @@ type KanbanColumnProps = {
   projectLabels: Label[];
   enableDeadlines: boolean;
   enableLabels: boolean;
-  onTaskDragStart: (task: Task, fromColumnId: string) => void;
-  onTaskDragEnd: () => void;
   onColumnDragStart: (columnId: string) => void;
   onColumnDrop: (targetColumnId: string) => void;
   onColumnDragEnd: () => void;
   draggedColumnId: string | null;
-  onTaskClick: (task: Task) => void;
+  onTaskClick: (task: Task, columnId: string) => void;
 };
 
-export function KanbanColumn({
+const getPriority = (task: Task) => PRIORITY_ORDER[task.priority ?? 'Medium'] ?? 2;
+
+export const KanbanColumn = memo(function KanbanColumn({
   projectId,
   column,
   allTasks,
@@ -37,8 +37,6 @@ export function KanbanColumn({
   projectLabels,
   enableDeadlines,
   enableLabels,
-  onTaskDragStart,
-  onTaskDragEnd,
   onColumnDragStart,
   onColumnDrop,
   onColumnDragEnd,
@@ -56,8 +54,6 @@ export function KanbanColumn({
 
   const isDoneColumn = column.title === 'Done';
 
-  const getPriority = (task: Task) => PRIORITY_ORDER[task.priority ?? 'Medium'] ?? 2;
-
   const parentTasks = useMemo(() => column.tasks.filter((task) => !task.parentId), [column.tasks]);
 
   const sortedTasks = useMemo(() => {
@@ -72,10 +68,16 @@ export function KanbanColumn({
     });
   }, [parentTasks, sortOrder]);
 
-  const tasksWithDeadline = sortedTasks.filter((t) => !!t.deadline);
-  const tasksWithoutDeadline = sortedTasks.filter((t) => !t.deadline);
+  const tasksWithDeadline = useMemo(
+    () => (enableDeadlines ? sortedTasks.filter((t) => !!t.deadline) : []),
+    [sortedTasks, enableDeadlines],
+  );
+  const tasksWithoutDeadline = useMemo(
+    () => (enableDeadlines ? sortedTasks.filter((t) => !t.deadline) : sortedTasks),
+    [sortedTasks, enableDeadlines],
+  );
 
-  const handleTitleBlur = async () => {
+  const handleTitleBlur = useCallback(async () => {
     if (isDoneColumn) {
       setIsEditingTitle(false);
       setTitle(column.title);
@@ -87,58 +89,62 @@ export function KanbanColumn({
       setTitle(column.title);
     }
     setIsEditingTitle(false);
-  };
+  }, [actions, column.id, column.title, isDoneColumn, projectId, title]);
 
-  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.currentTarget.blur();
-    } else if (e.key === 'Escape') {
-      setTitle(column.title);
-      setIsEditingTitle(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsTaskDragOver(false);
-
-    const draggedColId = e.dataTransfer.getData('application/kanban-column');
-    if (draggedColId && draggedColId !== column.id) {
-      onColumnDrop(column.id);
-      return;
-    }
-
-    const taskDataString = e.dataTransfer.getData('application/json');
-    if (!taskDataString) return;
-
-    try {
-      const { taskId, fromColumnId } = JSON.parse(taskDataString);
-
-      if (taskId && fromColumnId && fromColumnId !== column.id) {
-        const cards = Array.from(columnRef.current?.querySelectorAll('[data-task-id]') || []);
-        const dropY = e.clientY;
-
-        let targetIndex = cards.length;
-
-        for (let i = 0; i < cards.length; i++) {
-          const card = cards[i] as HTMLElement;
-          const { top, height } = card.getBoundingClientRect();
-          if (dropY < top + height / 2) {
-            targetIndex = i;
-            break;
-          }
-        }
-
-        actions.moveTask(projectId, taskId, fromColumnId, column.id, targetIndex);
+  const handleTitleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.currentTarget.blur();
+      } else if (e.key === 'Escape') {
+        setTitle(column.title);
+        setIsEditingTitle(false);
       }
-    } catch (error) {
-      console.error('Failed to parse task data:', error);
-    } finally {
-      onTaskDragEnd();
-    }
-  };
+    },
+    [column.title],
+  );
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsTaskDragOver(false);
+
+      const draggedColId = e.dataTransfer.getData('application/kanban-column');
+      if (draggedColId && draggedColId !== column.id) {
+        onColumnDrop(column.id);
+        return;
+      }
+
+      const taskDataString = e.dataTransfer.getData('application/json');
+      if (!taskDataString) return;
+
+      try {
+        const { taskId, fromColumnId } = JSON.parse(taskDataString);
+
+        if (taskId && fromColumnId && fromColumnId !== column.id) {
+          const cards = Array.from(columnRef.current?.querySelectorAll('[data-task-id]') || []);
+          const dropY = e.clientY;
+
+          let targetIndex = cards.length;
+
+          for (let i = 0; i < cards.length; i++) {
+            const card = cards[i] as HTMLElement;
+            const { top, height } = card.getBoundingClientRect();
+            if (dropY < top + height / 2) {
+              targetIndex = i;
+              break;
+            }
+          }
+
+          actions.moveTask(projectId, taskId, fromColumnId, column.id, targetIndex);
+        }
+      } catch (error) {
+        console.error('Failed to parse task data:', error);
+      }
+    },
+    [actions, column.id, onColumnDrop, projectId],
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
 
     if (e.dataTransfer.types.includes('application/kanban-column')) {
@@ -152,13 +158,20 @@ export function KanbanColumn({
     } else {
       e.dataTransfer.dropEffect = 'none';
     }
-  };
+  }, []);
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     if (!columnRef.current?.contains(e.relatedTarget as Node)) {
       setIsTaskDragOver(false);
     }
-  };
+  }, []);
+
+  const handleTaskClick = useCallback(
+    (task: Task) => {
+      onTaskClick(task, column.id);
+    },
+    [column.id, onTaskClick],
+  );
 
   const renderTaskList = (tasks: Task[]) => (
     <>
@@ -172,9 +185,7 @@ export function KanbanColumn({
           projectLabels={projectLabels}
           enableDeadlines={enableDeadlines}
           enableLabels={enableLabels}
-          onDragStart={onTaskDragStart}
-          onDragEnd={onTaskDragEnd}
-          onClick={() => onTaskClick(task)}
+          onClick={handleTaskClick}
         />
       ))}
     </>
@@ -281,7 +292,6 @@ export function KanbanColumn({
         onClose={() => setIsAddingTask(false)}
         projectId={projectId}
         columnId={column.id}
-        onAddTask={actions.addTask}
         members={members}
         projectLabels={projectLabels}
         enableDeadlines={enableDeadlines}
@@ -289,4 +299,4 @@ export function KanbanColumn({
       />
     </div>
   );
-}
+});

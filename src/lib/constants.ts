@@ -42,6 +42,13 @@ export const PRIORITY_COLORS = {
   Low: 'hsl(var(--muted-foreground))',
 } as const;
 
+export const PRIORITY_STYLES: Record<string, string> = {
+  Urgent: 'border-l-red-500',
+  High: 'border-l-orange-400',
+  Medium: 'border-l-blue-400',
+  Low: 'border-l-zinc-500',
+};
+
 export const PRIORITY_ORDER = {
   Urgent: 4,
   High: 3,
