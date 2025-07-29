@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './use-auth';
 import { useTheme } from './use-theme';
 import type { OtherUserPresence } from '@/types/kanban';
@@ -12,6 +12,7 @@ export function useLiveCursors(projectId: string) {
   const { user } = useAuth();
   const { accentColor } = useTheme();
   const [otherUsers, setOtherUsers] = useState<OtherUserPresence[]>([]);
+  const hideCursorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const getPresenceDocRef = useCallback((pId: string, uId: string) => {
     return doc(db, 'projectPresence', pId, 'users', uId);
@@ -21,23 +22,28 @@ export function useLiveCursors(projectId: string) {
     return collection(db, 'projectPresence', pId, 'users');
   }, []);
 
-  const throttledUpdatePresence = useThrottle((cursor: { x: number; y: number } | null) => {
-    if (user && projectId) {
-      const presenceRef = getPresenceDocRef(projectId, user.uid);
-      setDoc(
-        presenceRef,
-        {
-          uid: user.uid,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          theme: accentColor,
-          cursor,
-          lastActive: serverTimestamp(),
-        },
-        { merge: true },
-      );
-    }
-  }, 50);
+  const updatePresence = useCallback(
+    (cursor: { x: number; y: number } | null) => {
+      if (user && projectId) {
+        const presenceRef = getPresenceDocRef(projectId, user.uid);
+        setDoc(
+          presenceRef,
+          {
+            uid: user.uid,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            theme: accentColor,
+            cursor,
+            lastActive: serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+    },
+    [user, projectId, accentColor, getPresenceDocRef],
+  );
+
+  const throttledUpdatePresence = useThrottle(updatePresence, 50);
 
   useEffect(() => {
     if (!user || !projectId) return;
@@ -45,11 +51,23 @@ export function useLiveCursors(projectId: string) {
     const presenceRef = getPresenceDocRef(projectId, user.uid);
 
     const handlePointerMove = (event: PointerEvent) => {
-      throttledUpdatePresence({ x: event.clientX, y: event.clientY });
+      if (hideCursorTimeoutRef.current) {
+        clearTimeout(hideCursorTimeoutRef.current);
+      }
+
+      const cursor = { x: event.clientX, y: event.clientY };
+      throttledUpdatePresence(cursor);
+
+      hideCursorTimeoutRef.current = setTimeout(() => {
+        updatePresence(null);
+      }, 5000);
     };
 
     const handlePointerLeave = () => {
-      throttledUpdatePresence(null);
+      if (hideCursorTimeoutRef.current) {
+        clearTimeout(hideCursorTimeoutRef.current);
+      }
+      updatePresence(null);
     };
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -64,9 +82,12 @@ export function useLiveCursors(projectId: string) {
       window.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (hideCursorTimeoutRef.current) {
+        clearTimeout(hideCursorTimeoutRef.current);
+      }
       deleteDoc(presenceRef);
     };
-  }, [user, projectId, accentColor, throttledUpdatePresence, getPresenceDocRef]);
+  }, [user, projectId, accentColor, throttledUpdatePresence, getPresenceDocRef, updatePresence]);
 
   useEffect(() => {
     if (!user || !projectId) return;
