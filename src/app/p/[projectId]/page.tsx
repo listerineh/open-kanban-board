@@ -2,7 +2,18 @@
 
 import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
-import { Search, X, Settings, LayoutDashboard, Filter, Check, ChevronDown } from 'lucide-react';
+import {
+  Search,
+  X,
+  Settings,
+  LayoutDashboard,
+  Filter,
+  Check,
+  ChevronDown,
+  MoreHorizontal,
+  ChevronRight,
+  Home,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
 import { Suspense, useEffect, useState, useMemo, useCallback, memo } from 'react';
@@ -386,6 +397,20 @@ function ProjectPageContent() {
             </div>
           </div>
         </header>
+
+        <div className="px-4 md:px-6 py-2 border-b border-border text-sm text-muted-foreground flex items-center gap-2">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            onClick={handleHomeClick}
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </Link>
+          <ChevronRight className="h-4 w-4" />
+          <span className="font-medium text-foreground truncate">{project.name}</span>
+        </div>
+
         <main className="flex-1 min-w-0 min-h-0 w-full max-w-full overflow-x-auto flex flex-col h-screen max-h-screen">
           <KanbanBoard key={project.id} project={filteredProject} onTaskClick={onTaskClick} />
         </main>
