@@ -73,7 +73,7 @@ export interface Project {
   enableLabels?: boolean;
   enableDashboard?: boolean;
   labels?: Label[];
-  autoArchivePeriod?: '1-week' | '1-month' | 'never';
+  autoArchivePeriod?: '1-day' | '1-week' | '1-month' | 'never';
 }
 
 export interface KanbanUser {

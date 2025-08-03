@@ -24,7 +24,7 @@ import {
   writeBatch,
   getDoc,
 } from 'firebase/firestore';
-import { subWeeks, subMonths } from 'date-fns';
+import { subDays, subWeeks, subMonths } from 'date-fns';
 
 export interface KanbanState {
   projects: Project[];
@@ -919,7 +919,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         const now = new Date();
         let archiveThreshold: Date;
 
-        if (project.autoArchivePeriod === '1-week') {
+        if (project.autoArchivePeriod === '1-day') {
+            archiveThreshold = subDays(now, 1);
+        } else if (project.autoArchivePeriod === '1-week') {
             archiveThreshold = subWeeks(now, 1);
         } else if (project.autoArchivePeriod === '1-month') {
             archiveThreshold = subMonths(now, 1);

@@ -453,6 +453,7 @@ export default function ProjectConfigPage() {
                             <SelectValue placeholder="Select period" />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem value="1-day">After 1 day</SelectItem>
                             <SelectItem value="1-week">After 1 week</SelectItem>
                             <SelectItem value="1-month">After 1 month</SelectItem>
                             <SelectItem value="never">Never</SelectItem>
