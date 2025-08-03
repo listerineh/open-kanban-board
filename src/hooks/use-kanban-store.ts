@@ -948,9 +948,18 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
         if (tasksArchivedCount > 0) {
             await actions.updateProject(projectId, { columns: updatedColumns });
+            const notification: Omit<Notification, 'id'> = {
+              userId: user.uid,
+              text: `<b>${tasksArchivedCount}</b> completed task(s) in <b>${project.name}</b> were automatically archived.`,
+              link: `/p/${projectId}/all-tasks`,
+              read: false,
+              createdAt: new Date().toISOString()
+            };
+            await addDoc(collection(db, 'notifications'), notification);
             toast({
                 title: 'Tasks Archived',
-                description: `${tasksArchivedCount} completed task(s) have been archived.`,
+                description: `${tasksArchivedCount} completed task(s) have been automatically archived.`,
+                variant: 'default'
             });
         }
     },
