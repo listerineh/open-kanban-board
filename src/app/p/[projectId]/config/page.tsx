@@ -21,6 +21,8 @@ import {
   Search,
   Send,
   Clock,
+  History, 
+  Archive,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import type { Project, Column, KanbanUser, Label as LabelType, Invitation } from '@/types/kanban';
@@ -51,6 +53,8 @@ import {
   SEARCH_CONSTANTS,
 } from '@/lib/constants';
 import { Textarea } from '@/components/ui/textarea';
+import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function ProjectConfigPage() {
   const router = useRouter();
@@ -72,6 +76,7 @@ export default function ProjectConfigPage() {
   const [enableDeadlines, setEnableDeadlines] = useState(true);
   const [enableLabels, setEnableLabels] = useState(true);
   const [enableDashboard, setEnableDashboard] = useState(true);
+  const [autoArchivePeriod, setAutoArchivePeriod] = useState<Project['autoArchivePeriod']>('1-month');
 
   const [columnToDelete, setColumnToDelete] = useState<Column | null>(null);
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
@@ -108,6 +113,7 @@ export default function ProjectConfigPage() {
       setEnableDeadlines(foundProject.enableDeadlines ?? true);
       setEnableLabels(foundProject.enableLabels ?? true);
       setEnableDashboard(foundProject.enableDashboard ?? true);
+      setAutoArchivePeriod(foundProject.autoArchivePeriod ?? '1-month');
       actions.getProjectMembers(projectId).then(setMembers);
     } else {
       router.replace('/404');
@@ -242,6 +248,13 @@ export default function ProjectConfigPage() {
       title: 'Success',
       description: `Dashboard has been ${checked ? 'enabled' : 'disabled'}.`,
     });
+  };
+
+  const handleAutoArchiveChange = async (value: Project['autoArchivePeriod']) => {
+    if (!project) return;
+    setAutoArchivePeriod(value);
+    await actions.updateProject(project.id, { autoArchivePeriod: value });
+    toast({ title: "Success", description: "Auto-archive setting updated." });
   };
 
   const handleAddLabel = async () => {
@@ -418,6 +431,49 @@ export default function ProjectConfigPage() {
                   disabled={!isOwner}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+                <CardTitle>Automation</CardTitle>
+                <CardDescription>Automate repetitive tasks in your project.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md border">
+                    <div className="flex items-center gap-3">
+                        <Archive className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                            <Label htmlFor="auto-archive-select" className="font-medium">Auto-archive completed tasks</Label>
+                            <p className="text-xs text-muted-foreground">Automatically hide tasks in 'Done' after a set period.</p>
+                        </div>
+                    </div>
+                    <Select value={autoArchivePeriod} onValueChange={handleAutoArchiveChange} disabled={!isOwner}>
+                        <SelectTrigger className="w-full sm:w-48 mt-2 sm:mt-0" id="auto-archive-select">
+                            <SelectValue placeholder="Select period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="1-week">After 1 week</SelectItem>
+                            <SelectItem value="1-month">After 1 month</SelectItem>
+                            <SelectItem value="never">Never</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>History</CardTitle>
+              <CardDescription>View all tasks, including archived ones.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Link href={`/p/${projectId}/all-tasks`} passHref>
+                    <Button variant="outline">
+                        <History className="mr-2 h-4 w-4" />
+                        View All Tasks
+                    </Button>
+                </Link>
             </CardContent>
           </Card>
 

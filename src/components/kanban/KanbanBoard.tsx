@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import type { Project, Task, KanbanUser } from '@/types/kanban';
 import { KanbanColumn } from './KanbanColumn';
 import { NewColumnDialog } from './NewColumnDialog';
@@ -13,10 +13,7 @@ type KanbanBoardProps = {
 };
 
 export function KanbanBoard({ project, onTaskClick }: KanbanBoardProps) {
-  const { actions, showConfetti } = useKanbanStore(state => ({
-    actions: state.actions,
-    showConfetti: state.showConfetti
-  }));
+  const { actions, showConfetti } = useKanbanStore();
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
