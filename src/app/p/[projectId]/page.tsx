@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Filter,
   Check,
-  ChevronDown,
   ChevronRight,
   History,
   Home,
@@ -61,6 +60,34 @@ function ProjectPageContent() {
   const [selectedPriorities, setSelectedPriorities] = useState<Set<string>>(new Set());
   const [selectedLabels, setSelectedLabels] = useState<Set<string>>(new Set());
 
+  const updateUrlFilters = useCallback((newFilters: { assignees?: Set<string>, priorities?: Set<string>, labels?: Set<string> }) => {
+      const currentParams = new URLSearchParams(Array.from(searchParams.entries()));
+      
+      const updateParam = (key: string, valueSet: Set<string> | undefined) => {
+        currentParams.delete(key);
+        if (valueSet && valueSet.size > 0) {
+          currentParams.set(key, Array.from(valueSet).join(','));
+        }
+      };
+
+      updateParam('assignees', newFilters.assignees);
+      updateParam('priorities', newFilters.priorities);
+      updateParam('labels', newFilters.labels);
+
+      const newQueryString = currentParams.toString();
+      router.push(`/p/${projectId}${newQueryString ? `?${newQueryString}` : ''}`, { scroll: false });
+  }, [searchParams, router, projectId]);
+  
+  useEffect(() => {
+    const assignees = new Set(searchParams.get('assignees')?.split(',') ?? []);
+    const priorities = new Set(searchParams.get('priorities')?.split(',') ?? []);
+    const labels = new Set(searchParams.get('labels')?.split(',') ?? []);
+
+    setSelectedAssignees(assignees);
+    setSelectedPriorities(priorities);
+    setSelectedLabels(labels);
+  }, [searchParams]);
+
   useEffect(() => {
     if (authLoading || !isLoaded) {
       return;
@@ -100,8 +127,11 @@ function ProjectPageContent() {
 
   const closeTaskDialog = useCallback(() => {
     setEditingTask(null);
-    router.replace(`/p/${projectId}`, { scroll: false });
-  }, [projectId, router]);
+    const currentParams = new URLSearchParams(Array.from(searchParams.entries()));
+    currentParams.delete('taskId');
+    const newQueryString = currentParams.toString();
+    router.replace(`/p/${projectId}${newQueryString ? `?${newQueryString}` : ''}`, { scroll: false });
+  },[projectId, router, searchParams]);
 
   const handleHomeClick = useCallback(() => {
     try {
@@ -112,36 +142,35 @@ function ProjectPageContent() {
   }, []);
 
   const toggleFilter = useCallback((type: 'assignees' | 'priorities' | 'labels', value: string) => {
-    const updater = (set: React.Dispatch<React.SetStateAction<Set<string>>>) => {
-      set((prev) => {
+    const updater = (prev: Set<string>) => {
         const newSet = new Set(prev);
         if (newSet.has(value)) {
-          newSet.delete(value);
+            newSet.delete(value);
         } else {
-          newSet.add(value);
+            newSet.add(value);
         }
         return newSet;
-      });
     };
 
+    let newFilters = { assignees: selectedAssignees, priorities: selectedPriorities, labels: selectedLabels };
+
     switch (type) {
-      case 'assignees':
-        updater(setSelectedAssignees);
-        break;
-      case 'priorities':
-        updater(setSelectedPriorities);
-        break;
-      case 'labels':
-        updater(setSelectedLabels);
-        break;
+        case 'assignees':
+            newFilters.assignees = updater(selectedAssignees);
+            break;
+        case 'priorities':
+            newFilters.priorities = updater(selectedPriorities);
+            break;
+        case 'labels':
+            newFilters.labels = updater(selectedLabels);
+            break;
     }
-  }, []);
+    updateUrlFilters(newFilters);
+  }, [selectedAssignees, selectedPriorities, selectedLabels, updateUrlFilters]);
 
   const clearFilters = useCallback(() => {
-    setSelectedAssignees(new Set());
-    setSelectedPriorities(new Set());
-    setSelectedLabels(new Set());
-  }, []);
+    updateUrlFilters({ assignees: new Set(), priorities: new Set(), labels: new Set() });
+  }, [updateUrlFilters]);
 
   const activeFilterCount = useMemo(
     () => selectedAssignees.size + selectedPriorities.size + selectedLabels.size,
@@ -205,13 +234,13 @@ function ProjectPageContent() {
     };
   }, [project, searchQuery, selectedAssignees, selectedPriorities, selectedLabels]);
 
-  const onTaskClick = useCallback(
-    (task: Task, columnId: string) => {
-      setEditingTask({ task, columnId });
-      router.push(`/p/${projectId}?taskId=${task.id}`, { scroll: false });
-    },
-    [projectId, router],
-  );
+  const onTaskClick = useCallback((task: Task, columnId: string) => {
+    setEditingTask({ task, columnId });
+    const currentParams = new URLSearchParams(Array.from(searchParams.entries()));
+    currentParams.set('taskId', task.id);
+    const newQueryString = currentParams.toString();
+    router.push(`/p/${projectId}?${newQueryString}`, { scroll: false });
+  }, [projectId, router, searchParams]);
 
   if (authLoading || !isLoaded || !project || !filteredProject) {
     return <KanbanBoardSkeleton />;
