@@ -29,12 +29,14 @@ export interface KanbanState {
   projects: Project[];
   isLoaded: boolean;
   user: User | null;
+  showConfetti: boolean;
   actions: KanbanStoreActions;
 }
 
 export interface KanbanStoreActions {
   init: (user: User) => () => void;
   clear: () => void;
+  hideConfetti: () => void;
   addProject: (name: string, description?: string) => Promise<string | null>;
   addColumn: (projectId: string, title: string) => Promise<void>;
   addTask: (
@@ -89,6 +91,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   projects: [],
   isLoaded: false,
   user: null,
+  showConfetti: false,
   actions: {
     init: (user: User) => {
       set({ user, isLoaded: false });
@@ -117,6 +120,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     clear: () => {
       set({ projects: [], isLoaded: false, user: null });
     },
+    hideConfetti: () => set({ showConfetti: false }),
     updateProject: async (projectId: string, data: Partial<Omit<Project, 'id'>>) => {
       const projectRef = doc(db, 'projects', projectId);
       const cleanData = { ...data };
@@ -240,6 +244,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       if (column && column.title === 'Done') {
         newTask.completedAt = now;
         newTask.activity = addActivity(newTask, `marked this as <b>complete</b>`, user.uid);
+        set({ showConfetti: true });
       }
 
       let updatedColumns = project.columns.map((c) => (c.id === columnId ? { ...c, tasks: [newTask, ...c.tasks] } : c));
@@ -303,6 +308,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         }
         taskToMove.completedAt = new Date().toISOString();
         taskToMove.activity = addActivity(taskToMove, `marked this as <b>complete</b>`, user.uid);
+        set({ showConfetti: true });
       } else {
         taskToMove.completedAt = null;
       }
