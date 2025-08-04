@@ -6,6 +6,7 @@ import './globals.css';
 import { NewProjectDialogProvider } from '@/hooks/use-new-project-dialog';
 import { ThemeProvider } from '@/hooks/use-theme';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata: Metadata = {
   title: 'OpenKanban',
@@ -90,6 +91,7 @@ export default function RootLayout({
               <TooltipProvider>{children}</TooltipProvider>
               <Toaster />
               <Analytics />
+              <SpeedInsights />
             </NewProjectDialogProvider>
           </AuthProvider>
         </ThemeProvider>
