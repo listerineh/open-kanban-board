@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, memo, useCallback } from 'react';
-import type { Column, KanbanUser, Task, Label, Project } from '@/types/kanban';
+import type { Column, KanbanUser, Task, Project } from '@/types/kanban';
 import { KanbanTaskCard } from './KanbanTaskCard';
 import { Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';

@@ -201,41 +201,64 @@ function ProjectPageContent() {
       return unarchivedProject;
     }
 
-    const allTasks = unarchivedProject.columns.flatMap((c) => c.tasks);
-    let filteredTasks = new Set(allTasks);
+    let filteredTaskIds = new Set(unarchivedProject.columns.flatMap((c) => c.tasks).map((t) => t.id));
 
     if (searchQuery) {
       const lowerCaseQuery = searchQuery.toLowerCase();
-      filteredTasks = new Set(
-        [...filteredTasks].filter(
-          (task) =>
-            task.title.toLowerCase().includes(lowerCaseQuery) ||
-            task.description?.toLowerCase().includes(lowerCaseQuery),
-        ),
+      const searchFilteredIds = new Set(
+        unarchivedProject.columns
+          .flatMap((c) => c.tasks)
+          .filter(
+            (task) =>
+              task.title.toLowerCase().includes(lowerCaseQuery) ||
+              task.description?.toLowerCase().includes(lowerCaseQuery),
+          )
+          .map((t) => t.id),
       );
+      filteredTaskIds = new Set([...filteredTaskIds].filter((id) => searchFilteredIds.has(id)));
     }
 
     if (selectedAssignees.size > 0) {
-      filteredTasks = new Set(
-        [...filteredTasks].filter((task) => selectedAssignees.has(task.assignee || 'unassigned')),
+      const assigneeFilteredIds = new Set(
+        unarchivedProject.columns
+          .flatMap((c) => c.tasks)
+          .filter((task) => {
+            const taskAssigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
+            if (selectedAssignees.has('unassigned') && taskAssigneeIds.length === 0) {
+              return true;
+            }
+            return taskAssigneeIds.some((selectedId) => selectedAssignees.has(selectedId));
+          })
+          .map((t) => t.id),
       );
+      filteredTaskIds = new Set([...filteredTaskIds].filter((id) => assigneeFilteredIds.has(id)));
     }
 
     if (selectedPriorities.size > 0) {
-      filteredTasks = new Set([...filteredTasks].filter((task) => selectedPriorities.has(task.priority || 'Medium')));
+      const priorityFilteredIds = new Set(
+        unarchivedProject.columns
+          .flatMap((c) => c.tasks)
+          .filter((task) => selectedPriorities.has(task.priority || 'Medium'))
+          .map((t) => t.id),
+      );
+      filteredTaskIds = new Set([...filteredTaskIds].filter((id) => priorityFilteredIds.has(id)));
     }
 
     if (selectedLabels.size > 0) {
-      filteredTasks = new Set(
-        [...filteredTasks].filter((task) => task.labelIds?.some((labelId) => selectedLabels.has(labelId))),
+      const labelFilteredIds = new Set(
+        unarchivedProject.columns
+          .flatMap((c) => c.tasks)
+          .filter((task) => task.labelIds?.some((labelId) => selectedLabels.has(labelId)))
+          .map((t) => t.id),
       );
+      filteredTaskIds = new Set([...filteredTaskIds].filter((id) => labelFilteredIds.has(id)));
     }
 
     return {
       ...unarchivedProject,
       columns: unarchivedProject.columns.map((column) => ({
         ...column,
-        tasks: column.tasks.filter((task) => filteredTasks.has(task)),
+        tasks: column.tasks.filter((task) => filteredTaskIds.has(task.id)),
       })),
     };
   }, [project, searchQuery, selectedAssignees, selectedPriorities, selectedLabels]);

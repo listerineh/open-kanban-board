@@ -5,7 +5,7 @@ import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Check, Filter, ListTodo, PackageOpen, Archive, Search, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { Project, KanbanUser, Task, Label as LabelType } from '@/types/kanban';
+import type { Project, KanbanUser, Task } from '@/types/kanban';
 import { FullPageLoader } from '@/components/common/loader';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
@@ -22,6 +22,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { FILTERS_SORT_DIRECTION, FILTERS_SORTABLE_KEYS } from '@/lib/constants';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function AllTasksPage() {
   const router = useRouter();
@@ -72,7 +73,13 @@ export default function AllTasksPage() {
     }
 
     if (selectedAssignees.size > 0) {
-      filtered = filtered.filter((task) => selectedAssignees.has(task.assignee || 'unassigned'));
+      filtered = filtered.filter((task) => {
+        const assigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
+        if (selectedAssignees.has('unassigned') && assigneeIds.length === 0) {
+          return true;
+        }
+        return assigneeIds.some((id) => selectedAssignees.has(id));
+      });
     }
 
     if (selectedPriorities.size > 0) {
@@ -102,9 +109,21 @@ export default function AllTasksPage() {
           compare = aPriority - bPriority;
           break;
         case 'assignee':
-          const aName = members.find((m) => m.uid === a.assignee)?.displayName ?? 'zzzz'; // 'zzzz' to put unassigned last
-          const bName = members.find((m) => m.uid === b.assignee)?.displayName ?? 'zzzz';
-          compare = aName.localeCompare(bName);
+          const aAssigneeIds = a.assigneeIds || (a.assignee ? [a.assignee] : []);
+          const bAssigneeIds = b.assigneeIds || (b.assignee ? [b.assignee] : []);
+          const aNames =
+            aAssigneeIds
+              .map((id) => members.find((m) => m.uid === id)?.displayName)
+              .filter(Boolean)
+              .sort()
+              .join(', ') || 'zzzz';
+          const bNames =
+            bAssigneeIds
+              .map((id) => members.find((m) => m.uid === id)?.displayName)
+              .filter(Boolean)
+              .sort()
+              .join(', ') || 'zzzz';
+          compare = aNames.localeCompare(bNames);
           break;
       }
 
@@ -402,7 +421,10 @@ export default function AllTasksPage() {
                     <TableBody>
                       {sortedTasks.length > 0 ? (
                         sortedTasks.map((task) => {
-                          const assignee = members.find((m) => m.uid === task.assignee);
+                          const assigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
+                          const assignees = assigneeIds
+                            .map((id) => members.find((m) => m.uid === id))
+                            .filter(Boolean) as KanbanUser[];
                           return (
                             <TableRow key={task.id} className="cursor-pointer" onClick={() => onTaskClick(task)}>
                               <TableCell className="font-medium">
@@ -419,13 +441,19 @@ export default function AllTasksPage() {
                                 <Badge variant={task.status === 'Done' ? 'default' : 'secondary'}>{task.status}</Badge>
                               </TableCell>
                               <TableCell className="hidden md:table-cell">
-                                {assignee ? (
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-6 w-6">
-                                      <AvatarImage src={assignee.photoURL ?? ''} />
-                                      <AvatarFallback>{assignee.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="truncate">{assignee.displayName}</span>
+                                {assignees.length > 0 ? (
+                                  <div className="flex items-center -space-x-2">
+                                    {assignees.map((assignee) => (
+                                      <Tooltip key={assignee.uid}>
+                                        <TooltipTrigger>
+                                          <Avatar className="h-6 w-6 border-2 border-card">
+                                            <AvatarImage src={assignee.photoURL ?? ''} />
+                                            <AvatarFallback>{assignee.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
+                                          </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{assignee.displayName}</TooltipContent>
+                                      </Tooltip>
+                                    ))}
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground">Unassigned</span>

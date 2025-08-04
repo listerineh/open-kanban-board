@@ -23,7 +23,6 @@ import {
   LogOut,
   PlusCircle,
   Palette,
-  Check,
   Moon,
   Sun,
   Monitor,

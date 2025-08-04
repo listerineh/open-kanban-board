@@ -155,8 +155,13 @@ export const MAX_TITLE_LENGTH = 100;
 export const MAX_DESC_LENGTH = 500;
 export const MAX_SUBTASK_TITLE_LENGTH = 100;
 export const MAX_COMMENT_LENGTH = 500;
+export const MAX_VISIBLE_AVATARS = 3;
 
 export const CURSOR_INACTIVITY_TIMEOUT_SECONDS = 5;
+export const MOBILE_BREAKPOINT = 768;
+
+export const TOAST_LIMIT = 3;
+export const TOAST_REMOVE_DELAY = 100000;
 
 export type FILTERS_SORTABLE_KEYS = 'title' | 'status' | 'assignee' | 'priority' | 'updatedAt';
 export type FILTERS_SORT_DIRECTION = 'asc' | 'desc';

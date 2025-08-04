@@ -30,6 +30,8 @@ import {
   Tag,
   History,
   Send,
+  Users,
+  Check,
 } from 'lucide-react';
 import type { Task, Column, KanbanUser, Project } from '@/types/kanban';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -51,6 +53,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '../ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 
 type TaskDetailsDialogProps = {
   isOpen: boolean;
@@ -82,7 +85,7 @@ export function TaskDetailsDialog({
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [deadline, setDeadline] = useState<Date | undefined>();
@@ -142,7 +145,7 @@ export function TaskDetailsDialog({
     if (task && isOpen) {
       setTitle(task.title);
       setDescription(task.description || '');
-      setAssigneeId(task.assignee || 'unassigned');
+      setAssigneeIds(task.assigneeIds || (task.assignee ? [task.assignee] : []));
       setPriority(task.priority || 'Medium');
       setLabelIds(task.labelIds || []);
       const deadlineDate = task.deadline ? new Date(task.deadline) : undefined;
@@ -179,6 +182,12 @@ export function TaskDetailsDialog({
     setLabelIds((prev) => (prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]));
   };
 
+  const handleAssigneeToggle = (assigneeId: string) => {
+    setAssigneeIds((prev) =>
+      prev.includes(assigneeId) ? prev.filter((id) => id !== assigneeId) : [...prev, assigneeId],
+    );
+  };
+
   const handleSave = async () => {
     if (!task || !columnId || !status || isSaving) return;
 
@@ -192,13 +201,13 @@ export function TaskDetailsDialog({
       finalDeadline.setHours(0, 0, 0, 0);
     }
     const finalDeadlineISO = finalDeadline?.toISOString();
-
     const updatedData: Partial<Omit<Task, 'id'>> = {};
-    const finalAssigneeId = assigneeId === 'unassigned' ? '' : assigneeId;
+    const oldAssigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
 
     if (title.trim() !== task.title) updatedData.title = title.trim();
     if (description.trim() !== (task.description || '')) updatedData.description = description.trim();
-    if (finalAssigneeId !== (task.assignee || '')) updatedData.assignee = finalAssigneeId;
+    if (JSON.stringify(assigneeIds.sort()) !== JSON.stringify(oldAssigneeIds.sort()))
+      updatedData.assigneeIds = assigneeIds;
     if (priority !== (task.priority || 'Medium')) updatedData.priority = priority;
 
     const sortedLabelIds = [...labelIds].sort();
@@ -211,6 +220,8 @@ export function TaskDetailsDialog({
     if (finalDeadlineISO !== currentDeadlineISO) {
       updatedData.deadline = enableDeadlines ? finalDeadlineISO : undefined;
     }
+
+    updatedData.assignee = undefined; // Unset old field
 
     const updatePromise =
       Object.keys(updatedData).length > 0
@@ -242,10 +253,12 @@ export function TaskDetailsDialog({
 
   const handleAddSubtask = async () => {
     if (!newSubtaskTitle.trim() || !task || !columnId) return;
+    const parentAssigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
     const subtaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'> = {
       title: newSubtaskTitle.trim(),
       parentId: task.id,
       priority: 'Medium',
+      assigneeIds: parentAssigneeIds,
     };
     await actions.addTask(project.id, columnId, subtaskData);
     setNewSubtaskTitle('');
@@ -439,29 +452,59 @@ export function TaskDetailsDialog({
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="task-assignee">Assignee</Label>
-                  <Select value={assigneeId} onValueChange={setAssigneeId}>
-                    <SelectTrigger id="task-assignee">
-                      <SelectValue placeholder="Select an assignee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {members.map((member) => (
-                        <SelectItem key={member.uid} value={member.uid}>
-                          <div className="flex flex-row items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
-                              <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
-                            </Avatar>
-                            <p className="text-sm">{member.displayName ?? member.email}</p>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>Assignees</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal h-auto">
+                      <Users className="mr-2 h-4 w-4" />
+                      <div className="flex-grow flex flex-wrap gap-1">
+                        {assigneeIds.length > 0
+                          ? members
+                              .filter((m) => assigneeIds.includes(m.uid))
+                              .map((m) => (
+                                <Badge key={m.uid} variant="secondary">
+                                  {m.displayName}
+                                </Badge>
+                              ))
+                          : 'Select assignees'}
+                      </div>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                    <Command>
+                      <CommandInput placeholder="Filter members..." />
+                      <CommandList>
+                        <CommandEmpty>No members found.</CommandEmpty>
+                        <CommandGroup>
+                          {members.map((member) => (
+                            <CommandItem
+                              key={member.uid}
+                              onSelect={() => handleAssigneeToggle(member.uid)}
+                              className="cursor-pointer"
+                            >
+                              <div
+                                className={cn(
+                                  'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                                  assigneeIds.includes(member.uid)
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'opacity-50 [&_svg]:invisible',
+                                )}
+                              >
+                                <Check className="h-4 w-4" />
+                              </div>
+                              <Avatar className="h-6 w-6 mr-2">
+                                <AvatarImage src={member.photoURL ?? ''} />
+                                <AvatarFallback>{member.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
+                              </Avatar>
+                              <span>{member.displayName}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               {enableLabels && (
                 <div className="space-y-2">
@@ -618,16 +661,20 @@ export function TaskDetailsDialog({
                               </p>
                             )}
                           </div>
-                          {subtask.assignee && (
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={members.find((m) => m.uid === subtask.assignee)?.photoURL ?? ''} />
-                              <AvatarFallback>
-                                {members
-                                  .find((m) => m.uid === subtask.assignee)
-                                  ?.displayName?.charAt(0)
-                                  .toUpperCase() ?? 'U'}
-                              </AvatarFallback>
-                            </Avatar>
+                          {subtask.assigneeIds && subtask.assigneeIds.length > 0 && (
+                            <div className="flex items-center -space-x-1">
+                              {subtask.assigneeIds.map((id) => {
+                                const member = members.find((m) => m.uid === id);
+                                return member ? (
+                                  <Avatar key={id} className="h-6 w-6">
+                                    <AvatarImage src={member.photoURL ?? ''} />
+                                    <AvatarFallback>
+                                      {member.displayName?.charAt(0).toUpperCase() ?? 'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ) : null;
+                              })}
+                            </div>
                           )}
                         </div>
                       ))}
