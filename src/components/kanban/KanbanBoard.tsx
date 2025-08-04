@@ -19,9 +19,6 @@ export function KanbanBoard({ project, onTaskClick }: KanbanBoardProps) {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
   const allTasks = useMemo(() => project.columns.flatMap((c) => c.tasks), [project.columns]);
-  const enableDeadlines = useMemo(() => project.enableDeadlines ?? true, [project.enableDeadlines]);
-  const enableLabels = useMemo(() => project.enableLabels ?? true, [project.enableLabels]);
-  const projectLabels = useMemo(() => project.labels ?? [], [project.labels]);
 
   useEffect(() => {
     function handleResize() {
@@ -71,13 +68,10 @@ export function KanbanBoard({ project, onTaskClick }: KanbanBoardProps) {
         {project.columns.map((column) => (
           <KanbanColumn
             key={column.id}
-            projectId={project.id}
+            project={project}
             column={column}
             allTasks={allTasks}
             members={members}
-            projectLabels={projectLabels}
-            enableDeadlines={enableDeadlines}
-            enableLabels={enableLabels}
             onColumnDragStart={handleColumnDragStart}
             onColumnDrop={handleColumnDrop}
             onColumnDragEnd={handleColumnDragEnd}

@@ -26,6 +26,19 @@ import {
 } from 'firebase/firestore';
 import { subDays, subWeeks, subMonths } from 'date-fns';
 
+export type AddProjectOptions = {
+  name: string;
+  description?: string;
+  template: 'default' | 'dev' | 'content-creation' | 'educational';
+  columns: Omit<Column, 'id' | 'createdAt' | 'updatedAt' | 'tasks'>[];
+  enableSubtasks: boolean;
+  enableDeadlines: boolean;
+  enableLabels: boolean;
+  enableDashboard: boolean;
+  autoArchivePeriod: Project['autoArchivePeriod'];
+  labels: Omit<Label, 'id'>[];
+};
+
 export interface KanbanState {
   projects: Project[];
   isLoaded: boolean;
@@ -38,7 +51,7 @@ export interface KanbanStoreActions {
   init: (user: User) => () => void;
   clear: () => void;
   hideConfetti: () => void;
-  addProject: (name: string, description?: string) => Promise<string | null>;
+  addProject: (options: AddProjectOptions) => Promise<string | null>;
   addColumn: (projectId: string, title: string) => Promise<void>;
   addTask: (
     projectId: string,
@@ -133,9 +146,12 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       });
       await updateDoc(projectRef, { ...cleanData, updatedAt: new Date().toISOString() });
     },
-    addProject: async (name: string, description?: string) => {
+    addProject: async (options: AddProjectOptions) => {
       const { user } = get();
       if (!user) return null;
+
+      const { name, description, columns, labels, ...features } = options;
+      const finalLabels = labels.map((l) => ({ ...l, id: `label-${Date.now()}-${Math.random()}` }));
 
       const now = new Date().toISOString();
       const newProjectData: Omit<Project, 'id'> = {
@@ -146,21 +162,15 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         pendingMembers: [],
         createdAt: now,
         updatedAt: now,
-        enableSubtasks: true,
-        enableDeadlines: true,
-        enableLabels: true,
-        enableDashboard: true,
-        autoArchivePeriod: '1-month',
-        labels: [
-          { id: `label-${Date.now()}-1`, name: 'Bug', color: '#ef4444' },
-          { id: `label-${Date.now()}-2`, name: 'Feature', color: '#3b82f6' },
-          { id: `label-${Date.now()}-3`, name: 'Improvement', color: '#22c55e' },
-        ],
-        columns: [
-          { id: `col-${Date.now()}-1`, title: 'To Do', tasks: [], createdAt: now, updatedAt: now },
-          { id: `col-${Date.now()}-2`, title: 'In Progress', tasks: [], createdAt: now, updatedAt: now },
-          { id: `col-${Date.now()}-3`, title: 'Done', tasks: [], createdAt: now, updatedAt: now },
-        ],
+        labels: finalLabels,
+        ...features,
+        columns: columns.map((ct) => ({
+          id: `col-${Date.now()}-${ct.title.replace(/\s+/g, '-')}`,
+          title: ct.title,
+          tasks: [],
+          createdAt: now,
+          updatedAt: now,
+        })),
       };
       try {
         const docRef = await addDoc(collection(db, 'projects'), newProjectData);
@@ -479,7 +489,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
             }
 
             if (cleanUpdatedData.isArchived) {
-                  updatedTask.activity = addActivity(updatedTask, `archived this task`, user.uid);
+              updatedTask.activity = addActivity(updatedTask, `archived this task`, user.uid);
             }
 
             if (project.enableLabels && updatedData.labelIds) {
@@ -911,57 +921,57 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     },
     archiveOldTasks: async (projectId: string) => {
-        const { projects, user, actions } = get();
-        if (!user) return;
-        const project = projects.find(p => p.id === projectId);
-        if (!project || !project.autoArchivePeriod || project.autoArchivePeriod === 'never') return;
+      const { projects, user, actions } = get();
+      if (!user) return;
+      const project = projects.find((p) => p.id === projectId);
+      if (!project || !project.autoArchivePeriod || project.autoArchivePeriod === 'never') return;
 
-        const now = new Date();
-        let archiveThreshold: Date;
+      const now = new Date();
+      let archiveThreshold: Date;
 
-        if (project.autoArchivePeriod === '1-day') {
-            archiveThreshold = subDays(now, 1);
-        } else if (project.autoArchivePeriod === '1-week') {
-            archiveThreshold = subWeeks(now, 1);
-        } else if (project.autoArchivePeriod === '1-month') {
-            archiveThreshold = subMonths(now, 1);
-        } else {
-            return;
+      if (project.autoArchivePeriod === '1-day') {
+        archiveThreshold = subDays(now, 1);
+      } else if (project.autoArchivePeriod === '1-week') {
+        archiveThreshold = subWeeks(now, 1);
+      } else if (project.autoArchivePeriod === '1-month') {
+        archiveThreshold = subMonths(now, 1);
+      } else {
+        return;
+      }
+
+      let tasksArchivedCount = 0;
+      const updatedColumns = project.columns.map((column) => {
+        if (column.title === 'Done') {
+          return {
+            ...column,
+            tasks: column.tasks.map((task) => {
+              if (task.completedAt && new Date(task.completedAt) < archiveThreshold && !task.isArchived) {
+                tasksArchivedCount++;
+                return { ...task, isArchived: true };
+              }
+              return task;
+            }),
+          };
         }
+        return column;
+      });
 
-        let tasksArchivedCount = 0;
-        const updatedColumns = project.columns.map(column => {
-            if (column.title === 'Done') {
-                return {
-                    ...column,
-                    tasks: column.tasks.map(task => {
-                        if (task.completedAt && new Date(task.completedAt) < archiveThreshold && !task.isArchived) {
-                            tasksArchivedCount++;
-                            return { ...task, isArchived: true };
-                        }
-                        return task;
-                    })
-                };
-            }
-            return column;
+      if (tasksArchivedCount > 0) {
+        await actions.updateProject(projectId, { columns: updatedColumns });
+        const notification: Omit<Notification, 'id'> = {
+          userId: user.uid,
+          text: `<b>${tasksArchivedCount}</b> completed task(s) in <b>${project.name}</b> were automatically archived.`,
+          link: `/p/${projectId}/all-tasks`,
+          read: false,
+          createdAt: new Date().toISOString(),
+        };
+        await addDoc(collection(db, 'notifications'), notification);
+        toast({
+          title: 'Tasks Archived',
+          description: `${tasksArchivedCount} completed task(s) have been automatically archived.`,
+          variant: 'default',
         });
-
-        if (tasksArchivedCount > 0) {
-            await actions.updateProject(projectId, { columns: updatedColumns });
-            const notification: Omit<Notification, 'id'> = {
-              userId: user.uid,
-              text: `<b>${tasksArchivedCount}</b> completed task(s) in <b>${project.name}</b> were automatically archived.`,
-              link: `/p/${projectId}/all-tasks`,
-              read: false,
-              createdAt: new Date().toISOString()
-            };
-            await addDoc(collection(db, 'notifications'), notification);
-            toast({
-                title: 'Tasks Archived',
-                description: `${tasksArchivedCount} completed task(s) have been automatically archived.`,
-                variant: 'default'
-            });
-        }
+      }
     },
   },
 }));

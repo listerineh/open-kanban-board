@@ -21,7 +21,7 @@ import {
   Search,
   Send,
   Clock,
-  History, 
+  History,
   Archive,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, useCallback } from 'react';
@@ -254,7 +254,7 @@ export default function ProjectConfigPage() {
     if (!project) return;
     setAutoArchivePeriod(value);
     await actions.updateProject(project.id, { autoArchivePeriod: value });
-    toast({ title: "Success", description: "Auto-archive setting updated." });
+    toast({ title: 'Success', description: 'Auto-archive setting updated.' });
   };
 
   const handleAddLabel = async () => {
@@ -436,45 +436,49 @@ export default function ProjectConfigPage() {
 
           <Card>
             <CardHeader>
-                <CardTitle>Automation</CardTitle>
-                <CardDescription>Automate repetitive tasks in your project.</CardDescription>
+              <CardTitle>Automation</CardTitle>
+              <CardDescription>Automate repetitive tasks in your project.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md border">
-                    <div className="flex items-center gap-3">
-                        <Archive className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                            <Label htmlFor="auto-archive-select" className="font-medium">Auto-archive completed tasks</Label>
-                            <p className="text-xs text-muted-foreground">Automatically hide tasks in 'Done' after a set period.</p>
-                        </div>
-                    </div>
-                    <Select value={autoArchivePeriod} onValueChange={handleAutoArchiveChange} disabled={!isOwner}>
-                        <SelectTrigger className="w-full sm:w-48 mt-2 sm:mt-0" id="auto-archive-select">
-                            <SelectValue placeholder="Select period" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="1-day">After 1 day</SelectItem>
-                            <SelectItem value="1-week">After 1 week</SelectItem>
-                            <SelectItem value="1-month">After 1 month</SelectItem>
-                            <SelectItem value="never">Never</SelectItem>
-                        </SelectContent>
-                    </Select>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md border">
+                <div className="flex items-center gap-3">
+                  <Archive className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="auto-archive-select" className="font-medium">
+                      Auto-archive completed tasks
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Automatically hide tasks in 'Done' after a set period.
+                    </p>
+                  </div>
                 </div>
+                <Select value={autoArchivePeriod} onValueChange={handleAutoArchiveChange} disabled={!isOwner}>
+                  <SelectTrigger className="w-full sm:w-48 mt-2 sm:mt-0" id="auto-archive-select">
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1-day">After 1 day</SelectItem>
+                    <SelectItem value="1-week">After 1 week</SelectItem>
+                    <SelectItem value="1-month">After 1 month</SelectItem>
+                    <SelectItem value="never">Never</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>History</CardTitle>
               <CardDescription>View all tasks, including archived ones.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Link href={`/p/${projectId}/all-tasks`} passHref>
-                    <Button variant="outline">
-                        <History className="mr-2 h-4 w-4" />
-                        View All Tasks
-                    </Button>
-                </Link>
+              <Link href={`/p/${projectId}/all-tasks`} passHref>
+                <Button variant="outline">
+                  <History className="mr-2 h-4 w-4" />
+                  View All Tasks
+                </Button>
+              </Link>
             </CardContent>
           </Card>
 

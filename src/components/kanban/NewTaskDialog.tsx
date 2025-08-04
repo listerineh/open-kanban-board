@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertTriangle, ArrowDown, ArrowUp, Calendar as CalendarIcon, Minus, Tag } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import type { KanbanUser, Task, Label as LabelType } from '@/types/kanban';
+import type { KanbanUser, Task, Label as LabelType, Project } from '@/types/kanban';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format, setHours, setMinutes } from 'date-fns';
@@ -22,24 +22,12 @@ import { useKanbanStore } from '@/hooks/use-kanban-store';
 type NewTaskDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  projectId: string;
+  project: Project;
   columnId: string;
   members: KanbanUser[];
-  projectLabels: LabelType[];
-  enableDeadlines: boolean;
-  enableLabels: boolean;
 };
 
-export function NewTaskDialog({
-  isOpen,
-  onClose,
-  members,
-  projectLabels,
-  projectId,
-  columnId,
-  enableDeadlines,
-  enableLabels,
-}: NewTaskDialogProps) {
+export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: NewTaskDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
@@ -52,6 +40,10 @@ export function NewTaskDialog({
 
   const hours = TIME_OPTIONS.HOURS;
   const minutes = TIME_OPTIONS.MINUTES;
+
+  const enableDeadlines = useMemo(() => project.enableDeadlines ?? true, [project.enableDeadlines]);
+  const enableLabels = useMemo(() => project.enableLabels ?? true, [project.enableLabels]);
+  const projectLabels = useMemo(() => project.labels ?? [], [project.labels]);
 
   const resetForm = () => {
     setTitle('');
@@ -85,7 +77,7 @@ export function NewTaskDialog({
       if (finalDeadline && enableDeadlines) taskData.deadline = finalDeadline.toISOString();
       if (labelIds.length > 0 && enableLabels) taskData.labelIds = labelIds;
 
-      await addTask(projectId, columnId, taskData);
+      await addTask(project.id, columnId, taskData);
       setIsSubmitting(false);
       resetForm();
       onClose();

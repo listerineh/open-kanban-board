@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, memo, useCallback } from 'react';
-import type { Column, KanbanUser, Task, Label } from '@/types/kanban';
+import type { Column, KanbanUser, Task, Label, Project } from '@/types/kanban';
 import { KanbanTaskCard } from './KanbanTaskCard';
 import { Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,13 +13,10 @@ import { Separator } from '../ui/separator';
 import { MAX_COLUMN_TITLE_LENGTH, PRIORITY_ORDER } from '@/lib/constants';
 
 type KanbanColumnProps = {
-  projectId: string;
+  project: Project;
   column: Column;
   allTasks: Task[];
   members: KanbanUser[];
-  projectLabels: Label[];
-  enableDeadlines: boolean;
-  enableLabels: boolean;
   onColumnDragStart: (columnId: string) => void;
   onColumnDrop: (targetColumnId: string) => void;
   onColumnDragEnd: () => void;
@@ -30,13 +27,10 @@ type KanbanColumnProps = {
 const getPriority = (task: Task) => PRIORITY_ORDER[task.priority ?? 'Medium'] ?? 2;
 
 export const KanbanColumn = memo(function KanbanColumn({
-  projectId,
+  project,
   column,
   allTasks,
   members,
-  projectLabels,
-  enableDeadlines,
-  enableLabels,
   onColumnDragStart,
   onColumnDrop,
   onColumnDragEnd,
@@ -52,7 +46,15 @@ export const KanbanColumn = memo(function KanbanColumn({
   const isDraggingThisColumn = draggedColumnId === column.id;
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const isDoneColumn = column.title === 'Done';
+  const enableDeadlines = useMemo(() => project.enableDeadlines ?? true, [project.enableDeadlines]);
+  const enableLabels = useMemo(() => project.enableLabels ?? true, [project.enableLabels]);
+  const projectLabels = useMemo(() => project.labels ?? [], [project.labels]);
+
+  const finalColumnTitle = useMemo(() => {
+    return project.columns.find((c) => c.title.toLowerCase() === 'done')?.title;
+  }, [project.columns]);
+
+  const isDoneColumn = column.title === finalColumnTitle;
 
   const parentTasks = useMemo(() => column.tasks.filter((task) => !task.parentId), [column.tasks]);
 
@@ -84,12 +86,12 @@ export const KanbanColumn = memo(function KanbanColumn({
       return;
     }
     if (title.trim() && title.trim() !== column.title) {
-      await actions.updateColumnTitle(projectId, column.id, title.trim());
+      await actions.updateColumnTitle(project.id, column.id, title.trim());
     } else {
       setTitle(column.title);
     }
     setIsEditingTitle(false);
-  }, [actions, column.id, column.title, isDoneColumn, projectId, title]);
+  }, [actions, column.id, column.title, isDoneColumn, project.id, title]);
 
   const handleTitleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -135,13 +137,13 @@ export const KanbanColumn = memo(function KanbanColumn({
             }
           }
 
-          actions.moveTask(projectId, taskId, fromColumnId, column.id, targetIndex);
+          actions.moveTask(project.id, taskId, fromColumnId, column.id, targetIndex);
         }
       } catch (error) {
         console.error('Failed to parse task data:', error);
       }
     },
-    [actions, column.id, onColumnDrop, projectId],
+    [actions, column.id, onColumnDrop, project.id],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -292,12 +294,9 @@ export const KanbanColumn = memo(function KanbanColumn({
       <NewTaskDialog
         isOpen={isAddingTask}
         onClose={() => setIsAddingTask(false)}
-        projectId={projectId}
+        project={project}
         columnId={column.id}
         members={members}
-        projectLabels={projectLabels}
-        enableDeadlines={enableDeadlines}
-        enableLabels={enableLabels}
       />
     </div>
   );
