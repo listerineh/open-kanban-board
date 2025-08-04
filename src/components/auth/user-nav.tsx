@@ -17,19 +17,7 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
-import {
-  Code,
-  Github,
-  LogOut,
-  PlusCircle,
-  Palette,
-  Moon,
-  Sun,
-  Monitor,
-  Menu,
-  Bell,
-  ChevronDown,
-} from 'lucide-react';
+import { Code, Github, LogOut, PlusCircle, Palette, Moon, Sun, Monitor, Menu, Bell, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNewProjectDialog } from '@/hooks/use-new-project-dialog';
 import { useTheme } from '@/hooks/use-theme';

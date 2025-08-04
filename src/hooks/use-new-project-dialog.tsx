@@ -323,7 +323,13 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
           <>
             <div className="space-y-2">
               <Label>Project Template</Label>
-                <RadioGroup value={template} onValueChange={(value) => handleTemplateChange(value as 'default' | 'dev' | 'content-creation' | 'educational')} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <RadioGroup
+                value={template}
+                onValueChange={(value) =>
+                  handleTemplateChange(value as 'default' | 'dev' | 'content-creation' | 'educational')
+                }
+                className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+              >
                 <div>
                   <RadioGroupItem value="default" id="template-default" className="peer sr-only" />
                   <Label
