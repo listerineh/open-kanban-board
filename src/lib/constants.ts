@@ -157,3 +157,6 @@ export const MAX_SUBTASK_TITLE_LENGTH = 100;
 export const MAX_COMMENT_LENGTH = 500;
 
 export const CURSOR_INACTIVITY_TIMEOUT_SECONDS = 5;
+
+export type FILTERS_SORTABLE_KEYS = 'title' | 'status' | 'assignee' | 'priority' | 'updatedAt';
+export type FILTERS_SORT_DIRECTION = 'asc' | 'desc';
