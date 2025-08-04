@@ -3,25 +3,14 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { Button } from '@/components/ui/button';
-import {
-  ArrowLeft,
-  CheckCircle,
-  Clock,
-  ListTodo,
-  Users,
-  AlertTriangle,
-  Archive,
-  PackageOpen,
-  MoreHorizontal,
-  FileText,
-} from 'lucide-react';
+import { ArrowLeft, ListTodo, Archive, PackageOpen } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Project, KanbanUser, Task } from '@/types/kanban';
 import { FullPageLoader } from '@/components/common/loader';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { isPast, parseISO, format } from 'date-fns';
+import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

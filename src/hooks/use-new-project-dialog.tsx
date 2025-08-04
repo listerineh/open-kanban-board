@@ -15,7 +15,22 @@ import type { Project, Label as LabelType, Column } from '@/types/kanban';
 import { Separator } from '@/components/ui/separator';
 import { Check, Edit, Palette, Plus, Trash2, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
+import {
+  AUTO_ARCHIVE_OPTIONS,
+  COLOR_SWATCHES,
+  CONTENT_CREATION_COLUMNS,
+  CONTENT_CREATION_LABELS,
+  DEFAULT_COLUMNS,
+  DEFAULT_LABELS,
+  DEV_COLUMNS,
+  DEV_LABELS,
+  EDUCATIONAL_COLUMNS,
+  EDUCATIONAL_LABELS,
+  MAX_COLUMN_TITLE_LENGTH,
+  MAX_LABEL_NAME_LENGTH,
+  MAX_PROJECT_DESC_LENGTH,
+  MAX_PROJECT_NAME_LENGTH,
+} from '@/lib/constants';
 
 type NewProjectDialogContextType = {
   openDialog: () => void;
@@ -31,81 +46,35 @@ export function useNewProjectDialog() {
   return context;
 }
 
-const MAX_PROJECT_NAME_LENGTH = 50;
-const MAX_PROJECT_DESC_LENGTH = 200;
-const MAX_LABEL_NAME_LENGTH = 20;
-const MAX_COLUMN_TITLE_LENGTH = 30;
-
 const getColumnsFromTemplate = (
   template: 'default' | 'dev' | 'content-creation' | 'educational',
 ): Omit<Column, 'id' | 'createdAt' | 'updatedAt' | 'tasks'>[] => {
   switch (template) {
     case 'dev':
-      return [
-        { title: 'Backlog' },
-        { title: 'To Do' },
-        { title: 'In Progress' },
-        { title: 'Code Review' },
-        { title: 'Done' },
-      ];
+      return DEV_COLUMNS;
     case 'content-creation':
-      return [{ title: 'Ideas' }, { title: 'Drafting' }, { title: 'Review' }, { title: 'Done' }];
+      return CONTENT_CREATION_COLUMNS;
     case 'educational':
-      return [{ title: 'To Research' }, { title: 'In Progress' }, { title: 'Reviewing' }, { title: 'Done' }];
+      return EDUCATIONAL_COLUMNS;
     case 'default':
     default:
-      return [{ title: 'To Do' }, { title: 'In Progress' }, { title: 'Done' }];
+      return DEFAULT_COLUMNS;
   }
 };
-
-const colorSwatches = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#84cc16',
-  '#22c55e',
-  '#14b8a6',
-  '#06b6d4',
-  '#3b82f6',
-  '#6366f1',
-  '#8b5cf6',
-  '#a855f7',
-  '#d946ef',
-  '#ec4899',
-  '#f43f5e',
-  '#78716c',
-  '#64748b',
-];
 
 const getLabelsFromTemplate = (
   template: 'default' | 'dev' | 'content-creation' | 'educational',
 ): Omit<LabelType, 'id'>[] => {
   switch (template) {
     case 'dev':
-      return [
-        { name: 'Bug', color: '#ef4444' },
-        { name: 'Feature', color: '#3b82f6' },
-        { name: 'Improvement', color: '#22c55e' },
-      ];
+      return DEV_LABELS;
     case 'content-creation':
-      return [
-        { name: 'Video', color: '#ef4444' },
-        { name: 'Blog Post', color: '#3b82f6' },
-        { name: 'Social Media', color: '#14b8a6' },
-      ];
+      return CONTENT_CREATION_LABELS;
     case 'educational':
-      return [
-        { name: 'Assignment', color: '#f97316' },
-        { name: 'Reading', color: '#3b82f6' },
-        { name: 'Exam', color: '#ef4444' },
-        { name: 'Project', color: '#8b5cf6' },
-      ];
+      return EDUCATIONAL_LABELS;
     case 'default':
     default:
-      return [
-        { name: 'Urgent', color: '#ef4444' },
-        { name: 'Idea', color: '#a855f7' },
-      ];
+      return DEFAULT_LABELS;
   }
 };
 
@@ -113,11 +82,9 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
 
-  // Step 1 state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 
-  // Step 2 state
   const [features, setFeatures] = useState({
     enableSubtasks: true,
     enableDeadlines: true,
@@ -126,16 +93,14 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
   });
   const [autoArchivePeriod, setAutoArchivePeriod] = useState<Project['autoArchivePeriod']>('1-month');
 
-  // Step 3 state
   const [template, setTemplate] = useState<'default' | 'dev' | 'content-creation' | 'educational'>('default');
   const [columns, setColumns] = useState<Omit<Column, 'id' | 'createdAt' | 'updatedAt' | 'tasks'>[]>(
     getColumnsFromTemplate('default'),
   );
   const [labels, setLabels] = useState<Omit<LabelType, 'id'>[]>(getLabelsFromTemplate('default'));
 
-  // Step 3 - temp state for editing
   const [newLabelName, setNewLabelName] = useState('');
-  const [newLabelColor, setNewLabelColor] = useState(colorSwatches[0]);
+  const [newLabelColor, setNewLabelColor] = useState(COLOR_SWATCHES[0]);
   const [editingLabel, setEditingLabel] = useState<(Omit<LabelType, 'id'> & { tempId: number }) | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -227,7 +192,7 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
     if (!newLabelName.trim()) return;
     setLabels((prev) => [...prev, { name: newLabelName, color: newLabelColor }]);
     setNewLabelName('');
-    setNewLabelColor(colorSwatches[0]);
+    setNewLabelColor(COLOR_SWATCHES[0]);
   };
 
   const handleUpdateLabel = () => {
@@ -342,10 +307,11 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1-day">After 1 day</SelectItem>
-                    <SelectItem value="1-week">After 1 week</SelectItem>
-                    <SelectItem value="1-month">After 1 month</SelectItem>
-                    <SelectItem value="never">Never</SelectItem>
+                    {AUTO_ARCHIVE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -471,7 +437,7 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-2">
                                 <div className="grid grid-cols-4 gap-2">
-                                  {colorSwatches.map((color) => (
+                                  {COLOR_SWATCHES.map((color) => (
                                     <Button
                                       key={color}
                                       variant="outline"
@@ -544,7 +510,7 @@ export function NewProjectDialogProvider({ children }: { children: ReactNode }) 
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-2">
                         <div className="grid grid-cols-4 gap-2">
-                          {colorSwatches.map((color) => (
+                          {COLOR_SWATCHES.map((color) => (
                             <Button
                               key={color}
                               variant="outline"
