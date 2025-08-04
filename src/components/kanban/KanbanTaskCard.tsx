@@ -163,40 +163,35 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
             {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
           </div>
 
-          {(() => {
-            if (subtasks.length > 0 && enableDeadlines) {
-              return (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                  <ListTodo className="h-3.5 w-3.5" />
-                  <span>
-                    {completedSubtasks}/{subtasks.length}
-                  </span>
-                </div>
-              );
-            }
-            if (task.completedAt) {
-              return (
-                <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium pt-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>Completed</span>
-                </div>
-              );
-            }
-            if (task.deadline && enableDeadlines) {
-              return (
-                <div
-                  className={cn(
-                    'flex items-center gap-1.5 text-xs pt-1',
-                    isOverdue ? 'text-destructive' : 'text-muted-foreground',
-                  )}
-                >
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>{deadlineText}</span>
-                </div>
-              );
-            }
-            return null;
-          })()}
+          {task.completedAt && (
+            <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium pt-1">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Completed</span>
+            </div>
+          )}
+
+          <div className="flex flex-row justify-between gap-2">
+            {task.completedAt === null && subtasks.length > 0 && enableDeadlines && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <ListTodo className="h-3.5 w-3.5" />
+                <span>
+                  {completedSubtasks}/{subtasks.length}
+                </span>
+              </div>
+            )}
+
+            {task.completedAt === null && task.deadline && enableDeadlines && (
+              <div
+                className={cn(
+                  'flex items-center gap-1.5 text-xs pt-1',
+                  isOverdue ? 'text-destructive' : 'text-muted-foreground',
+                )}
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                <span>{deadlineText}</span>
+              </div>
+            )}
+          </div>
 
           {task.deadline && task.createdAt && !task.completedAt && subtasks.length === 0 && enableDeadlines && (
             <div className="pt-1">
