@@ -246,6 +246,7 @@ export function TaskDetailsDialog({
       title: newSubtaskTitle.trim(),
       parentId: task.id,
       priority: 'Medium',
+      assignee: task.assignee,
     };
     await actions.addTask(project.id, columnId, subtaskData);
     setNewSubtaskTitle('');

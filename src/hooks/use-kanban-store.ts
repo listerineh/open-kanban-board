@@ -427,6 +427,13 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         }
       });
 
+      const allTasks = project.columns.flatMap((c) => c.tasks);
+      let subtasksToUpdate: Task[] = [];
+      const taskBeingUpdated = allTasks.find((t) => t.id === taskId);
+      if (taskBeingUpdated && !taskBeingUpdated.parentId && cleanUpdatedData.assignee !== undefined) {
+        subtasksToUpdate = allTasks.filter((t) => t.parentId === taskId);
+      }
+
       const newColumns = project.columns.map((c) => {
         let tasks = c.tasks.map((t) => {
           if (t.id === taskId) {
@@ -539,6 +546,18 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         }
         return { ...c, tasks };
       });
+
+      if (subtasksToUpdate.length > 0) {
+        const newAssignee = cleanUpdatedData.assignee;
+        newColumns.forEach((column) => {
+          column.tasks.forEach((task) => {
+            if (subtasksToUpdate.some((st) => st.id === task.id)) {
+              task.assignee = newAssignee;
+              task.updatedAt = now;
+            }
+          });
+        });
+      }
 
       try {
         await actions.updateProject(projectId, { columns: newColumns });
