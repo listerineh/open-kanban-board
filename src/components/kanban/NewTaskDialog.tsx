@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertTriangle, ArrowDown, ArrowUp, Calendar as CalendarIcon, Minus, Tag } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar as CalendarIcon, Minus, Tag, Users, X, Check } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import type { KanbanUser, Task, Label as LabelType, Project } from '@/types/kanban';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,6 +18,7 @@ import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
 import { MAX_DESC_LENGTH, MAX_TITLE_LENGTH, TIME_OPTIONS } from '@/lib/constants';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 
 type NewTaskDialogProps = {
   isOpen: boolean;
@@ -30,7 +31,7 @@ type NewTaskDialogProps = {
 export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: NewTaskDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [deadline, setDeadline] = useState<Date | undefined>();
   const [labelIds, setLabelIds] = useState<string[]>([]);
@@ -48,7 +49,7 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
   const resetForm = () => {
     setTitle('');
     setDescription('');
-    setAssigneeId('');
+    setAssigneeIds([]);
     setPriority('Medium');
     setDeadline(undefined);
     setTime('');
@@ -73,7 +74,7 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
       };
 
       if (description.trim()) taskData.description = description.trim();
-      if (assigneeId && assigneeId !== 'unassigned') taskData.assignee = assigneeId;
+      if (assigneeIds.length > 0) taskData.assigneeIds = assigneeIds;
       if (finalDeadline && enableDeadlines) taskData.deadline = finalDeadline.toISOString();
       if (labelIds.length > 0 && enableLabels) taskData.labelIds = labelIds;
 
@@ -93,6 +94,12 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
 
   const handleLabelToggle = (labelId: string) => {
     setLabelIds((prev) => (prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]));
+  };
+
+  const handleAssigneeToggle = (assigneeId: string) => {
+    setAssigneeIds((prev) =>
+      prev.includes(assigneeId) ? prev.filter((id) => id !== assigneeId) : [...prev, assigneeId],
+    );
   };
 
   const [currentHour, currentMinute] = time.split(':');
@@ -227,26 +234,58 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="task-assignee">Assignee (optional)</Label>
-            <Select value={assigneeId} onValueChange={setAssigneeId}>
-              <SelectTrigger id="task-assignee">
-                <SelectValue placeholder="Select an assignee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {members.map((member) => (
-                  <SelectItem key={member.uid} value={member.uid}>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
-                        <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
-                      </Avatar>
-                      <p className="text-sm">{member.displayName ?? member.email}</p>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Assignees (optional)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal h-auto">
+                  <Users className="mr-2 h-4 w-4" />
+                  <div className="flex-grow flex flex-wrap gap-1">
+                    {assigneeIds.length > 0
+                      ? members
+                          .filter((m) => assigneeIds.includes(m.uid))
+                          .map((m) => (
+                            <Badge key={m.uid} variant="secondary">
+                              {m.displayName}
+                            </Badge>
+                          ))
+                      : 'Select assignees'}
+                  </div>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Filter members..." />
+                  <CommandList>
+                    <CommandEmpty>No members found.</CommandEmpty>
+                    <CommandGroup>
+                      {members.map((member) => (
+                        <CommandItem
+                          key={member.uid}
+                          onSelect={() => handleAssigneeToggle(member.uid)}
+                          className="cursor-pointer"
+                        >
+                          <div
+                            className={cn(
+                              'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                              assigneeIds.includes(member.uid)
+                                ? 'bg-primary text-primary-foreground'
+                                : 'opacity-50 [&_svg]:invisible',
+                            )}
+                          >
+                            <Check className="h-4 w-4" />
+                          </div>
+                          <Avatar className="h-6 w-6 mr-2">
+                            <AvatarImage src={member.photoURL ?? ''} />
+                            <AvatarFallback>{member.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
+                          </Avatar>
+                          <span>{member.displayName}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           {enableLabels && (
             <div className="space-y-2">

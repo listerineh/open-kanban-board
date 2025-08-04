@@ -25,6 +25,7 @@ export interface Task {
   title: string;
   description?: string;
   assignee?: string;
+  assigneeIds?: string[];
   priority?: 'Urgent' | 'High' | 'Medium' | 'Low';
   createdAt: string;
   updatedAt: string;

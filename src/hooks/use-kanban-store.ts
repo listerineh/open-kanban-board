@@ -244,7 +244,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       };
 
       if (taskData.description) newTask.description = taskData.description;
-      if (taskData.assignee) newTask.assignee = taskData.assignee;
+      if (taskData.assigneeIds) newTask.assigneeIds = taskData.assigneeIds;
       if (taskData.priority) newTask.priority = taskData.priority;
       if (project.enableDeadlines && taskData.deadline) newTask.deadline = taskData.deadline;
       if (project.enableSubtasks && taskData.parentId) newTask.parentId = taskData.parentId;
@@ -430,7 +430,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       const allTasks = project.columns.flatMap((c) => c.tasks);
       let subtasksToUpdate: Task[] = [];
       const taskBeingUpdated = allTasks.find((t) => t.id === taskId);
-      if (taskBeingUpdated && !taskBeingUpdated.parentId && cleanUpdatedData.assignee !== undefined) {
+      if (taskBeingUpdated && !taskBeingUpdated.parentId && cleanUpdatedData.assigneeIds !== undefined) {
         subtasksToUpdate = allTasks.filter((t) => t.parentId === taskId);
       }
 
@@ -453,23 +453,31 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
             ) {
               updatedTask.activity = addActivity(updatedTask, `updated the description`, user.uid);
             }
-            if (cleanUpdatedData.assignee !== undefined && cleanUpdatedData.assignee !== (oldTask.assignee || '')) {
-              const oldName = allMembers.find((m) => m.uid === oldTask?.assignee)?.displayName ?? 'Unassigned';
-              const newName = allMembers.find((m) => m.uid === cleanUpdatedData.assignee)?.displayName ?? 'Unassigned';
-              updatedTask.activity = addActivity(
-                updatedTask,
-                `changed the assignee from <b>${oldName}</b> to <b>${newName}</b>`,
-                user.uid,
-              );
+            if (cleanUpdatedData.assigneeIds) {
+              const oldAssigneeIds = oldTask.assigneeIds || (oldTask.assignee ? [oldTask.assignee] : []);
+              if (JSON.stringify(cleanUpdatedData.assigneeIds.sort()) !== JSON.stringify(oldAssigneeIds.sort())) {
+                const oldNames = oldAssigneeIds
+                  .map((id) => allMembers.find((m) => m.uid === id)?.displayName || 'Unassigned')
+                  .join(', ');
+                const newNames = cleanUpdatedData.assigneeIds
+                  .map((id) => allMembers.find((m) => m.uid === id)?.displayName || 'Unassigned')
+                  .join(', ');
+                updatedTask.activity = addActivity(
+                  updatedTask,
+                  `changed assignees from <b>${oldNames || 'none'}</b> to <b>${newNames || 'none'}</b>`,
+                  user.uid,
+                );
 
-              if (cleanUpdatedData.assignee) {
-                addDoc(collection(db, 'notifications'), {
-                  userId: cleanUpdatedData.assignee,
-                  text: `You were assigned to the task <b>${updatedTask.title}</b> in project <b>${project.name}</b>`,
-                  link: `/p/${projectId}?taskId=${updatedTask.id}`,
-                  read: false,
-                  createdAt: new Date().toISOString(),
-                } as Omit<Notification, 'id'>);
+                const addedAssignees = cleanUpdatedData.assigneeIds.filter((id) => !oldAssigneeIds.includes(id));
+                addedAssignees.forEach((assigneeId) => {
+                  addDoc(collection(db, 'notifications'), {
+                    userId: assigneeId,
+                    text: `You were assigned to the task <b>${updatedTask.title}</b> in project <b>${project.name}</b>`,
+                    link: `/p/${projectId}?taskId=${updatedTask.id}`,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                  } as Omit<Notification, 'id'>);
+                });
               }
             }
             if (cleanUpdatedData.priority && cleanUpdatedData.priority !== oldTask.priority) {
@@ -548,11 +556,12 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       });
 
       if (subtasksToUpdate.length > 0) {
-        const newAssignee = cleanUpdatedData.assignee;
+        const newAssigneeIds = cleanUpdatedData.assigneeIds;
         newColumns.forEach((column) => {
           column.tasks.forEach((task) => {
             if (subtasksToUpdate.some((st) => st.id === task.id)) {
-              task.assignee = newAssignee;
+              task.assigneeIds = newAssigneeIds;
+              task.assignee = undefined;
               task.updatedAt = now;
             }
           });

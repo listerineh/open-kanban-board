@@ -9,7 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Progress } from '../ui/progress';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '../ui/badge';
-import { PRIORITY_STYLES } from '@/lib/constants';
+import { MAX_VISIBLE_AVATARS, PRIORITY_STYLES } from '@/lib/constants';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 type KanbanTaskCardProps = {
   task: Task;
@@ -121,7 +122,17 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
     setIsDragging(false);
   };
 
-  const assignee = useMemo(() => members.find((m) => m.uid === task.assignee), [members, task.assignee]);
+  const allParticipantIds = useMemo(() => {
+    const ids = new Set(task.assigneeIds || (task.assignee ? [task.assignee] : []));
+    subtasks.forEach((st) => {
+      (st.assigneeIds || (st.assignee ? [st.assignee] : [])).forEach((id) => ids.add(id));
+    });
+    return Array.from(ids);
+  }, [task.assigneeIds, task.assignee, subtasks]);
+
+  const participants = useMemo(() => {
+    return allParticipantIds.map((id) => members.find((m) => m.uid === id)).filter(Boolean) as KanbanUser[];
+  }, [allParticipantIds, members]);
 
   const priority = task.priority ?? 'Medium';
   const borderClass = PRIORITY_STYLES[priority];
@@ -164,19 +175,7 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
           )}
 
           <div className="flex justify-between items-end gap-2 flex-wrap">
-            <div className="flex items-center gap-4">
-              {assignee ? (
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={assignee.photoURL ?? ''} alt={assignee.displayName ?? 'User'} />
-                    <AvatarFallback>{assignee.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm text-muted-foreground">{assignee.displayName}</span>
-                </div>
-              ) : (
-                <div />
-              )}
-
+            <div className="flex items-center gap-2">
               {subtasks.length > 0 && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
                   <ListTodo className="h-3.5 w-3.5" />
@@ -187,37 +186,63 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
               )}
             </div>
 
-            {(() => {
-              if (task.completedAt) {
-                return (
-                  <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Completed</span>
-                  </div>
-                );
-              }
-              if (task.deadline && enableDeadlines) {
-                return (
-                  <div
-                    className={cn(
-                      'flex items-center gap-1.5 text-xs',
-                      isOverdue ? 'text-destructive' : 'text-muted-foreground',
-                    )}
-                  >
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>{deadlineText}</span>
-                  </div>
-                );
-              }
-              return null;
-            })()}
+            {participants.length > 0 && (
+              <div className="flex items-center -space-x-2">
+                {participants.slice(0, MAX_VISIBLE_AVATARS).map((p) => (
+                  <Tooltip key={p.uid}>
+                    <TooltipTrigger>
+                      <Avatar className="h-6 w-6 border-2 border-card">
+                        <AvatarImage src={p.photoURL ?? ''} alt={p.displayName ?? 'User'} />
+                        <AvatarFallback>{p.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{p.displayName}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+                {participants.length > MAX_VISIBLE_AVATARS && (
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Avatar className="h-6 w-6 border-2 border-card">
+                        <AvatarFallback>+{participants.length - MAX_VISIBLE_AVATARS}</AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {participants.slice(MAX_VISIBLE_AVATARS).map((p) => (
+                        <p key={p.uid}>{p.displayName}</p>
+                      ))}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            )}
           </div>
 
-          {task.deadline && task.createdAt && !task.completedAt && subtasks.length === 0 && enableDeadlines && (
-            <div className="pt-1">
-              <Progress value={progress} className={cn('h-1.5', isOverdue && '[&>div]:bg-destructive')} />
-            </div>
-          )}
+          {(() => {
+            if (task.completedAt) {
+              return (
+                <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Completed</span>
+                </div>
+              );
+            }
+            if (task.deadline && enableDeadlines) {
+              return (
+                <div
+                  className={cn(
+                    'flex items-center gap-1.5 text-xs',
+                    isOverdue ? 'text-destructive' : 'text-muted-foreground',
+                  )}
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>{deadlineText}</span>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {subtasks.length > 0 && !task.completedAt && (
             <div className="pt-1">

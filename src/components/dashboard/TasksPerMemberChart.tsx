@@ -12,14 +12,18 @@ type TasksPerMemberChartProps = {
 
 export function TasksPerMemberChart({ tasks, members }: TasksPerMemberChartProps) {
   const chartData = useMemo(() => {
-    const memberTaskCounts = tasks.reduce(
-      (acc, task) => {
-        const assigneeId = task.assignee || 'unassigned';
-        acc[assigneeId] = (acc[assigneeId] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
+    const memberTaskCounts: Record<string, number> = {};
+
+    tasks.forEach((task) => {
+      const assigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
+      if (assigneeIds.length > 0) {
+        assigneeIds.forEach((assigneeId) => {
+          memberTaskCounts[assigneeId] = (memberTaskCounts[assigneeId] || 0) + 1;
+        });
+      } else {
+        memberTaskCounts.unassigned = (memberTaskCounts.unassigned || 0) + 1;
+      }
+    });
 
     return members
       .map((member) => ({
