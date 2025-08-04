@@ -244,6 +244,12 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
             return null;
           })()}
 
+          {task.deadline && task.createdAt && !task.completedAt && subtasks.length === 0 && enableDeadlines && (
+            <div className="pt-1">
+              <Progress value={progress} className={cn('h-1.5', isOverdue && '[&>div]:bg-destructive')} />
+            </div>
+          )}
+
           {subtasks.length > 0 && !task.completedAt && (
             <div className="pt-1">
               <Progress value={subtaskProgress} className="h-1.5" />
