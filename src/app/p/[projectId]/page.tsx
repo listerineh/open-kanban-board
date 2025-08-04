@@ -13,7 +13,6 @@ import {
   History,
   Home,
   MoreHorizontal,
-  Users,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';

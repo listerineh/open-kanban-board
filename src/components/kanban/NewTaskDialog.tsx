@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertTriangle, ArrowDown, ArrowUp, Calendar as CalendarIcon, Minus, Tag, Users, X, Check } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar as CalendarIcon, Minus, Tag, Users, Check } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import type { KanbanUser, Task, Label as LabelType, Project } from '@/types/kanban';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

@@ -5,7 +5,7 @@ import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Check, Filter, ListTodo, PackageOpen, Archive, Search, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { Project, KanbanUser, Task, Label as LabelType } from '@/types/kanban';
+import type { Project, KanbanUser, Task } from '@/types/kanban';
 import { FullPageLoader } from '@/components/common/loader';
 import { useAuth } from '@/hooks/use-auth';
 import { UserNav } from '@/components/auth/user-nav';
