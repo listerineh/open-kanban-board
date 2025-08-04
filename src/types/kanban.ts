@@ -33,6 +33,7 @@ export interface Task {
   parentId?: string;
   labelIds?: string[];
   activity?: Activity[];
+  isArchived?: boolean;
 }
 
 export interface Activity {
@@ -72,6 +73,7 @@ export interface Project {
   enableLabels?: boolean;
   enableDashboard?: boolean;
   labels?: Label[];
+  autoArchivePeriod?: '1-day' | '1-week' | '1-month' | 'never';
 }
 
 export interface KanbanUser {

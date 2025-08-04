@@ -33,7 +33,7 @@ export const COLOR_SWATCHES = [
   '#f43f5e',
   '#78716c',
   '#64748b',
-] as const;
+];
 
 export const TASK_PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'] as const;
 
@@ -79,13 +79,54 @@ export const DEFAULT_PROJECT_SETTINGS = {
   ENABLE_DASHBOARD: true,
 } as const;
 
+export const DEFAULT_COLUMNS = [{ title: 'To Do' }, { title: 'In Progress' }, { title: 'Done' }];
+export const DEV_COLUMNS = [
+  { title: 'Backlog' },
+  { title: 'To Do' },
+  { title: 'In Progress' },
+  { title: 'Code Review' },
+  { title: 'Done' },
+];
+export const CONTENT_CREATION_COLUMNS = [
+  { title: 'Ideas' },
+  { title: 'Drafting' },
+  { title: 'Review' },
+  { title: 'Done' },
+];
+export const EDUCATIONAL_COLUMNS = [
+  { title: 'To Research' },
+  { title: 'In Progress' },
+  { title: 'Reviewing' },
+  { title: 'Done' },
+];
+
 export const DEFAULT_LABELS = [
+  { name: 'Urgent', color: '#ef4444' },
+  { name: 'Idea', color: '#a855f7' },
+];
+export const DEV_LABELS = [
   { name: 'Bug', color: '#ef4444' },
   { name: 'Feature', color: '#3b82f6' },
   { name: 'Improvement', color: '#22c55e' },
-] as const;
+];
+export const CONTENT_CREATION_LABELS = [
+  { name: 'Video', color: '#ef4444' },
+  { name: 'Blog Post', color: '#3b82f6' },
+  { name: 'Social Media', color: '#14b8a6' },
+];
+export const EDUCATIONAL_LABELS = [
+  { name: 'Assignment', color: '#f97316' },
+  { name: 'Reading', color: '#3b82f6' },
+  { name: 'Exam', color: '#ef4444' },
+  { name: 'Project', color: '#8b5cf6' },
+];
 
-export const DEFAULT_COLUMNS = [{ title: 'To Do' }, { title: 'In Progress' }, { title: 'Done' }] as const;
+export const AUTO_ARCHIVE_OPTIONS = [
+  { value: '1-day', label: 'After 1 day' },
+  { value: '1-week', label: 'After 1 week' },
+  { value: '1-month', label: 'After 1 month' },
+  { value: 'never', label: 'Never' },
+];
 
 export const APP_METADATA = {
   NAME: 'OpenKanban',
@@ -116,3 +157,6 @@ export const MAX_SUBTASK_TITLE_LENGTH = 100;
 export const MAX_COMMENT_LENGTH = 500;
 
 export const CURSOR_INACTIVITY_TIMEOUT_SECONDS = 5;
+
+export type FILTERS_SORTABLE_KEYS = 'title' | 'status' | 'assignee' | 'priority' | 'updatedAt';
+export type FILTERS_SORT_DIRECTION = 'asc' | 'desc';
