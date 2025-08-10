@@ -15,9 +15,10 @@ import { useNewProjectDialog } from '@/hooks/use-new-project-dialog';
 import { Notifications } from '@/components/notifications/Notifications';
 import { AppIcon } from '@/components/common/AppIcon';
 import { STORAGE_KEYS } from '@/lib/constants';
+import { selectTasksByProject } from '@/hooks/use-kanban-store';
 
 export default function RootPage() {
-  const { projects, isLoaded } = useKanbanStore();
+  const { projects, isLoaded, tasks } = useKanbanStore();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [isRedirecting, setIsRedirecting] = useState(true);
@@ -31,33 +32,34 @@ export default function RootPage() {
       return;
     }
 
-    if (isLoaded) {
-      try {
-        const lastProjectId = localStorage.getItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
-        if (lastProjectId && projects.some((p) => p.id === lastProjectId)) {
-          router.replace(`/p/${lastProjectId}`);
-        } else {
-          setIsRedirecting(false);
-        }
-      } catch (error) {
-        console.error('Failed to access localStorage', error);
-        setIsRedirecting(false);
+    try {
+      const lastProjectId = localStorage.getItem('lastActiveProjectId');
+      if (lastProjectId) {
+        router.replace(`/p/${lastProjectId}`);
+        return;
       }
+    } catch (error) {
+      console.error("Failed to access localStorage", error);
+    }
+    
+    if (isLoaded) {
+      setIsRedirecting(false);
     } else if (!authLoading && !user) {
       router.push('/login');
     }
-  }, [isLoaded, user, authLoading, projects, router]);
+  }, [isLoaded, user, authLoading, router]);
 
   const handleHomeClick = () => {
     try {
       localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
-      setIsRedirecting(false);
+      router.push('/');
+      setIsRedirecting(false); 
     } catch (error) {
       console.error('Failed to remove from localStorage', error);
     }
   };
 
-  if (authLoading || !isLoaded || isRedirecting) {
+  if (authLoading || isRedirecting) {
     return <DashboardSkeleton />;
   }
 
@@ -99,33 +101,35 @@ export default function RootPage() {
 
           {projects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {projects.map((project) => (
-                <Card
-                  key={project.id}
-                  className="md:hover:border-primary md:hover:shadow-lg transition-all cursor-pointer flex flex-col"
-                  onClick={() => router.push(`/p/${project.id}`)}
-                >
-                  <CardHeader className="pb-4">
-                    <CardTitle className="truncate" title={project.name}>
-                      {truncateText(project.name, 50)}
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      {project.columns.length} columns,{' '}
-                      {project.columns.reduce((acc, col) => acc + col.tasks.length, 0)} tasks
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-grow space-y-2">
-                    <p className="text-sm text-muted-foreground line-clamp-2" title={project.description}>
-                      {truncateText(project.description || 'No description', 100)}
-                    </p>
-                  </CardContent>
-                  <CardFooter>
-                    <span className="text-xs text-muted-foreground">
-                      Updated {new Date(project.updatedAt).toLocaleDateString()}
-                    </span>
-                  </CardFooter>
-                </Card>
-              ))}
+              {projects.map((project) => {
+                const projectTasks = selectTasksByProject(tasks, project.id);
+                return (
+                  <Card
+                    key={project.id}
+                    className="md:hover:border-primary md:hover:shadow-lg transition-all cursor-pointer flex flex-col"
+                    onClick={() => router.push(`/p/${project.id}`)}
+                  >
+                    <CardHeader className="pb-4">
+                      <CardTitle className="truncate" title={project.name}>
+                        {truncateText(project.name, 50)}
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        {project.columns.length} columns, {projectTasks.length} tasks
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow space-y-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2" title={project.description}>
+                        {truncateText(project.description || 'No description', 100)}
+                      </p>
+                    </CardContent>
+                    <CardFooter>
+                      <span className="text-xs text-muted-foreground">
+                        Updated {new Date(project.updatedAt).toLocaleDateString()}
+                      </span>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
               <Card
                 className="border-dashed border-2 md:hover:border-primary md:hover:shadow-lg transition-all cursor-pointer flex flex-col items-center justify-center text-muted-foreground md:hover:text-primary"
                 onClick={openDialog}

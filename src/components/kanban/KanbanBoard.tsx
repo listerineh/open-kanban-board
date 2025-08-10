@@ -9,16 +9,15 @@ import Confetti from 'react-confetti';
 
 type KanbanBoardProps = {
   project: Project;
+  tasks: Task[];
   onTaskClick: (task: Task, columnId: string) => void;
 };
 
-export function KanbanBoard({ project, onTaskClick }: KanbanBoardProps) {
+export function KanbanBoard({ project, tasks, onTaskClick }: KanbanBoardProps) {
   const { actions, showConfetti } = useKanbanStore();
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-
-  const allTasks = useMemo(() => project.columns.flatMap((c) => c.tasks), [project.columns]);
 
   useEffect(() => {
     function handleResize() {
@@ -54,6 +53,16 @@ export function KanbanBoard({ project, onTaskClick }: KanbanBoardProps) {
     setDraggedColumnId(null);
   }, []);
 
+  const tasksByColumn = useMemo(() => {
+    return project.columns.reduce(
+      (acc, column) => {
+        acc[column.id] = tasks.filter((task) => task.columnId === column.id).sort((a, b) => a.order - b.order);
+        return acc;
+      },
+      {} as Record<string, Task[]>,
+    );
+  }, [project.columns, tasks]);
+
   return (
     <>
       {showConfetti && (
@@ -70,7 +79,8 @@ export function KanbanBoard({ project, onTaskClick }: KanbanBoardProps) {
             key={column.id}
             project={project}
             column={column}
-            allTasks={allTasks}
+            tasks={tasksByColumn[column.id] || []}
+            allTasks={tasks}
             members={members}
             onColumnDragStart={handleColumnDragStart}
             onColumnDrop={handleColumnDrop}

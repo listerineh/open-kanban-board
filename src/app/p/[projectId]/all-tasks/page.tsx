@@ -18,7 +18,7 @@ import { TaskDetailsDialog } from '@/components/kanban/TaskDetailsDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { FILTERS_SORT_DIRECTION, FILTERS_SORTABLE_KEYS } from '@/lib/constants';
@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 export default function AllTasksPage() {
   const router = useRouter();
   const { projectId } = useParams() as { projectId: string };
-  const { projects, isLoaded, actions } = useKanbanStore();
+  const { projects, isLoaded, tasks, actions } = useKanbanStore();
   const { loading: authLoading } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -44,6 +44,11 @@ export default function AllTasksPage() {
   });
 
   useEffect(() => {
+    const unsubscribe = actions.setActiveProject(projectId);
+    return () => unsubscribe();
+  }, [projectId, actions]);
+
+  useEffect(() => {
     if (authLoading || !isLoaded) return;
 
     const foundProject = projects.find((p) => p.id === projectId);
@@ -56,13 +61,16 @@ export default function AllTasksPage() {
     }
   }, [projectId, projects, isLoaded, authLoading, router, actions]);
 
-  const allTasks = useMemo(() => {
+  const allTasksWithStatus = useMemo(() => {
     if (!project) return [];
-    return project.columns.flatMap((col) => col.tasks.map((task) => ({ ...task, status: col.title })));
-  }, [project]);
+    return tasks.map((task) => ({
+      ...task,
+      status: project.columns.find((c) => c.id === task.columnId)?.title ?? 'Unknown',
+    }));
+  }, [project, tasks]);
 
   const sortedTasks = useMemo(() => {
-    let filtered = allTasks;
+    let filtered = allTasksWithStatus;
 
     if (searchQuery) {
       const lowerCaseQuery = searchQuery.toLowerCase();
@@ -74,7 +82,7 @@ export default function AllTasksPage() {
 
     if (selectedAssignees.size > 0) {
       filtered = filtered.filter((task) => {
-        const assigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
+        const assigneeIds = task.assigneeIds || [];
         if (selectedAssignees.has('unassigned') && assigneeIds.length === 0) {
           return true;
         }
@@ -109,8 +117,8 @@ export default function AllTasksPage() {
           compare = aPriority - bPriority;
           break;
         case 'assignee':
-          const aAssigneeIds = a.assigneeIds || (a.assignee ? [a.assignee] : []);
-          const bAssigneeIds = b.assigneeIds || (b.assignee ? [b.assignee] : []);
+          const aAssigneeIds = a.assigneeIds || [];
+          const bAssigneeIds = b.assigneeIds || [];
           const aNames =
             aAssigneeIds
               .map((id) => members.find((m) => m.uid === id)?.displayName)
@@ -131,19 +139,19 @@ export default function AllTasksPage() {
     });
 
     return sorted;
-  }, [allTasks, searchQuery, selectedStatuses, selectedAssignees, selectedPriorities, sortConfig, members]);
+  }, [allTasksWithStatus, searchQuery, selectedStatuses, selectedAssignees, selectedPriorities, sortConfig, members]);
 
   const stats = useMemo(() => {
-    const totalTasks = allTasks.length;
-    const activeTasks = allTasks.filter((t) => !t.completedAt && !t.isArchived).length;
-    const archivedTasks = allTasks.filter((t) => t.isArchived).length;
+    const totalTasks = tasks.length;
+    const activeTasks = tasks.filter((t) => !t.completedAt && !t.isArchived).length;
+    const archivedTasks = tasks.filter((t) => t.isArchived).length;
 
     return {
       totalTasks,
       activeTasks,
       archivedTasks,
     };
-  }, [allTasks]);
+  }, [tasks]);
 
   const closeTaskDialog = () => {
     setEditingTask(null);
@@ -151,10 +159,7 @@ export default function AllTasksPage() {
 
   const onTaskClick = (task: Task) => {
     if (!project) return;
-    const column = project.columns.find((c) => c.tasks.some((t) => t.id === task.id));
-    if (column) {
-      setEditingTask({ task, columnId: column.id });
-    }
+    setEditingTask({ task, columnId: task.columnId });
   };
 
   const toggleFilter = (type: 'statuses' | 'assignees' | 'priorities', value: string) => {
@@ -421,7 +426,7 @@ export default function AllTasksPage() {
                     <TableBody>
                       {sortedTasks.length > 0 ? (
                         sortedTasks.map((task) => {
-                          const assigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
+                          const assigneeIds = task.assigneeIds || [];
                           const assignees = assigneeIds
                             .map((id) => members.find((m) => m.uid === id))
                             .filter(Boolean) as KanbanUser[];
@@ -491,9 +496,6 @@ export default function AllTasksPage() {
           onClose={closeTaskDialog}
           project={project}
           task={editingTask?.task ?? null}
-          columnId={editingTask?.columnId ?? null}
-          columns={project.columns}
-          allTasks={allTasks}
           members={members}
           onTaskClick={onTaskClick}
         />
