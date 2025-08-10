@@ -2,11 +2,12 @@
 
 import { useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { Project } from '@/types/kanban';
+import type { Project, Task } from '@/types/kanban';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 type TaskStatusChartProps = {
   project: Project;
+  tasks: Task[];
 };
 
 const COLORS = [
@@ -18,13 +19,13 @@ const COLORS = [
   'hsl(var(--muted-foreground))',
 ];
 
-export function TaskStatusChart({ project }: TaskStatusChartProps) {
+export function TaskStatusChart({ project, tasks }: TaskStatusChartProps) {
   const chartData = useMemo(() => {
     return project.columns.map((column) => ({
       name: column.title,
-      value: column.tasks.length,
+      value: tasks.filter(t => t.columnId === column.id).length,
     }));
-  }, [project]);
+  }, [project, tasks]);
 
   return (
     <Card>

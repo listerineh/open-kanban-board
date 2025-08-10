@@ -18,11 +18,16 @@ import { TasksByPriorityChart } from '@/components/dashboard/TasksByPriorityChar
 export default function ProjectDashboardPage() {
   const router = useRouter();
   const { projectId } = useParams() as { projectId: string };
-  const { projects, isLoaded, actions } = useKanbanStore();
+  const { projects, isLoaded, tasks, actions } = useKanbanStore();
   const { loading: authLoading } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = actions.setActiveProject(projectId);
+    return () => unsubscribe();
+  }, [projectId, actions]);
 
   useEffect(() => {
     if (authLoading || !isLoaded) return;
@@ -37,16 +42,14 @@ export default function ProjectDashboardPage() {
     }
   }, [projectId, projects, isLoaded, authLoading, router, actions]);
 
-  const allTasks = useMemo(() => project?.columns.flatMap((c) => c.tasks) ?? [], [project]);
-
-  const hasTasksWithDeadline = useMemo(() => allTasks.some((t) => !!t.deadline), [allTasks]);
+  const hasTasksWithDeadline = useMemo(() => tasks.some(t => !!t.deadline), [tasks]);
 
   const stats = useMemo(() => {
     if (!project) return null;
 
-    const totalTasks = allTasks.length;
-    const completedTasks = allTasks.filter((t) => t.completedAt).length;
-    const overdueTasks = allTasks.filter((t) => !t.completedAt && t.deadline && isPast(parseISO(t.deadline))).length;
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter((t) => t.completedAt).length;
+    const overdueTasks = tasks.filter((t) => !t.completedAt && t.deadline && isPast(parseISO(t.deadline))).length;
 
     return {
       totalTasks,
@@ -54,7 +57,7 @@ export default function ProjectDashboardPage() {
       overdueTasks,
       membersCount: members.length,
     };
-  }, [project, allTasks, members]);
+  }, [project, tasks, members]);
 
   if (authLoading || !isLoaded || !project || !stats) {
     return <FullPageLoader text="Loading dashboard..." />;
@@ -103,12 +106,12 @@ export default function ProjectDashboardPage() {
           </div>
 
           <div className="grid gap-8 lg:grid-cols-2">
-            <TaskStatusChart project={project} />
-            <TasksByPriorityChart tasks={allTasks} />
+            <TaskStatusChart project={project} tasks={tasks} />
+            <TasksByPriorityChart tasks={tasks} />
           </div>
 
           <div>
-            <TasksPerMemberChart tasks={allTasks} members={members} />
+            <TasksPerMemberChart tasks={tasks} members={members} />
           </div>
         </main>
       </div>
