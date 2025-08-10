@@ -22,9 +22,11 @@ export interface Invitation {
 
 export interface Task {
   id: string;
+  projectId: string;
+  columnId: string;
+  order: number;
   title: string;
   description?: string;
-  assignee?: string;
   assigneeIds?: string[];
   priority?: 'Urgent' | 'High' | 'Medium' | 'Low';
   createdAt: string;
@@ -54,7 +56,6 @@ export interface Label {
 export interface Column {
   id: string;
   title: string;
-  tasks: Task[];
   createdAt: string;
   updatedAt: string;
 }
@@ -62,7 +63,7 @@ export interface Column {
 export interface Project {
   id: string;
   name: string;
-  columns: Column[];
+  columns: Omit<Column, 'tasks'>[];
   ownerId: string;
   description?: string;
   members: string[];
