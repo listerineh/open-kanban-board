@@ -48,7 +48,7 @@ function ProjectPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { projects, isLoaded, actions } = useKanbanStore();
+  const { projects, isLoaded, tasks, actions } = useKanbanStore();
   const { loading: authLoading } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -59,6 +59,11 @@ function ProjectPageContent() {
   const [selectedAssignees, setSelectedAssignees] = useState<Set<string>>(new Set());
   const [selectedPriorities, setSelectedPriorities] = useState<Set<string>>(new Set());
   const [selectedLabels, setSelectedLabels] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const unsubscribe = actions.setActiveProject(projectId);
+    return () => unsubscribe();
+  }, [projectId, actions]);
 
   const updateUrlFilters = useCallback(
     (newFilters: { assignees?: Set<string>; priorities?: Set<string>; labels?: Set<string> }) => {
@@ -82,9 +87,9 @@ function ProjectPageContent() {
   );
 
   useEffect(() => {
-    const assignees = new Set(searchParams.get('assignees')?.split(',') ?? []);
-    const priorities = new Set(searchParams.get('priorities')?.split(',') ?? []);
-    const labels = new Set(searchParams.get('labels')?.split(',') ?? []);
+    const assignees = new Set(searchParams.get('assignees')?.split(',').filter(Boolean) ?? []);
+    const priorities = new Set(searchParams.get('priorities')?.split(',').filter(Boolean) ?? []);
+    const labels = new Set(searchParams.get('labels')?.split(',').filter(Boolean) ?? []);
 
     setSelectedAssignees(assignees);
     setSelectedPriorities(priorities);
@@ -109,13 +114,9 @@ function ProjectPageContent() {
       }
       const taskId = searchParams.get('taskId');
       if (taskId) {
-        const allTasks = foundProject.columns.flatMap((c) => c.tasks);
-        const taskToOpen = allTasks.find((t) => t.id === taskId);
+        const taskToOpen = tasks.find((t) => t.id === taskId);
         if (taskToOpen) {
-          const column = foundProject.columns.find((c) => c.tasks.some((t) => t.id === taskId));
-          if (column) {
-            setEditingTask({ task: taskToOpen, columnId: column.id });
-          }
+          setEditingTask({ task: taskToOpen, columnId: taskToOpen.columnId });
         }
       }
     } else {
@@ -126,7 +127,7 @@ function ProjectPageContent() {
       }
       router.replace('/');
     }
-  }, [projectId, authLoading, isLoaded, projects, router, searchParams, actions]);
+  }, [projectId, authLoading, isLoaded, projects, router, searchParams, actions, tasks]);
 
   const closeTaskDialog = useCallback(() => {
     setEditingTask(null);
@@ -183,85 +184,35 @@ function ProjectPageContent() {
     [selectedAssignees, selectedPriorities, selectedLabels],
   );
 
-  const filteredProject = useMemo(() => {
-    if (!project) return null;
-
-    const unarchivedProject = {
-      ...project,
-      columns: project.columns.map((column) => ({
-        ...column,
-        tasks: column.tasks.filter((task) => !task.isArchived),
-      })),
-    };
+  const filteredTasks = useMemo(() => {
+    const unarchivedTasks = tasks.filter((task) => !task.isArchived);
 
     const hasFilters =
       searchQuery || selectedAssignees.size > 0 || selectedPriorities.size > 0 || selectedLabels.size > 0;
 
     if (!hasFilters) {
-      return unarchivedProject;
+      return unarchivedTasks;
     }
 
-    let filteredTaskIds = new Set(unarchivedProject.columns.flatMap((c) => c.tasks).map((t) => t.id));
+    return unarchivedTasks.filter((task) => {
+      const searchMatch = searchQuery
+        ? task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
 
-    if (searchQuery) {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      const searchFilteredIds = new Set(
-        unarchivedProject.columns
-          .flatMap((c) => c.tasks)
-          .filter(
-            (task) =>
-              task.title.toLowerCase().includes(lowerCaseQuery) ||
-              task.description?.toLowerCase().includes(lowerCaseQuery),
-          )
-          .map((t) => t.id),
-      );
-      filteredTaskIds = new Set([...filteredTaskIds].filter((id) => searchFilteredIds.has(id)));
-    }
+      const assigneeMatch =
+        selectedAssignees.size > 0
+          ? (task.assigneeIds || []).some((id) => selectedAssignees.has(id)) ||
+            (selectedAssignees.has('unassigned') && (!task.assigneeIds || task.assigneeIds.length === 0))
+          : true;
 
-    if (selectedAssignees.size > 0) {
-      const assigneeFilteredIds = new Set(
-        unarchivedProject.columns
-          .flatMap((c) => c.tasks)
-          .filter((task) => {
-            const taskAssigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
-            if (selectedAssignees.has('unassigned') && taskAssigneeIds.length === 0) {
-              return true;
-            }
-            return taskAssigneeIds.some((selectedId) => selectedAssignees.has(selectedId));
-          })
-          .map((t) => t.id),
-      );
-      filteredTaskIds = new Set([...filteredTaskIds].filter((id) => assigneeFilteredIds.has(id)));
-    }
+      const priorityMatch = selectedPriorities.size > 0 ? selectedPriorities.has(task.priority || 'Medium') : true;
 
-    if (selectedPriorities.size > 0) {
-      const priorityFilteredIds = new Set(
-        unarchivedProject.columns
-          .flatMap((c) => c.tasks)
-          .filter((task) => selectedPriorities.has(task.priority || 'Medium'))
-          .map((t) => t.id),
-      );
-      filteredTaskIds = new Set([...filteredTaskIds].filter((id) => priorityFilteredIds.has(id)));
-    }
+      const labelMatch = selectedLabels.size > 0 ? (task.labelIds || []).some((id) => selectedLabels.has(id)) : true;
 
-    if (selectedLabels.size > 0) {
-      const labelFilteredIds = new Set(
-        unarchivedProject.columns
-          .flatMap((c) => c.tasks)
-          .filter((task) => task.labelIds?.some((labelId) => selectedLabels.has(labelId)))
-          .map((t) => t.id),
-      );
-      filteredTaskIds = new Set([...filteredTaskIds].filter((id) => labelFilteredIds.has(id)));
-    }
-
-    return {
-      ...unarchivedProject,
-      columns: unarchivedProject.columns.map((column) => ({
-        ...column,
-        tasks: column.tasks.filter((task) => filteredTaskIds.has(task.id)),
-      })),
-    };
-  }, [project, searchQuery, selectedAssignees, selectedPriorities, selectedLabels]);
+      return searchMatch && assigneeMatch && priorityMatch && labelMatch;
+    });
+  }, [tasks, searchQuery, selectedAssignees, selectedPriorities, selectedLabels]);
 
   const onTaskClick = useCallback(
     (task: Task, columnId: string) => {
@@ -274,13 +225,11 @@ function ProjectPageContent() {
     [projectId, router, searchParams],
   );
 
-  if (authLoading || !isLoaded || !project || !filteredProject) {
+  if (authLoading || !isLoaded || !project) {
     return <KanbanBoardSkeleton />;
   }
 
   const enableDashboard = project.enableDashboard ?? true;
-  const allTasks = project.columns.flatMap((c) => c.tasks);
-
   const truncatedProjectName = project.name.length > 25 ? `${project.name.substring(0, 25)}...` : project.name;
 
   return (
@@ -470,7 +419,7 @@ function ProjectPageContent() {
         </div>
 
         <main className="flex-1 min-w-0 min-h-0 w-full max-w-full overflow-x-auto flex flex-col h-screen max-h-screen">
-          <KanbanBoard key={project.id} project={filteredProject} onTaskClick={onTaskClick} />
+          <KanbanBoard key={project.id} project={project} tasks={filteredTasks} onTaskClick={onTaskClick} />
         </main>
       </div>
       <TaskDetailsDialog
@@ -478,9 +427,6 @@ function ProjectPageContent() {
         onClose={closeTaskDialog}
         project={project}
         task={editingTask?.task ?? null}
-        columnId={editingTask?.columnId ?? null}
-        columns={project.columns}
-        allTasks={allTasks}
         members={members}
         onTaskClick={onTaskClick}
       />

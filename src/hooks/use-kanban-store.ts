@@ -23,6 +23,7 @@ import {
   orderBy,
   writeBatch,
   getDoc,
+  runTransaction,
 } from 'firebase/firestore';
 import { subDays, subWeeks, subMonths } from 'date-fns';
 
@@ -41,14 +42,17 @@ export type AddProjectOptions = {
 
 export interface KanbanState {
   projects: Project[];
+  tasks: Task[];
   isLoaded: boolean;
   user: User | null;
   showConfetti: boolean;
   actions: KanbanStoreActions;
+  activeProjectId: string | null;
 }
 
 export interface KanbanStoreActions {
   init: (user: User) => () => void;
+  setActiveProject: (projectId: string) => () => void;
   clear: () => void;
   hideConfetti: () => void;
   addProject: (options: AddProjectOptions) => Promise<string | null>;
@@ -56,7 +60,7 @@ export interface KanbanStoreActions {
   addTask: (
     projectId: string,
     columnId: string,
-    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'activity'>,
+    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'activity' | 'projectId'>,
   ) => Promise<void>;
   moveTask: (
     projectId: string,
@@ -71,11 +75,10 @@ export interface KanbanStoreActions {
   updateTask: (
     projectId: string,
     taskId: string,
-    columnId: string,
     updatedData: Partial<Omit<Task, 'id'>>,
     meta?: { subtaskTitle?: string },
   ) => Promise<void>;
-  deleteTask: (projectId: string, taskId: string, columnId: string) => Promise<void>;
+  deleteTask: (projectId: string, taskId: string) => Promise<void>;
   deleteColumn: (projectId: string, columnId: string) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   searchUsers: (searchTerm: string) => Promise<KanbanUser[]>;
@@ -89,6 +92,7 @@ export interface KanbanStoreActions {
   deleteLabel: (projectId: string, labelId: string) => Promise<void>;
   addComment: (projectId: string, taskId: string, commentText: string, mentions: string[]) => Promise<void>;
   archiveOldTasks: (projectId: string) => Promise<void>;
+  migrateProjectToSeparateTasks: (project: Project) => Promise<void>;
 }
 
 const addActivity = (task: Task, text: string, userId: string, type: 'log' | 'comment' = 'log'): Activity[] => {
@@ -104,9 +108,11 @@ const addActivity = (task: Task, text: string, userId: string, type: 'log' | 'co
 
 export const useKanbanStore = create<KanbanState>((set, get) => ({
   projects: [],
+  tasks: [],
   isLoaded: false,
   user: null,
   showConfetti: false,
+  activeProjectId: null,
   actions: {
     init: (user: User) => {
       set({ user, isLoaded: false });
@@ -115,9 +121,16 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
       const unsubscribe = onSnapshot(
         q,
-        (snapshot) => {
+        async (snapshot) => {
           const userProjects = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Project);
           set({ projects: userProjects, isLoaded: true });
+
+          for (const project of userProjects) {
+            if (project.columns.length > 0 && 'tasks' in project.columns[0]) {
+              console.log(`Migrating project: ${project.name} (${project.id})`);
+              await get().actions.migrateProjectToSeparateTasks(project);
+            }
+          }
         },
         (error) => {
           console.error('Error fetching projects:', error);
@@ -132,8 +145,31 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
       return unsubscribe;
     },
+    setActiveProject: (projectId: string) => {
+      set({ activeProjectId: projectId, tasks: [] });
+      const tasksRef = collection(db, 'tasks');
+      const q = query(tasksRef, where('projectId', '==', projectId));
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const tasks = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Task);
+          set({ tasks });
+        },
+        (error) => {
+          console.error('Error fetching tasks for project:', projectId, error);
+          toast({
+            title: 'Error Loading Tasks',
+            description: 'Could not load tasks for this project.',
+            variant: 'destructive',
+          });
+        },
+      );
+
+      return unsubscribe;
+    },
     clear: () => {
-      set({ projects: [], isLoaded: false, user: null });
+      set({ projects: [], tasks: [], isLoaded: false, user: null, activeProjectId: null });
     },
     hideConfetti: () => set({ showConfetti: false }),
     updateProject: async (projectId: string, data: Partial<Omit<Project, 'id'>>) => {
@@ -167,7 +203,6 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         columns: columns.map((ct) => ({
           id: `col-${Date.now()}-${ct.title.replace(/\s+/g, '-')}`,
           title: ct.title,
-          tasks: [],
           createdAt: now,
           updatedAt: now,
         })),
@@ -196,8 +231,8 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       if (!project) return;
 
       const now = new Date().toISOString();
-      const newColumn: Column = { id: `col-${Date.now()}`, title, tasks: [], createdAt: now, updatedAt: now };
-      const columns = [...project.columns];
+      const newColumn: Omit<Column, 'tasks'> = { id: `col-${Date.now()}`, title, createdAt: now, updatedAt: now };
+      let columns = [...project.columns];
       const doneColumnIndex = columns.findIndex((c) => c.title === 'Done');
 
       if (doneColumnIndex !== -1) {
@@ -225,7 +260,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     addTask: async (
       projectId: string,
       columnId: string,
-      taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'activity'>,
+      taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'activity' | 'projectId'>,
     ) => {
       const { projects, user, actions } = get();
       if (!user) return;
@@ -233,8 +268,10 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       if (!project) return;
 
       const now = new Date().toISOString();
-      let newTask: Task = {
-        id: `task-${Date.now()}`,
+      let newTask: Omit<Task, 'id'> = {
+        projectId,
+        columnId,
+        order: get().tasks.filter((t) => t.columnId === columnId).length,
         createdAt: now,
         updatedAt: now,
         completedAt: null,
@@ -252,32 +289,29 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
       const activityText = taskData.parentId ? `created this sub-task` : `created this task`;
 
-      newTask.activity = addActivity(newTask, activityText, user.uid);
+      newTask.activity = addActivity(newTask as Task, activityText, user.uid);
 
       const column = project.columns.find((c) => c.id === columnId);
       if (column && column.title === 'Done') {
         newTask.completedAt = now;
-        newTask.activity = addActivity(newTask, `marked this as <b>complete</b>`, user.uid);
+        newTask.activity = addActivity(newTask as Task, `marked this as <b>complete</b>`, user.uid);
         set({ showConfetti: true });
       }
 
-      let updatedColumns = project.columns.map((c) => (c.id === columnId ? { ...c, tasks: [newTask, ...c.tasks] } : c));
-
-      if (taskData.parentId) {
-        updatedColumns = updatedColumns.map((c) => ({
-          ...c,
-          tasks: c.tasks.map((t) => {
-            if (t.id === taskData.parentId) {
-              const parentActivityText = `added a sub-task: <b>${newTask.title}</b>`;
-              return { ...t, activity: addActivity(t, parentActivityText, user.uid) };
-            }
-            return t;
-          }),
-        }));
-      }
-
       try {
-        await actions.updateProject(project.id, { columns: updatedColumns });
+        await addDoc(collection(db, 'tasks'), newTask);
+
+        if (taskData.parentId) {
+          const parentTaskRef = doc(db, 'tasks', taskData.parentId);
+          const parentActivityText = `added a sub-task: <b>${newTask.title}</b>`;
+          const parentTaskDoc = await getDoc(parentTaskRef);
+          if (parentTaskDoc.exists()) {
+            const parentTask = parentTaskDoc.data() as Task;
+            await updateDoc(parentTaskRef, {
+              activity: addActivity(parentTask, parentActivityText, user.uid),
+            });
+          }
+        }
         toast({
           title: taskData.parentId ? 'Sub-task Created' : 'Task Created',
           description: `Task "${newTask.title.trim()}" has been added.`,
@@ -293,7 +327,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     },
     moveTask: async (projectId: string, taskId: string, fromColumnId: string, toColumnId: string, toIndex: number) => {
-      const { projects, user, actions } = get();
+      const { projects, user, tasks } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
@@ -302,49 +336,68 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       const toColumn = project.columns.find((c) => c.id === toColumnId);
       if (!fromColumn || !toColumn) return;
 
-      const taskToMove = fromColumn.tasks.find((t) => t.id === taskId);
+      const taskToMove = tasks.find((t) => t.id === taskId);
       if (!taskToMove) return;
 
-      const allTasks = project.columns.flatMap((c) => c.tasks);
-      const subtasks = allTasks.filter((t) => t.parentId === taskId);
+      const subtasks = tasks.filter((t) => t.parentId === taskId);
 
-      const activityText = `moved this task from <b>${fromColumn.title}</b> to <b>${toColumn.title}</b>`;
-      taskToMove.activity = addActivity(taskToMove, activityText, user.uid);
-
-      if (toColumn.title === 'Done') {
+      if (toColumn.title.toLowerCase() === 'done') {
         if (subtasks.length > 0 && subtasks.some((st) => !st.completedAt)) {
           toast({
             variant: 'warning',
             title: 'Action Required',
-            description: "Please complete all sub-tasks before moving this task to 'Done'.",
+            description: 'Please complete all sub-tasks before moving this task to the final column.',
           });
           return;
         }
-        taskToMove.completedAt = new Date().toISOString();
-        taskToMove.activity = addActivity(taskToMove, `marked this as <b>complete</b>`, user.uid);
-        set({ showConfetti: true });
-      } else {
-        taskToMove.completedAt = null;
       }
 
-      taskToMove.updatedAt = new Date().toISOString();
-
-      const newFromColumnTasks = fromColumn.tasks.filter((t) => t.id !== taskId);
-      const newToColumnTasks = [...toColumn.tasks];
-      newToColumnTasks.splice(toIndex, 0, taskToMove);
-
-      const newColumns = project.columns.map((column) => {
-        if (column.id === fromColumnId) {
-          return { ...column, tasks: newFromColumnTasks };
-        }
-        if (column.id === toColumnId) {
-          return { ...column, tasks: newToColumnTasks };
-        }
-        return column;
-      });
-
       try {
-        await actions.updateProject(projectId, { columns: newColumns });
+        await runTransaction(db, async (transaction) => {
+          const taskRef = doc(db, 'tasks', taskId);
+          const taskDoc = await transaction.get(taskRef);
+          if (!taskDoc.exists()) throw 'Task does not exist!';
+
+          const updatedTaskData: Partial<Task> = {
+            columnId: toColumnId,
+            order: toIndex,
+            updatedAt: new Date().toISOString(),
+          };
+
+          const activityText = `moved this task from <b>${fromColumn.title}</b> to <b>${toColumn.title}</b>`;
+          updatedTaskData.activity = addActivity(taskDoc.data() as Task, activityText, user.uid);
+
+          if (toColumn.title.toLowerCase() === 'done') {
+            updatedTaskData.completedAt = new Date().toISOString();
+            updatedTaskData.activity = addActivity(updatedTaskData as Task, `marked this as <b>complete</b>`, user.uid);
+            set({ showConfetti: true });
+          } else {
+            updatedTaskData.completedAt = null;
+          }
+
+          transaction.update(taskRef, updatedTaskData);
+
+          const tasksInToColumn = tasks
+            .filter((t) => t.columnId === toColumnId && t.id !== taskId)
+            .sort((a, b) => a.order - b.order);
+          tasksInToColumn.splice(toIndex, 0, { ...taskDoc.data(), ...updatedTaskData } as Task);
+
+          tasksInToColumn.forEach((t, index) => {
+            if (t.order !== index) {
+              transaction.update(doc(db, 'tasks', t.id), { order: index });
+            }
+          });
+
+          const tasksInFromColumn = tasks
+            .filter((t) => t.columnId === fromColumnId && t.id !== taskId)
+            .sort((a, b) => a.order - b.order);
+
+          tasksInFromColumn.forEach((t, index) => {
+            if (t.order !== index) {
+              transaction.update(doc(db, 'tasks', t.id), { order: index });
+            }
+          });
+        });
       } catch (error) {
         console.error('Error moving task:', error);
         toast({
@@ -406,11 +459,10 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     updateTask: async (
       projectId: string,
       taskId: string,
-      columnId: string,
       updatedData: Partial<Omit<Task, 'id'>>,
       meta?: { subtaskTitle?: string },
     ) => {
-      const { projects, user, actions } = get();
+      const { projects, user, actions, tasks } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
@@ -427,158 +479,113 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         }
       });
 
-      const allTasks = project.columns.flatMap((c) => c.tasks);
-      let subtasksToUpdate: Task[] = [];
-      const taskBeingUpdated = allTasks.find((t) => t.id === taskId);
-      if (taskBeingUpdated && !taskBeingUpdated.parentId && cleanUpdatedData.assigneeIds !== undefined) {
-        subtasksToUpdate = allTasks.filter((t) => t.parentId === taskId);
-      }
-
-      const newColumns = project.columns.map((c) => {
-        let tasks = c.tasks.map((t) => {
-          if (t.id === taskId) {
-            const oldTask: Task = { ...t };
-            let updatedTask = { ...t, ...cleanUpdatedData, updatedAt: now };
-
-            if (cleanUpdatedData.title && cleanUpdatedData.title !== oldTask.title) {
-              updatedTask.activity = addActivity(
-                updatedTask,
-                `changed the title from <b>${oldTask.title}</b> to <b>${updatedTask.title}</b>`,
-                user.uid,
-              );
-            }
-            if (
-              cleanUpdatedData.description !== undefined &&
-              cleanUpdatedData.description !== (oldTask.description || '')
-            ) {
-              updatedTask.activity = addActivity(updatedTask, `updated the description`, user.uid);
-            }
-            if (cleanUpdatedData.assigneeIds) {
-              const oldAssigneeIds = oldTask.assigneeIds || (oldTask.assignee ? [oldTask.assignee] : []);
-              if (JSON.stringify(cleanUpdatedData.assigneeIds.sort()) !== JSON.stringify(oldAssigneeIds.sort())) {
-                const oldNames = oldAssigneeIds
-                  .map((id) => allMembers.find((m) => m.uid === id)?.displayName || 'Unassigned')
-                  .join(', ');
-                const newNames = cleanUpdatedData.assigneeIds
-                  .map((id) => allMembers.find((m) => m.uid === id)?.displayName || 'Unassigned')
-                  .join(', ');
-                updatedTask.activity = addActivity(
-                  updatedTask,
-                  `changed assignees from <b>${oldNames || 'none'}</b> to <b>${newNames || 'none'}</b>`,
-                  user.uid,
-                );
-
-                const addedAssignees = cleanUpdatedData.assigneeIds.filter((id) => !oldAssigneeIds.includes(id));
-                addedAssignees.forEach((assigneeId) => {
-                  addDoc(collection(db, 'notifications'), {
-                    userId: assigneeId,
-                    text: `You were assigned to the task <b>${updatedTask.title}</b> in project <b>${project.name}</b>`,
-                    link: `/p/${projectId}?taskId=${updatedTask.id}`,
-                    read: false,
-                    createdAt: new Date().toISOString(),
-                  } as Omit<Notification, 'id'>);
-                });
-              }
-            }
-            if (cleanUpdatedData.priority && cleanUpdatedData.priority !== oldTask.priority) {
-              updatedTask.activity = addActivity(
-                updatedTask,
-                `changed priority from <b>${oldTask.priority ?? 'Medium'}</b> to <b>${cleanUpdatedData.priority}</b>`,
-                user.uid,
-              );
-            }
-            if (cleanUpdatedData.deadline !== oldTask.deadline) {
-              const newDeadline = cleanUpdatedData.deadline
-                ? new Date(cleanUpdatedData.deadline).toLocaleDateString()
-                : 'no deadline';
-              updatedTask.activity = addActivity(updatedTask, `set the deadline to <b>${newDeadline}</b>`, user.uid);
-            }
-            if (
-              cleanUpdatedData.hasOwnProperty('completedAt') &&
-              cleanUpdatedData.completedAt !== oldTask.completedAt
-            ) {
-              const text = cleanUpdatedData.completedAt
-                ? 'marked this as <b>complete</b>'
-                : 'marked this as <b>incomplete</b>';
-              updatedTask.activity = addActivity(updatedTask, text, user.uid);
-            }
-
-            if (cleanUpdatedData.isArchived) {
-              updatedTask.activity = addActivity(updatedTask, `archived this task`, user.uid);
-            }
-
-            if (project.enableLabels && updatedData.labelIds) {
-              const oldLabels = oldTask.labelIds || [];
-              const newLabels = updatedData.labelIds;
-              const added = newLabels.filter((l) => !oldLabels.includes(l));
-              const removed = oldLabels.filter((l) => !newLabels.includes(l));
-
-              added.forEach((labelId) => {
-                const label = project.labels?.find((l) => l.id === labelId);
-                if (label)
-                  updatedTask.activity = addActivity(
-                    updatedTask,
-                    `added the label <b style="color: ${label.color}; background-color: ${label.color}20; padding: 1px 4px; border-radius: 4px;">${label.name}</b>`,
-                    user.uid,
-                  );
-              });
-              removed.forEach((labelId) => {
-                const label = project.labels?.find((l) => l.id === labelId);
-                if (label)
-                  updatedTask.activity = addActivity(
-                    updatedTask,
-                    `removed the label <b style="color: ${label.color}; background-color: ${label.color}20; padding: 1px 4px; border-radius: 4px;">${label.name}</b>`,
-                    user.uid,
-                  );
-              });
-            }
-            if (updatedTask.parentId) {
-              parentTask = project.columns.flatMap((c) => c.tasks).find((t) => t.id === updatedTask.parentId);
-            }
-            return updatedTask;
-          }
-          return t;
-        });
-
-        if (parentTask && cleanUpdatedData.hasOwnProperty('completedAt')) {
-          const parentId = parentTask.id;
-          tasks = tasks.map((t) => {
-            if (t.id === parentId) {
-              const activityText = cleanUpdatedData.completedAt
-                ? `completed a sub-task: <b>${meta?.subtaskTitle}</b>`
-                : `marked a sub-task as incomplete: <b>${meta?.subtaskTitle}</b>`;
-              return { ...t, activity: addActivity(t, activityText, user.uid) };
-            }
-            return t;
-          });
-        }
-        return { ...c, tasks };
-      });
-
-      if (subtasksToUpdate.length > 0) {
-        const newAssigneeIds = cleanUpdatedData.assigneeIds;
-        newColumns.forEach((column) => {
-          column.tasks.forEach((task) => {
-            if (subtasksToUpdate.some((st) => st.id === task.id)) {
-              task.assigneeIds = newAssigneeIds;
-              task.assignee = undefined;
-              task.updatedAt = now;
-            }
-          });
-        });
-      }
+      const taskRef = doc(db, 'tasks', taskId);
 
       try {
-        await actions.updateProject(projectId, { columns: newColumns });
+        await runTransaction(db, async (transaction) => {
+          const taskDoc = await transaction.get(taskRef);
+          if (!taskDoc.exists()) throw 'Task does not exist';
 
-        const allTasks = newColumns.flatMap((c) => c.tasks);
-        const updatedTask = allTasks.find((t) => t.id === taskId);
+          const oldTask = taskDoc.data() as Task;
+          let finalUpdatedData = { ...updatedData };
 
-        if (updatedTask?.parentId && cleanUpdatedData.hasOwnProperty('completedAt')) {
-          const parentTask = allTasks.find((t) => t.id === updatedTask.parentId);
+          const allMembers = await actions.getProjectMembers(projectId);
+
+          let activityText: string | null = null;
+
+          if (finalUpdatedData.title && finalUpdatedData.title !== oldTask.title) {
+            activityText = `changed the title from <b>${oldTask.title}</b> to <b>${finalUpdatedData.title}</b>`;
+          }
+          if (
+            finalUpdatedData.description !== undefined &&
+            finalUpdatedData.description !== (oldTask.description || '')
+          ) {
+            activityText = `updated the description`;
+          }
+          if (finalUpdatedData.assigneeIds) {
+            const oldAssigneeIds = oldTask.assigneeIds || [];
+            if (JSON.stringify(finalUpdatedData.assigneeIds.sort()) !== JSON.stringify(oldAssigneeIds.sort())) {
+              const oldNames = oldAssigneeIds
+                .map((id) => allMembers.find((m) => m.uid === id)?.displayName || 'Unassigned')
+                .join(', ');
+              const newNames = finalUpdatedData.assigneeIds
+                .map((id) => allMembers.find((m) => m.uid === id)?.displayName || 'Unassigned')
+                .join(', ');
+              activityText = `changed assignees from <b>${oldNames || 'none'}</b> to <b>${newNames || 'none'}</b>`;
+
+              const addedAssignees = finalUpdatedData.assigneeIds.filter((id) => !oldAssigneeIds.includes(id));
+              addedAssignees.forEach((assigneeId) => {
+                const notificationRef = doc(collection(db, 'notifications'));
+                transaction.set(notificationRef, {
+                  userId: assigneeId,
+                  text: `You were assigned to the task <b>${oldTask.title}</b> in project <b>${project.name}</b>`,
+                  link: `/p/${projectId}?taskId=${taskId}`,
+                  read: false,
+                  createdAt: new Date().toISOString(),
+                } as Omit<Notification, 'id'>);
+              });
+            }
+          }
+          if (finalUpdatedData.priority && finalUpdatedData.priority !== oldTask.priority) {
+            activityText = `changed priority from <b>${oldTask.priority ?? 'Medium'}</b> to <b>${finalUpdatedData.priority}</b>`;
+          }
+          if (finalUpdatedData.deadline !== oldTask.deadline) {
+            const newDeadline = finalUpdatedData.deadline
+              ? new Date(finalUpdatedData.deadline).toLocaleDateString()
+              : 'no deadline';
+            activityText = `set the deadline to <b>${newDeadline}</b>`;
+          }
+          if (finalUpdatedData.hasOwnProperty('completedAt') && finalUpdatedData.completedAt !== oldTask.completedAt) {
+            activityText = finalUpdatedData.completedAt
+              ? 'marked this as <b>complete</b>'
+              : 'marked this as <b>incomplete</b>';
+          }
+          if (finalUpdatedData.isArchived) {
+            activityText = `archived this task`;
+          }
+
+          if (project.enableLabels && updatedData.labelIds) {
+            const oldLabels = oldTask.labelIds || [];
+            const newLabels = updatedData.labelIds;
+            const added = newLabels.filter((l) => !oldLabels.includes(l));
+            const removed = oldLabels.filter((l) => !newLabels.includes(l));
+
+            if (added.length > 0 || removed.length > 0) {
+              activityText = 'updated labels'; // simplified for transaction
+            }
+          }
+
+          if (activityText) {
+            finalUpdatedData.activity = addActivity(oldTask, activityText, user.uid);
+          }
+
+          transaction.update(taskRef, finalUpdatedData);
+
+          if (oldTask.parentId && finalUpdatedData.hasOwnProperty('completedAt')) {
+            const parentTaskRef = doc(db, 'tasks', oldTask.parentId);
+            const parentTaskDoc = await transaction.get(parentTaskRef);
+            if (parentTaskDoc.exists()) {
+              const parentTask = parentTaskDoc.data() as Task;
+              const parentActivityText = finalUpdatedData.completedAt
+                ? `completed a sub-task: <b>${meta?.subtaskTitle || oldTask.title}</b>`
+                : `marked a sub-task as incomplete: <b>${meta?.subtaskTitle || oldTask.title}</b>`;
+              transaction.update(parentTaskRef, { activity: addActivity(parentTask, parentActivityText, user.uid) });
+            }
+          }
+          if (!oldTask.parentId && finalUpdatedData.assigneeIds) {
+            const subtasksToUpdate = tasks.filter((t) => t.parentId === taskId);
+            subtasksToUpdate.forEach((st) => {
+              transaction.update(doc(db, 'tasks', st.id), { assigneeIds: finalUpdatedData.assigneeIds });
+            });
+          }
+        });
+
+        const updatedTask = tasks.find((t) => t.id === taskId);
+        if (updatedTask?.parentId && updatedData.hasOwnProperty('completedAt')) {
+          const parentTask = tasks.find((t) => t.id === updatedTask.parentId);
           if (parentTask) {
-            const subtasks = allTasks.filter((st) => st.parentId === parentTask.id);
-            const allSubtasksComplete = subtasks.length > 0 && subtasks.every((st) => !!st.completedAt);
+            const subtasks = tasks.filter((st) => st.parentId === parentTask.id);
+            const allSubtasksComplete = subtasks.every((st) => !!st.completedAt || st.id === taskId);
 
             if (allSubtasksComplete) {
               toast({
@@ -598,27 +605,22 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         });
       }
     },
-    deleteTask: async (projectId: string, taskId: string, columnId: string) => {
-      const { projects, actions } = get();
-      const project = projects.find((p) => p.id === projectId);
-      if (!project) return;
-
-      const allTasks = project.columns.flatMap((c) => c.tasks);
-      const taskToDelete = allTasks.find((t) => t.id === taskId);
+    deleteTask: async (projectId: string, taskId: string) => {
+      const { tasks } = get();
+      const taskToDelete = tasks.find((t) => t.id === taskId);
       if (!taskToDelete) return;
 
-      const subtaskIds = allTasks.filter((t) => t.parentId === taskId).map((st) => st.id);
+      const subtaskIds = tasks.filter((t) => t.parentId === taskId).map((st) => st.id);
 
       const idsToDelete = [taskId, ...subtaskIds];
 
-      const updatedColumns = project.columns.map((column) => ({
-        ...column,
-        tasks: column.tasks.filter((t) => !idsToDelete.includes(t.id)),
-        updatedAt: new Date().toISOString(),
-      }));
-
       try {
-        await actions.updateProject(project.id, { columns: updatedColumns });
+        const batch = writeBatch(db);
+        idsToDelete.forEach((id) => {
+          batch.delete(doc(db, 'tasks', id));
+        });
+
+        await batch.commit();
         toast({
           title: 'Task Deleted',
           description: `Task "${taskToDelete.title.trim()}" and its sub-tasks were deleted.`,
@@ -634,12 +636,13 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     },
     deleteColumn: async (projectId: string, columnId: string) => {
-      const { projects, actions } = get();
+      const { projects, tasks, actions } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
       const column = project.columns.find((c) => c.id === columnId);
       if (!column) return;
-      if (column.tasks.length > 0) {
+      const tasksInColumn = tasks.filter((t) => t.columnId === columnId);
+      if (tasksInColumn.length > 0) {
         toast({
           variant: 'warning',
           title: 'Cannot Delete Column',
@@ -665,12 +668,21 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     },
     deleteProject: async (projectId: string) => {
-      const { projects } = get();
+      const { projects, tasks } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
-      const projectRef = doc(db, 'projects', projectId);
       try {
-        await deleteDoc(projectRef);
+        const batch = writeBatch(db);
+
+        const projectRef = doc(db, 'projects', projectId);
+        batch.delete(projectRef);
+
+        const projectTasks = tasks.filter((t) => t.projectId === projectId);
+        projectTasks.forEach((task) => {
+          batch.delete(doc(db, 'tasks', task.id));
+        });
+
+        await batch.commit();
         toast({
           title: 'Project Deleted',
           description: `Project "${project.name.trim()}" has been deleted.`,
@@ -773,19 +785,23 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     },
     getProjectMembers: async (projectId: string): Promise<KanbanUser[]> => {
-      const { projects } = get();
-      const project = projects.find((p) => p.id === projectId);
-      if (!project || !project.members) return [];
+      const projectDoc = await getDoc(doc(db, 'projects', projectId));
+      if (!projectDoc.exists()) return [];
+
+      const project = projectDoc.data() as Project;
+      if (!project.members || project.members.length === 0) return [];
 
       try {
         const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('uid', 'in', project.members));
-        const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map((doc) => doc.data() as KanbanUser);
-      } catch (e) {
-        if (e instanceof Error && e.message.includes("at least one value for 'in' operator")) {
-          return [];
+        const chunks = [];
+        for (let i = 0; i < project.members.length; i += 30) {
+          chunks.push(project.members.slice(i, i + 30));
         }
+        const memberDocs = await Promise.all(
+          chunks.map((chunk) => getDocs(query(usersRef, where('uid', 'in', chunk)))),
+        );
+        return memberDocs.flatMap((snapshot) => snapshot.docs.map((d) => d.data() as KanbanUser));
+      } catch (e) {
         console.error('Error fetching project members:', e);
         return [];
       }
@@ -886,7 +902,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       await actions.updateProject(projectId, { labels: updatedLabels });
     },
     deleteLabel: async (projectId: string, labelId: string) => {
-      const { projects, actions } = get();
+      const { projects, actions, tasks } = get();
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
@@ -894,19 +910,19 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       if (!labelToDelete) return;
 
       const updatedLabels = (project.labels || []).filter((label) => label.id !== labelId);
+      await actions.updateProject(projectId, { labels: updatedLabels });
 
-      const updatedColumns = project.columns.map((column) => ({
-        ...column,
-        tasks: column.tasks.map((task) => {
-          const newLabelIds = (task.labelIds || []).filter((id) => id !== labelId);
-          return {
-            ...task,
-            labelIds: newLabelIds,
-          };
-        }),
-      }));
+      const batch = writeBatch(db);
+      tasks.forEach((task) => {
+        if (task.labelIds?.includes(labelId)) {
+          const taskRef = doc(db, 'tasks', task.id);
+          batch.update(taskRef, {
+            labelIds: arrayRemove(labelId),
+          });
+        }
+      });
+      await batch.commit();
 
-      await actions.updateProject(projectId, { labels: updatedLabels, columns: updatedColumns });
       toast({
         title: 'Label Deleted',
         description: `Label "${labelToDelete.name}" was successfully removed.`,
@@ -914,25 +930,20 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       });
     },
     addComment: async (projectId: string, taskId: string, commentText: string, mentions: string[]) => {
-      const { projects, user, actions } = get();
+      const { projects, user, tasks } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
-      const newColumns = project.columns.map((c) => ({
-        ...c,
-        tasks: c.tasks.map((t) => {
-          if (t.id === taskId) {
-            return { ...t, activity: addActivity(t, commentText, user.uid, 'comment') };
-          }
-          return t;
-        }),
-      }));
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      if (!taskDoc.exists()) return;
 
-      await actions.updateProject(projectId, { columns: newColumns });
+      const task = taskDoc.data() as Task;
+      const updatedActivity = addActivity(task, commentText, user.uid, 'comment');
+      await updateDoc(taskRef, { activity: updatedActivity });
 
-      const task = project.columns.flatMap((c) => c.tasks).find((t) => t.id === taskId);
-      if (task) {
+      if (mentions.length > 0) {
         const batch = writeBatch(db);
         mentions.forEach((mentionedUserId) => {
           const notification: Omit<Notification, 'id'> = {
@@ -949,7 +960,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     },
     archiveOldTasks: async (projectId: string) => {
-      const { projects, user, actions } = get();
+      const { projects, user, tasks } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project || !project.autoArchivePeriod || project.autoArchivePeriod === 'never') return;
@@ -967,28 +978,24 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         return;
       }
 
-      let tasksArchivedCount = 0;
-      const updatedColumns = project.columns.map((column) => {
-        if (column.title === 'Done') {
-          return {
-            ...column,
-            tasks: column.tasks.map((task) => {
-              if (task.completedAt && new Date(task.completedAt) < archiveThreshold && !task.isArchived) {
-                tasksArchivedCount++;
-                return { ...task, isArchived: true };
-              }
-              return task;
-            }),
-          };
-        }
-        return column;
-      });
+      let tasksToArchive = tasks.filter(
+        (task) =>
+          task.projectId === projectId &&
+          task.completedAt &&
+          new Date(task.completedAt) < archiveThreshold &&
+          !task.isArchived,
+      );
 
-      if (tasksArchivedCount > 0) {
-        await actions.updateProject(projectId, { columns: updatedColumns });
+      if (tasksToArchive.length > 0) {
+        const batch = writeBatch(db);
+        tasksToArchive.forEach((task) => {
+          const taskRef = doc(db, 'tasks', task.id);
+          batch.update(taskRef, { isArchived: true, activity: addActivity(task, 'archived this task', user.uid) });
+        });
+        await batch.commit();
         const notification: Omit<Notification, 'id'> = {
           userId: user.uid,
-          text: `<b>${tasksArchivedCount}</b> completed task(s) in <b>${project.name}</b> were automatically archived.`,
+          text: `<b>${tasksToArchive.length}</b> completed task(s) in <b>${project.name}</b> were automatically archived.`,
           link: `/p/${projectId}/all-tasks`,
           read: false,
           createdAt: new Date().toISOString(),
@@ -996,10 +1003,65 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         await addDoc(collection(db, 'notifications'), notification);
         toast({
           title: 'Tasks Archived',
-          description: `${tasksArchivedCount} completed task(s) have been automatically archived.`,
+          description: `${tasksToArchive.length} completed task(s) have been automatically archived.`,
           variant: 'default',
         });
       }
     },
+    migrateProjectToSeparateTasks: async (project: Project) => {
+        const batch = writeBatch(db);
+        let hasMigrated = false;
+
+        const migratedColumns = project.columns.map(column => {
+            // @ts-ignore - tasks property is from the old data model
+            const oldTasks: Task[] = column.tasks || [];
+            if (oldTasks.length > 0) {
+                hasMigrated = true;
+            }
+            oldTasks.forEach((task, index) => {
+                const newTaskId = task.id || `task-${Date.now()}-${Math.random()}`;
+                const newTaskRef = doc(db, 'tasks', newTaskId);
+
+                const newTaskData: Task = {
+                    ...task,
+                    id: newTaskId,
+                    projectId: project.id,
+                    columnId: column.id,
+                    order: task.order ?? index,
+                };
+                // @ts-ignore
+                delete newTaskData.tasks;
+                batch.set(newTaskRef, newTaskData);
+            });
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { tasks, ...restOfColumn } = column as any;
+            return restOfColumn;
+        });
+
+        if (hasMigrated) {
+            const projectRef = doc(db, 'projects', project.id);
+            batch.update(projectRef, { columns: migratedColumns });
+
+            try {
+                await batch.commit();
+                toast({
+                    title: "Migration Complete",
+                    description: `Project "${project.name}" has been successfully migrated to the new data structure.`,
+                    variant: 'default'
+                });
+            } catch (error) {
+                console.error("Migration failed for project:", project.id, error);
+                toast({
+                    title: "Migration Failed",
+                    description: `Could not migrate project "${project.name}". Please check the console for errors.`,
+                    variant: 'destructive'
+                });
+            }
+        }
+    },
   },
 }));
+
+export const selectTasksByProject = (tasks: Task[], projectId: string) => {
+  return tasks.filter((task) => task.projectId === projectId);
+};

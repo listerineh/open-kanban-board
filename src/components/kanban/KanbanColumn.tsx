@@ -14,7 +14,8 @@ import { MAX_COLUMN_TITLE_LENGTH, PRIORITY_ORDER } from '@/lib/constants';
 
 type KanbanColumnProps = {
   project: Project;
-  column: Column;
+  column: Omit<Column, 'tasks'>;
+  tasks: Task[];
   allTasks: Task[];
   members: KanbanUser[];
   onColumnDragStart: (columnId: string) => void;
@@ -29,6 +30,7 @@ const getPriority = (task: Task) => PRIORITY_ORDER[task.priority ?? 'Medium'] ??
 export const KanbanColumn = memo(function KanbanColumn({
   project,
   column,
+  tasks,
   allTasks,
   members,
   onColumnDragStart,
@@ -56,7 +58,7 @@ export const KanbanColumn = memo(function KanbanColumn({
 
   const isDoneColumn = column.title === finalColumnTitle;
 
-  const parentTasks = useMemo(() => column.tasks.filter((task) => !task.parentId), [column.tasks]);
+  const parentTasks = useMemo(() => tasks.filter((task) => !task.parentId), [tasks]);
 
   const sortedTasks = useMemo(() => {
     return [...parentTasks].sort((a, b) => {

@@ -60,9 +60,6 @@ type TaskDetailsDialogProps = {
   onClose: () => void;
   project: Project;
   task: Task | null;
-  columnId: string | null;
-  columns: Column[];
-  allTasks: Task[];
   members: KanbanUser[];
   onTaskClick: (task: Task, columnId: string) => void;
 };
@@ -72,16 +69,12 @@ export function TaskDetailsDialog({
   onClose,
   project,
   task: initialTask,
-  columnId: initialColumnId,
-  columns,
-  allTasks: allProjectTasks,
   members,
   onTaskClick,
 }: TaskDetailsDialogProps) {
-  const actions = useKanbanStore((state) => state.actions);
+  const { actions, tasks: allProjectTasks } = useKanbanStore();
   const { user: currentUser } = useAuth();
   const [task, setTask] = useState(initialTask);
-  const [columnId, setColumnId] = useState(initialColumnId);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -110,8 +103,7 @@ export function TaskDetailsDialog({
   useEffect(() => {
     const updatedTask = allProjectTasks.find((t) => t.id === initialTask?.id) ?? null;
     setTask(updatedTask);
-    setColumnId(initialColumnId);
-  }, [initialTask, initialColumnId, allProjectTasks]);
+  }, [initialTask, allProjectTasks]);
 
   const subtasks = useMemo(() => {
     if (!task) return [];
@@ -145,7 +137,7 @@ export function TaskDetailsDialog({
     if (task && isOpen) {
       setTitle(task.title);
       setDescription(task.description || '');
-      setAssigneeIds(task.assigneeIds || (task.assignee ? [task.assignee] : []));
+      setAssigneeIds(task.assigneeIds || []);
       setPriority(task.priority || 'Medium');
       setLabelIds(task.labelIds || []);
       const deadlineDate = task.deadline ? new Date(task.deadline) : undefined;
@@ -156,12 +148,12 @@ export function TaskDetailsDialog({
       } else {
         setTime('');
       }
-      setStatus(columnId);
+      setStatus(task.columnId);
       if (activeTab === '') setActiveTab('details');
     } else {
       setActiveTab('');
     }
-  }, [task, columnId, isOpen]);
+  }, [task, isOpen, activeTab]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (parentTask?.deadline && date && isAfter(date, new Date(parentTask.deadline))) {
@@ -189,7 +181,7 @@ export function TaskDetailsDialog({
   };
 
   const handleSave = async () => {
-    if (!task || !columnId || !status || isSaving) return;
+    if (!task || !status || isSaving) return;
 
     setIsSaving(true);
 
@@ -202,7 +194,7 @@ export function TaskDetailsDialog({
     }
     const finalDeadlineISO = finalDeadline?.toISOString();
     const updatedData: Partial<Omit<Task, 'id'>> = {};
-    const oldAssigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
+    const oldAssigneeIds = task.assigneeIds || [];
 
     if (title.trim() !== task.title) updatedData.title = title.trim();
     if (description.trim() !== (task.description || '')) updatedData.description = description.trim();
@@ -221,62 +213,53 @@ export function TaskDetailsDialog({
       updatedData.deadline = enableDeadlines ? finalDeadlineISO : undefined;
     }
 
-    updatedData.assignee = undefined; // Unset old field
+    if (Object.keys(updatedData).length > 0) {
+      await actions.updateTask(project.id, task.id, updatedData);
+    }
 
-    const updatePromise =
-      Object.keys(updatedData).length > 0
-        ? actions.updateTask(project.id, task.id, columnId, updatedData)
-        : Promise.resolve();
-
-    const movePromise =
-      status !== columnId && !task.parentId
-        ? () => {
-            const destinationColumn = columns.find((c) => c.id === status);
-            const toIndex = destinationColumn ? destinationColumn.tasks.length : 0;
-            return actions.moveTask(project.id, task.id, columnId, status, toIndex);
-          }
-        : () => Promise.resolve();
-
-    await updatePromise;
-    await movePromise();
+    if (status !== task.columnId && !task.parentId) {
+      const destinationColumn = project.columns.find((c) => c.id === status);
+      const toIndex = destinationColumn ? allProjectTasks.filter((t) => t.columnId === status).length : 0;
+      await actions.moveTask(project.id, task.id, task.columnId, status, toIndex);
+    }
 
     setIsSaving(false);
     onClose();
   };
 
   const handleDelete = async () => {
-    if (!task || !columnId) return;
-    await actions.deleteTask(project.id, task.id, columnId);
+    if (!task) return;
+    await actions.deleteTask(project.id, task.id);
     setIsDeleteDialogOpen(false);
     onClose();
   };
 
   const handleAddSubtask = async () => {
-    if (!newSubtaskTitle.trim() || !task || !columnId) return;
-    const parentAssigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
-    const subtaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'> = {
+    if (!newSubtaskTitle.trim() || !task) return;
+    const parentAssigneeIds = task.assigneeIds || [];
+    const subtaskData: Omit<
+      Task,
+      'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'projectId' | 'columnId' | 'order'
+    > = {
       title: newSubtaskTitle.trim(),
       parentId: task.id,
       priority: 'Medium',
       assigneeIds: parentAssigneeIds,
     };
-    await actions.addTask(project.id, columnId, subtaskData);
+    await actions.addTask(project.id, task.columnId, subtaskData);
     setNewSubtaskTitle('');
   };
 
   const handleSubtaskCheck = async (subtask: Task, isChecked: boolean) => {
-    if (!task || !columnId) return;
+    if (!task) return;
     const updatedData = {
       completedAt: isChecked ? new Date().toISOString() : null,
     };
-    await actions.updateTask(project.id, subtask.id, columnId, updatedData as any, {
-      subtaskTitle: subtask.title,
-    });
+    await actions.updateTask(project.id, subtask.id, updatedData, { subtaskTitle: subtask.title });
   };
 
   const handleSubtaskClick = (subtask: Task) => {
-    if (!columnId) return;
-    onTaskClick(subtask, columnId);
+    onTaskClick(subtask, subtask.columnId);
   };
 
   const [currentHour, currentMinute] = time.split(':');
@@ -443,7 +426,7 @@ export function TaskDetailsDialog({
                       <SelectValue placeholder="Select a status" />
                     </SelectTrigger>
                     <SelectContent>
-                      {columns.map((col) => (
+                      {project.columns.map((col) => (
                         <SelectItem key={col.id} value={col.id}>
                           {col.title}
                         </SelectItem>
