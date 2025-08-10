@@ -59,7 +59,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function ProjectConfigPage() {
   const router = useRouter();
   const { projectId } = useParams() as { projectId: string };
-  const { projects, isLoaded, actions } = useKanbanStore();
+  const { projects, isLoaded, tasks, actions } = useKanbanStore();
   const { toast } = useToast();
   const { user: currentUser, loading: authLoading } = useAuth();
 
@@ -84,11 +84,9 @@ export default function ProjectConfigPage() {
   const [newLabelColor, setNewLabelColor] = useState<string>(COLOR_SWATCHES[0]);
   const [editingLabel, setEditingLabel] = useState<LabelType | null>(null);
 
-  const allTasks = useMemo(() => project?.columns.flatMap((c) => c.tasks) ?? [], [project]);
-
-  const hasSubtasks = useMemo(() => allTasks.some((t) => !!t.parentId), [allTasks]);
-  const hasDeadlines = useMemo(() => allTasks.some((t) => !!t.deadline), [allTasks]);
-  const hasLabels = useMemo(() => allTasks.some((t) => t.labelIds && t.labelIds.length > 0), [allTasks]);
+  const hasSubtasks = useMemo(() => tasks.some((t) => !!t.parentId), [tasks]);
+  const hasDeadlines = useMemo(() => tasks.some((t) => !!t.deadline), [tasks]);
+  const hasLabels = useMemo(() => tasks.some((t) => t.labelIds && t.labelIds.length > 0), [tasks]);
 
   const isGeneralInfoChanged = useMemo(() => {
     if (!project) return false;
@@ -103,6 +101,7 @@ export default function ProjectConfigPage() {
     const foundProject = projects.find((p) => p.id === projectId);
 
     if (foundProject) {
+      actions.setActiveProject(projectId);
       setProject(foundProject);
       setProjectName(foundProject.name);
       setProjectDescription(foundProject.description || '');
@@ -161,7 +160,8 @@ export default function ProjectConfigPage() {
   };
 
   const handleDeleteColumn = (column: Column) => {
-    if (column.tasks.length > 0) {
+    const tasksInColumn = tasks.filter((t) => t.columnId === column.id);
+    if (tasksInColumn.length > 0) {
       toast({
         variant: 'destructive',
         title: 'Cannot delete column',

@@ -39,9 +39,9 @@ export default function RootPage() {
         return;
       }
     } catch (error) {
-      console.error("Failed to access localStorage", error);
+      console.error('Failed to access localStorage', error);
     }
-    
+
     if (isLoaded) {
       setIsRedirecting(false);
     } else if (!authLoading && !user) {
@@ -53,7 +53,7 @@ export default function RootPage() {
     try {
       localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVE_PROJECT);
       router.push('/');
-      setIsRedirecting(false); 
+      setIsRedirecting(false);
     } catch (error) {
       console.error('Failed to remove from localStorage', error);
     }

@@ -1009,55 +1009,55 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     },
     migrateProjectToSeparateTasks: async (project: Project) => {
-        const batch = writeBatch(db);
-        let hasMigrated = false;
+      const batch = writeBatch(db);
+      let hasMigrated = false;
 
-        const migratedColumns = project.columns.map(column => {
-            // @ts-ignore - tasks property is from the old data model
-            const oldTasks: Task[] = column.tasks || [];
-            if (oldTasks.length > 0) {
-                hasMigrated = true;
-            }
-            oldTasks.forEach((task, index) => {
-                const newTaskId = task.id || `task-${Date.now()}-${Math.random()}`;
-                const newTaskRef = doc(db, 'tasks', newTaskId);
-
-                const newTaskData: Task = {
-                    ...task,
-                    id: newTaskId,
-                    projectId: project.id,
-                    columnId: column.id,
-                    order: task.order ?? index,
-                };
-                // @ts-ignore
-                delete newTaskData.tasks;
-                batch.set(newTaskRef, newTaskData);
-            });
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { tasks, ...restOfColumn } = column as any;
-            return restOfColumn;
-        });
-
-        if (hasMigrated) {
-            const projectRef = doc(db, 'projects', project.id);
-            batch.update(projectRef, { columns: migratedColumns });
-
-            try {
-                await batch.commit();
-                toast({
-                    title: "Migration Complete",
-                    description: `Project "${project.name}" has been successfully migrated to the new data structure.`,
-                    variant: 'default'
-                });
-            } catch (error) {
-                console.error("Migration failed for project:", project.id, error);
-                toast({
-                    title: "Migration Failed",
-                    description: `Could not migrate project "${project.name}". Please check the console for errors.`,
-                    variant: 'destructive'
-                });
-            }
+      const migratedColumns = project.columns.map((column) => {
+        // @ts-ignore - tasks property is from the old data model
+        const oldTasks: Task[] = column.tasks || [];
+        if (oldTasks.length > 0) {
+          hasMigrated = true;
         }
+        oldTasks.forEach((task, index) => {
+          const newTaskId = task.id || `task-${Date.now()}-${Math.random()}`;
+          const newTaskRef = doc(db, 'tasks', newTaskId);
+
+          const newTaskData: Task = {
+            ...task,
+            id: newTaskId,
+            projectId: project.id,
+            columnId: column.id,
+            order: task.order ?? index,
+          };
+          // @ts-ignore
+          delete newTaskData.tasks;
+          batch.set(newTaskRef, newTaskData);
+        });
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { tasks, ...restOfColumn } = column as any;
+        return restOfColumn;
+      });
+
+      if (hasMigrated) {
+        const projectRef = doc(db, 'projects', project.id);
+        batch.update(projectRef, { columns: migratedColumns });
+
+        try {
+          await batch.commit();
+          toast({
+            title: 'Migration Complete',
+            description: `Project "${project.name}" has been successfully migrated to the new data structure.`,
+            variant: 'default',
+          });
+        } catch (error) {
+          console.error('Migration failed for project:', project.id, error);
+          toast({
+            title: 'Migration Failed',
+            description: `Could not migrate project "${project.name}". Please check the console for errors.`,
+            variant: 'destructive',
+          });
+        }
+      }
     },
   },
 }));
