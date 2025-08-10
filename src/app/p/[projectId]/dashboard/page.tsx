@@ -42,7 +42,7 @@ export default function ProjectDashboardPage() {
     }
   }, [projectId, projects, isLoaded, authLoading, router, actions]);
 
-  const hasTasksWithDeadline = useMemo(() => tasks.some(t => !!t.deadline), [tasks]);
+  const hasTasksWithDeadline = useMemo(() => tasks.some((t) => !!t.deadline), [tasks]);
 
   const stats = useMemo(() => {
     if (!project) return null;

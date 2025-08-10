@@ -23,7 +23,7 @@ export function TaskStatusChart({ project, tasks }: TaskStatusChartProps) {
   const chartData = useMemo(() => {
     return project.columns.map((column) => ({
       name: column.title,
-      value: tasks.filter(t => t.columnId === column.id).length,
+      value: tasks.filter((t) => t.columnId === column.id).length,
     }));
   }, [project, tasks]);
 

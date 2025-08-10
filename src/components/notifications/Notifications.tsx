@@ -26,14 +26,68 @@ export function Notifications({ isMobile = false }: NotificationsProps) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, loading, handleInvitationAction } = useNotifications();
   const router = useRouter();
 
-  const handleNotificationClick = (notificationId: string, link: string) => {
+  const handleNotificationClick = (notificationId: string, link: string, actions?: any) => {
+    if (actions) return;
     markAsRead(notificationId);
     if (link && link !== '#') {
       router.push(link);
     }
   };
 
-  const notificationItems = (
+  const renderNotificationContent = (notification: (typeof notifications)[0]) => (
+    <div
+      className={cn(
+        'cursor-pointer flex flex-col items-start gap-3 whitespace-normal p-3 text-sm',
+        isMobile && 'border-b hover:bg-muted',
+      )}
+      onClick={() => handleNotificationClick(notification.id, notification.link, notification.actions)}
+    >
+      <div className="flex items-start gap-3 w-full">
+        {!notification.read && <CircleDot className="h-2 w-2 mt-2 text-primary flex-shrink-0" />}
+        <div className={cn(notification.read ? 'pl-5' : '', 'w-full')}>
+          <p className="text-sm leading-snug" dangerouslySetInnerHTML={{ __html: notification.text }}></p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+          </p>
+        </div>
+      </div>
+      {notification.actions && (
+        <div className="flex items-center gap-2 w-full justify-end pl-5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleInvitationAction(
+                'decline',
+                notification.actions!.decline.projectId,
+                notification.actions!.decline.invitationId,
+                notification.id,
+              );
+            }}
+          >
+            Decline
+          </Button>
+          <Button
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleInvitationAction(
+                'accept',
+                notification.actions!.accept.projectId,
+                notification.actions!.accept.invitationId,
+                notification.id,
+              );
+            }}
+          >
+            Accept
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  const notificationList = (
     <>
       {loading ? (
         <div className="p-2 space-y-3">
@@ -42,62 +96,15 @@ export function Notifications({ isMobile = false }: NotificationsProps) {
           <Skeleton className="h-16 w-full" />
         </div>
       ) : notifications.length > 0 ? (
-        notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={cn(
-              'cursor-pointer flex flex-col items-start gap-3 whitespace-normal data-[disabled]:cursor-default',
-              'p-3 text-sm hover:bg-muted',
-              isMobile && 'border-b',
-            )}
-            onClick={() => {
-              if (!notification.actions) {
-                handleNotificationClick(notification.id, notification.link);
-              }
-            }}
-          >
-            <div className="flex items-start gap-3 w-full">
-              {!notification.read && <CircleDot className="h-2 w-2 mt-2 text-primary flex-shrink-0" />}
-              <div className={notification.read ? 'pl-5' : ''}>
-                <p className="text-sm leading-snug" dangerouslySetInnerHTML={{ __html: notification.text }}></p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                </p>
-              </div>
-            </div>
-            {notification.actions && (
-              <div className="flex items-center gap-2 w-full justify-end pl-5">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    handleInvitationAction(
-                      'decline',
-                      notification.actions!.decline.projectId,
-                      notification.actions!.decline.invitationId,
-                      notification.id,
-                    )
-                  }
-                >
-                  Decline
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    handleInvitationAction(
-                      'accept',
-                      notification.actions!.accept.projectId,
-                      notification.actions!.accept.invitationId,
-                      notification.id,
-                    )
-                  }
-                >
-                  Accept
-                </Button>
-              </div>
-            )}
-          </div>
-        ))
+        notifications.map((notification) =>
+          isMobile ? (
+            <div key={notification.id}>{renderNotificationContent(notification)}</div>
+          ) : (
+            <DropdownMenuItem key={notification.id} className="p-0" onSelect={(e) => e.preventDefault()}>
+              {renderNotificationContent(notification)}
+            </DropdownMenuItem>
+          ),
+        )
       ) : (
         <div className="text-center text-sm text-muted-foreground py-16">
           <p>You have no notifications.</p>
@@ -117,7 +124,7 @@ export function Notifications({ isMobile = false }: NotificationsProps) {
             </Button>
           )}
         </div>
-        <ScrollArea className="flex-grow">{notificationItems}</ScrollArea>
+        <ScrollArea className="flex-grow">{notificationList}</ScrollArea>
       </div>
     );
   }
@@ -138,7 +145,7 @@ export function Notifications({ isMobile = false }: NotificationsProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-80 p-0" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal px-3">
+        <DropdownMenuLabel className="font-normal px-3 py-2">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium leading-none">Notifications</p>
             {unreadCount > 0 && (
@@ -149,17 +156,7 @@ export function Notifications({ isMobile = false }: NotificationsProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <ScrollArea className="h-auto max-h-[calc(5*4.5rem)] overflow-y-auto">
-          {notifications.map((notification) => (
-            <DropdownMenuItem
-              key={notification.id}
-              className="cursor-pointer flex flex-col items-start gap-3 whitespace-normal data-[disabled]:cursor-default p-0"
-              onSelect={(e) => e.preventDefault()}
-            >
-              {notificationItems}
-            </DropdownMenuItem>
-          ))}
-        </ScrollArea>
+        <ScrollArea className="h-auto max-h-[calc(5*4.5rem)] overflow-y-auto">{notificationList}</ScrollArea>
       </DropdownMenuContent>
     </DropdownMenu>
   );

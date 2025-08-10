@@ -84,9 +84,9 @@ export default function ProjectConfigPage() {
   const [newLabelColor, setNewLabelColor] = useState<string>(COLOR_SWATCHES[0]);
   const [editingLabel, setEditingLabel] = useState<LabelType | null>(null);
 
-  const hasSubtasks = useMemo(() => tasks.some(t => !!t.parentId), [tasks]);
-  const hasDeadlines = useMemo(() => tasks.some(t => !!t.deadline), [tasks]);
-  const hasLabels = useMemo(() => tasks.some(t => t.labelIds && t.labelIds.length > 0), [tasks]);
+  const hasSubtasks = useMemo(() => tasks.some((t) => !!t.parentId), [tasks]);
+  const hasDeadlines = useMemo(() => tasks.some((t) => !!t.deadline), [tasks]);
+  const hasLabels = useMemo(() => tasks.some((t) => t.labelIds && t.labelIds.length > 0), [tasks]);
 
   const isGeneralInfoChanged = useMemo(() => {
     if (!project) return false;
@@ -160,7 +160,7 @@ export default function ProjectConfigPage() {
   };
 
   const handleDeleteColumn = (column: Column) => {
-    const tasksInColumn = tasks.filter(t => t.columnId === column.id);
+    const tasksInColumn = tasks.filter((t) => t.columnId === column.id);
     if (tasksInColumn.length > 0) {
       toast({
         variant: 'destructive',
