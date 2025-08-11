@@ -11,6 +11,7 @@ import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { Input } from '@/components/ui/input';
 import { Separator } from '../ui/separator';
 import { MAX_COLUMN_TITLE_LENGTH, PRIORITY_ORDER } from '@/lib/constants';
+import { useAuth } from '@/hooks/use-auth';
 
 type KanbanColumnProps = {
   project: Project;
@@ -39,7 +40,8 @@ export const KanbanColumn = memo(function KanbanColumn({
   draggedColumnId,
   onTaskClick,
 }: KanbanColumnProps) {
-  const actions = useKanbanStore((state) => state.actions);
+  const { actions } = useKanbanStore();
+  const { user: currentUser } = useAuth();
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isTaskDragOver, setIsTaskDragOver] = useState(false);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -55,6 +57,11 @@ export const KanbanColumn = memo(function KanbanColumn({
   const finalColumnTitle = useMemo(() => {
     return project.columns.find((c) => c.title.toLowerCase() === 'done')?.title;
   }, [project.columns]);
+
+  const isCurrentUserAdmin = useMemo(() => {
+    if (!project || !currentUser) return false;
+    return project.admins?.includes(currentUser.uid);
+  }, [project, currentUser]);
 
   const isDoneColumn = column.title === finalColumnTitle;
 
@@ -82,7 +89,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   );
 
   const handleTitleBlur = useCallback(async () => {
-    if (isDoneColumn) {
+    if (isDoneColumn || !isCurrentUserAdmin) {
       setIsEditingTitle(false);
       setTitle(column.title);
       return;
@@ -93,7 +100,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       setTitle(column.title);
     }
     setIsEditingTitle(false);
-  }, [actions, column.id, column.title, isDoneColumn, project.id, title]);
+  }, [actions, column.id, column.title, isDoneColumn, project.id, title, isCurrentUserAdmin]);
 
   const handleTitleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -148,21 +155,27 @@ export const KanbanColumn = memo(function KanbanColumn({
     [actions, column.id, onColumnDrop, project.id],
   );
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
+  const handleDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
 
-    if (e.dataTransfer.types.includes('application/kanban-column')) {
-      e.dataTransfer.dropEffect = 'move';
-      return;
-    }
+      const isDraggingColumn = e.dataTransfer.types.includes('application/kanban-column');
+      const isDraggingTask = e.dataTransfer.types.includes('application/json');
 
-    if (e.dataTransfer.types.includes('application/json')) {
-      setIsTaskDragOver(true);
-      e.dataTransfer.dropEffect = 'move';
-    } else {
-      e.dataTransfer.dropEffect = 'none';
-    }
-  }, []);
+      if (isDraggingColumn && isCurrentUserAdmin) {
+        e.dataTransfer.dropEffect = 'move';
+        return;
+      }
+
+      if (isDraggingTask) {
+        setIsTaskDragOver(true);
+        e.dataTransfer.dropEffect = 'move';
+      } else {
+        e.dataTransfer.dropEffect = 'none';
+      }
+    },
+    [isCurrentUserAdmin],
+  );
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     if (!columnRef.current?.contains(e.relatedTarget as Node)) {
@@ -201,20 +214,6 @@ export const KanbanColumn = memo(function KanbanColumn({
   return (
     <div
       ref={columnRef}
-      draggable={!isDoneColumn}
-      onDragStart={(e) => {
-        if (e.target !== columnRef.current) {
-          return;
-        }
-        if (isDoneColumn) {
-          e.preventDefault();
-          return;
-        }
-        e.dataTransfer.setData('application/kanban-column', column.id);
-        e.dataTransfer.effectAllowed = 'move';
-        onColumnDragStart(column.id);
-      }}
-      onDragEnd={onColumnDragEnd}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -222,13 +221,23 @@ export const KanbanColumn = memo(function KanbanColumn({
         'flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[200px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow',
         isTaskDragOver && !draggedColumnId && 'bg-primary/10',
         isDraggingThisColumn && 'opacity-50 ring-2 ring-primary ring-offset-2 ring-offset-background',
-        draggedColumnId && !isDraggingThisColumn && 'md:hover:ring-2 md:hover:ring-primary/50',
+        draggedColumnId && !isDraggingThisColumn && isCurrentUserAdmin && 'md:hover:ring-2 md:hover:ring-primary/50',
       )}
     >
       <div
+        draggable={isCurrentUserAdmin && !isDoneColumn}
+        onDragStart={(e) => {
+          if (e.target !== e.currentTarget) {
+            return;
+          }
+          e.dataTransfer.setData('application/kanban-column', column.id);
+          e.dataTransfer.effectAllowed = 'move';
+          onColumnDragStart(column.id);
+        }}
+        onDragEnd={onColumnDragEnd}
         className={cn(
           'p-3 border-b border-border flex justify-between items-center gap-2',
-          !isDoneColumn && 'cursor-grab active:cursor-grabbing',
+          isCurrentUserAdmin && !isDoneColumn && 'cursor-grab active:cursor-grabbing',
         )}
       >
         {isEditingTitle ? (
@@ -239,15 +248,15 @@ export const KanbanColumn = memo(function KanbanColumn({
             onKeyDown={handleTitleKeyDown}
             autoFocus
             className="h-8 border-transparent focus-visible:border-input focus-visible:ring-ring focus-visible:ring-1 bg-transparent text-lg font-headline font-semibold p-1 -m-1 w-full"
-            disabled={isDoneColumn}
+            disabled={isDoneColumn || !isCurrentUserAdmin}
             maxLength={MAX_COLUMN_TITLE_LENGTH}
           />
         ) : (
           <h3
-            onClick={() => !isDoneColumn && setIsEditingTitle(true)}
+            onClick={() => !isDoneColumn && isCurrentUserAdmin && setIsEditingTitle(true)}
             className={cn(
               'font-headline font-semibold text-lg w-full p-1 -m-1 rounded truncate',
-              !isDoneColumn ? 'cursor-text md:hover:bg-muted/50' : 'cursor-default',
+              !isDoneColumn && isCurrentUserAdmin ? 'cursor-text md:hover:bg-muted/50' : 'cursor-default',
             )}
             title={column.title}
           >
