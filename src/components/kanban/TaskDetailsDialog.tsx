@@ -215,13 +215,13 @@ export function TaskDetailsDialog({
     }
 
     if (Object.keys(updatedData).length > 0) {
-      await actions.updateTask(project.id, task.id, updatedData);
+      actions.updateTask(project.id, task.id, updatedData);
     }
 
     if (status !== task.columnId && !task.parentId) {
       const destinationColumn = project.columns.find((c) => c.id === status);
       const toIndex = destinationColumn ? allProjectTasks.filter((t) => t.columnId === status).length : 0;
-      await actions.moveTask(project.id, task.id, task.columnId, status, toIndex);
+      actions.moveTask(project.id, task.id, task.columnId, status, toIndex);
     }
 
     setIsSaving(false);
