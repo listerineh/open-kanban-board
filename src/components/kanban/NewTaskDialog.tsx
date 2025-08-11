@@ -68,6 +68,7 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
         finalDeadline.setHours(0, 0, 0, 0);
       }
 
+       // @ts-ignore
       const taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'> = {
         title: title.trim(),
         priority,

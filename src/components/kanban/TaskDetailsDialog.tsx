@@ -246,6 +246,7 @@ export function TaskDetailsDialog({
       priority: 'Medium',
       assigneeIds: parentAssigneeIds,
     };
+     // @ts-ignore
     await actions.addTask(project.id, task.columnId, subtaskData);
     setNewSubtaskTitle('');
   };

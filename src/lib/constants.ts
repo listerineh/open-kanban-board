@@ -38,6 +38,15 @@ export const COLOR_SWATCHES = [
   '#64748b',
 ];
 
+export const CHART_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--muted-foreground))',
+];
+
 export const TASK_PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'] as const;
 
 export const PRIORITY_COLORS = {

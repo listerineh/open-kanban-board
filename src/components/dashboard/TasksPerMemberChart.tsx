@@ -15,7 +15,7 @@ export function TasksPerMemberChart({ tasks, members }: TasksPerMemberChartProps
     const memberTaskCounts: Record<string, number> = {};
 
     tasks.forEach((task) => {
-      const assigneeIds = task.assigneeIds || (task.assignee ? [task.assignee] : []);
+      const assigneeIds = task.assigneeIds || [];
       if (assigneeIds.length > 0) {
         assigneeIds.forEach((assigneeId) => {
           memberTaskCounts[assigneeId] = (memberTaskCounts[assigneeId] || 0) + 1;
