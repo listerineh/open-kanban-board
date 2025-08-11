@@ -16,12 +16,12 @@ export function NewColumnDialog({ projectId }: NewColumnDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const addColumn = useKanbanStore((state) => state.actions.addColumn);
+  const { actions } = useKanbanStore();
 
   const handleAddColumn = async () => {
     if (title.trim() && !isSubmitting) {
       setIsSubmitting(true);
-      await addColumn(projectId, title.trim());
+      await actions.addColumn(projectId, title.trim());
       setIsSubmitting(false);
       setTitle('');
       setIsOpen(false);

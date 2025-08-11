@@ -12,7 +12,6 @@ import {
   onSnapshot,
   addDoc,
   updateDoc,
-  deleteDoc,
   doc,
   getDocs,
   arrayUnion,
@@ -93,6 +92,7 @@ export interface KanbanStoreActions {
   addComment: (projectId: string, taskId: string, commentText: string, mentions: string[]) => Promise<void>;
   archiveOldTasks: (projectId: string) => Promise<void>;
   migrateProjectToSeparateTasks: (project: Project) => Promise<void>;
+  updateUserRole: (projectId: string, userId: string, isAdmin: boolean) => Promise<void>;
 }
 
 const addActivity = (task: Task, text: string, userId: string, type: 'log' | 'comment' = 'log'): Activity[] => {
@@ -125,12 +125,20 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           const userProjects = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Project);
           set({ projects: userProjects, isLoaded: true });
 
-          for (const project of userProjects) {
+          const migrationPromises = userProjects.map((project) => {
+            const promises = [];
             if (project.columns.length > 0 && 'tasks' in project.columns[0]) {
-              console.log(`Migrating project: ${project.name} (${project.id})`);
-              await get().actions.migrateProjectToSeparateTasks(project);
+              console.log(`Migrating tasks for project: ${project.name} (${project.id})`);
+              promises.push(get().actions.migrateProjectToSeparateTasks(project));
             }
-          }
+            if (!project.admins) {
+              console.log(`Migrating admins for project: ${project.name} (${project.id})`);
+              promises.push(get().actions.updateProject(project.id, { admins: [project.ownerId] }));
+            }
+            return Promise.all(promises);
+          });
+
+          await Promise.all(migrationPromises);
         },
         (error) => {
           console.error('Error fetching projects:', error);
@@ -195,6 +203,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         description: description || '',
         ownerId: user.uid,
         members: [user.uid],
+        admins: [user.uid],
         pendingMembers: [],
         createdAt: now,
         updatedAt: now,
@@ -262,7 +271,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       columnId: string,
       taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'activity' | 'projectId'>,
     ) => {
-      const { projects, user, actions } = get();
+      const { projects, user } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
@@ -398,6 +407,11 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
             }
           });
         });
+        toast({
+          title: 'Task Moved',
+          description: `Task "${taskToMove.title.trim()}" has been moved to the ${toColumn.title.toLowerCase()} column.`,
+          variant: 'default',
+        });
       } catch (error) {
         console.error('Error moving task:', error);
         toast({
@@ -424,6 +438,11 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
       try {
         await actions.updateProject(project.id, { columns });
+        toast({
+          title: 'Column Moved',
+          description: `Column "${draggedColumn.title.trim()}" has been moved.`,
+          variant: 'default',
+        });
       } catch (error) {
         console.error('Error moving column:', error);
         toast({
@@ -466,11 +485,6 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
-
-      const allMembers = await actions.getProjectMembers(projectId);
-      const now = new Date().toISOString();
-
-      let parentTask: Task | undefined;
 
       const cleanUpdatedData = { ...updatedData };
       Object.keys(cleanUpdatedData).forEach((key) => {
@@ -811,6 +825,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       try {
         await actions.updateProject(projectId, {
           members: arrayRemove(userId) as any,
+          admins: arrayRemove(userId) as any,
         });
         toast({
           title: 'User Removed',
@@ -930,7 +945,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       });
     },
     addComment: async (projectId: string, taskId: string, commentText: string, mentions: string[]) => {
-      const { projects, user, tasks } = get();
+      const { projects, user } = get();
       if (!user) return;
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
@@ -1057,6 +1072,26 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
             variant: 'destructive',
           });
         }
+      }
+    },
+    updateUserRole: async (projectId: string, userId: string, isAdmin: boolean) => {
+      const { actions } = get();
+      try {
+        await actions.updateProject(projectId, {
+          admins: isAdmin ? (arrayUnion(userId) as any) : (arrayRemove(userId) as any),
+        });
+        toast({
+          title: 'User Role Updated',
+          description: `The user's role has been updated.`,
+          variant: 'default',
+        });
+      } catch (error) {
+        console.error('Error updating user role:', error);
+        toast({
+          title: 'Error Updating Role',
+          description: 'There was an error updating the user role.',
+          variant: 'destructive',
+        });
       }
     },
   },

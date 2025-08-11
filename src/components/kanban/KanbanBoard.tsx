@@ -5,6 +5,7 @@ import type { Project, Task, KanbanUser } from '@/types/kanban';
 import { KanbanColumn } from './KanbanColumn';
 import { NewColumnDialog } from './NewColumnDialog';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
+import { useAuth } from '@/hooks/use-auth';
 import Confetti from 'react-confetti';
 
 type KanbanBoardProps = {
@@ -18,6 +19,7 @@ export function KanbanBoard({ project, tasks, onTaskClick }: KanbanBoardProps) {
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [members, setMembers] = useState<KanbanUser[]>([]);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
     function handleResize() {
@@ -35,6 +37,11 @@ export function KanbanBoard({ project, tasks, onTaskClick }: KanbanBoardProps) {
       actions.getProjectMembers(project.id).then(setMembers);
     }
   }, [project.id, actions]);
+
+  const isCurrentUserAdmin = useMemo(() => {
+    if (!project || !currentUser) return false;
+    return project.admins?.includes(currentUser.uid);
+  }, [project, currentUser]);
 
   const handleColumnDragStart = useCallback((columnId: string) => {
     setDraggedColumnId(columnId);
@@ -89,9 +96,11 @@ export function KanbanBoard({ project, tasks, onTaskClick }: KanbanBoardProps) {
             onTaskClick={onTaskClick}
           />
         ))}
-        <div className="flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[100px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow">
-          <NewColumnDialog projectId={project.id} />
-        </div>
+        {isCurrentUserAdmin && (
+          <div className="flex-shrink-0 w-full sm:w-72 md:w-80 max-w-full min-w-0 min-h-[100px] h-auto flex flex-col rounded-lg bg-card/50 transition-all sm:h-full sm:max-h-screen sm:flex-grow">
+            <NewColumnDialog projectId={project.id} />
+          </div>
+        )}
       </div>
     </>
   );

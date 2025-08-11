@@ -23,6 +23,9 @@ import {
   Clock,
   History,
   Archive,
+  Shield,
+  ShieldCheck,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import type { Project, Column, KanbanUser, Label as LabelType, Invitation } from '@/types/kanban';
@@ -55,6 +58,14 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ProjectConfigPage() {
   const router = useRouter();
@@ -62,6 +73,7 @@ export default function ProjectConfigPage() {
   const { projects, isLoaded, tasks, actions } = useKanbanStore();
   const { toast } = useToast();
   const { user: currentUser, loading: authLoading } = useAuth();
+  const isMobile = useIsMobile();
 
   const [project, setProject] = useState<Project | null>(null);
   const [projectName, setProjectName] = useState('');
@@ -92,6 +104,11 @@ export default function ProjectConfigPage() {
     if (!project) return false;
     return projectName.trim() !== project.name || projectDescription.trim() !== (project.description || '');
   }, [project, projectName, projectDescription]);
+
+  const isCurrentUserAdmin = useMemo(() => {
+    if (!project || !currentUser) return false;
+    return project.admins?.includes(currentUser.uid);
+  }, [project, currentUser]);
 
   useEffect(() => {
     if (authLoading || !isLoaded) {
@@ -275,7 +292,11 @@ export default function ProjectConfigPage() {
     await actions.deleteLabel(project.id, labelId);
   };
 
-  const isOwner = project && currentUser && project.ownerId === currentUser.uid;
+  const handleRoleChange = (userId: string, value: string) => {
+    if (!project) return;
+    const isAdmin = value === 'admin';
+    actions.updateUserRole(project.id, userId, isAdmin);
+  };
 
   if (authLoading || !isLoaded || !project) {
     return <FullPageLoader text="Loading project settings..." />;
@@ -311,7 +332,7 @@ export default function ProjectConfigPage() {
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleGeneralChangesSave()}
-                  disabled={!isOwner}
+                  disabled={!isCurrentUserAdmin}
                   maxLength={MAX_PROJECT_NAME_LENGTH}
                 />
                 <p className="text-xs text-muted-foreground text-right">
@@ -326,7 +347,7 @@ export default function ProjectConfigPage() {
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
                     placeholder="Add a short description for your project..."
-                    disabled={!isOwner}
+                    disabled={!isCurrentUserAdmin}
                     rows={3}
                     maxLength={MAX_PROJECT_DESC_LENGTH}
                   />
@@ -334,7 +355,7 @@ export default function ProjectConfigPage() {
                     {projectDescription.length} / {MAX_PROJECT_DESC_LENGTH}
                   </p>
                 </div>
-                {isOwner && (
+                {isCurrentUserAdmin && (
                   <div className="flex justify-end">
                     <Button onClick={handleGeneralChangesSave} disabled={!isGeneralInfoChanged}>
                       Save Changes
@@ -369,7 +390,7 @@ export default function ProjectConfigPage() {
                   id="subtasks-switch"
                   checked={enableSubtasks}
                   onCheckedChange={handleSubtaskToggle}
-                  disabled={!isOwner || hasSubtasks}
+                  disabled={!isCurrentUserAdmin || hasSubtasks}
                 />
               </div>
               <div className="flex items-center justify-between p-3 rounded-md border">
@@ -390,7 +411,7 @@ export default function ProjectConfigPage() {
                   id="deadlines-switch"
                   checked={enableDeadlines}
                   onCheckedChange={handleDeadlineToggle}
-                  disabled={!isOwner || hasDeadlines}
+                  disabled={!isCurrentUserAdmin || hasDeadlines}
                 />
               </div>
               <div className="flex items-center justify-between p-3 rounded-md border">
@@ -411,7 +432,7 @@ export default function ProjectConfigPage() {
                   id="labels-switch"
                   checked={enableLabels}
                   onCheckedChange={handleLabelToggle}
-                  disabled={!isOwner || hasLabels}
+                  disabled={!isCurrentUserAdmin || hasLabels}
                 />
               </div>
               <div className="flex items-center justify-between p-3 rounded-md border">
@@ -428,7 +449,7 @@ export default function ProjectConfigPage() {
                   id="dashboard-switch"
                   checked={enableDashboard}
                   onCheckedChange={handleDashboardToggle}
-                  disabled={!isOwner}
+                  disabled={!isCurrentUserAdmin}
                 />
               </div>
             </CardContent>
@@ -452,7 +473,11 @@ export default function ProjectConfigPage() {
                     </p>
                   </div>
                 </div>
-                <Select value={autoArchivePeriod} onValueChange={handleAutoArchiveChange} disabled={!isOwner}>
+                <Select
+                  value={autoArchivePeriod}
+                  onValueChange={handleAutoArchiveChange}
+                  disabled={!isCurrentUserAdmin}
+                >
                   <SelectTrigger className="w-full sm:w-48 mt-2 sm:mt-0" id="auto-archive-select">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
@@ -489,46 +514,51 @@ export default function ProjectConfigPage() {
                 <CardDescription>Create, edit, or delete labels for organizing tasks in this project.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {isOwner && (
-                  <div className="flex items-center gap-2 p-1 border rounded-lg">
-                    <Input
-                      placeholder="New label name..."
-                      value={newLabelName}
-                      onChange={(e) => setNewLabelName(e.target.value)}
-                      className="flex-grow bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-8"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
-                      maxLength={MAX_LABEL_NAME_LENGTH}
-                    />
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="icon" className="w-8 h-8 flex-shrink-0">
-                          <div className="w-5 h-5 rounded-full" style={{ backgroundColor: newLabelColor }}></div>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-2">
-                        <div className="grid grid-cols-4 gap-2">
-                          {COLOR_SWATCHES.map((color) => (
-                            <Button
-                              key={color}
-                              variant="outline"
-                              size="icon"
-                              className="w-7 h-7"
-                              onClick={() => setNewLabelColor(color)}
-                            >
-                              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }}></div>
-                              {newLabelColor === color && (
-                                <Check className="w-3 h-3 text-white mix-blend-difference absolute" />
-                              )}
-                            </Button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    <Button onClick={handleAddLabel} size="sm">
-                      <Plus className="h-4 w-4 mr-1 sm:mr-2" /> Add
-                    </Button>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 p-1 border rounded-lg">
+                  <Input
+                    placeholder="New label name..."
+                    value={newLabelName}
+                    onChange={(e) => setNewLabelName(e.target.value)}
+                    className="flex-grow bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-8"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
+                    maxLength={MAX_LABEL_NAME_LENGTH}
+                    disabled={!isCurrentUserAdmin}
+                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="w-8 h-8 flex-shrink-0"
+                        disabled={!isCurrentUserAdmin}
+                      >
+                        <div className="w-5 h-5 rounded-full" style={{ backgroundColor: newLabelColor }}></div>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2">
+                      <div className="grid grid-cols-4 gap-2">
+                        {COLOR_SWATCHES.map((color) => (
+                          <Button
+                            key={color}
+                            variant="outline"
+                            size="icon"
+                            className="w-7 h-7"
+                            onClick={() => setNewLabelColor(color)}
+                            disabled={!isCurrentUserAdmin}
+                          >
+                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }}></div>
+                            {newLabelColor === color && (
+                              <Check className="w-3 h-3 text-white mix-blend-difference absolute" />
+                            )}
+                          </Button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Button onClick={handleAddLabel} size="sm" disabled={!isCurrentUserAdmin}>
+                    <Plus className="h-4 w-4 mr-1 sm:mr-2" /> Add
+                  </Button>
+                </div>
                 <div className="space-y-2">
                   {labels.map((label) => (
                     <div key={label.id} className="flex items-center gap-2 p-2 px-3 rounded-md border">
@@ -591,7 +621,7 @@ export default function ProjectConfigPage() {
                         <>
                           <div className="w-4 h-4 rounded-full" style={{ backgroundColor: label.color }}></div>
                           <span className="flex-grow font-medium text-sm">{label.name}</span>
-                          {isOwner && (
+                          {isCurrentUserAdmin && (
                             <div className="flex items-center">
                               <Button
                                 variant="ghost"
@@ -636,10 +666,10 @@ export default function ProjectConfigPage() {
                       onBlur={(e) => handleColumnTitleBlur(column.id, e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                       className="flex-grow bg-transparent border-0 focus-visible:ring-1 focus-visible:ring-ring"
-                      disabled={!isOwner || isDoneColumn}
+                      disabled={!isCurrentUserAdmin || isDoneColumn}
                       maxLength={MAX_COLUMN_TITLE_LENGTH}
                     />
-                    {isOwner && !isDoneColumn && (
+                    {isCurrentUserAdmin && !isDoneColumn && (
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteColumn(column)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -656,7 +686,7 @@ export default function ProjectConfigPage() {
               <CardDescription>Invite, remove, or manage project members.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {isOwner && (
+              {isCurrentUserAdmin && (
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -695,36 +725,103 @@ export default function ProjectConfigPage() {
               )}
               <div className="space-y-2">
                 <h4 className="font-medium text-sm">Project Members ({members.length})</h4>
-                {members.map((member) => (
-                  <div key={member.uid} className="flex items-center justify-between p-2 rounded-md border">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
-                        <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{member.displayName}</p>
-                        <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                {members.map((member) => {
+                  const isOwner = project.ownerId === member.uid;
+                  const isAdmin = project.admins?.includes(member.uid);
+                  const canChangeRole = isCurrentUserAdmin && !isOwner;
+
+                  return (
+                    <div key={member.uid} className="flex items-center justify-between p-3 rounded-md border gap-x-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-8 w-8 flex-shrink-0">
+                          <AvatarImage src={member.photoURL ?? ''} alt={member.displayName ?? 'User'} />
+                          <AvatarFallback>{member.displayName?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{member.displayName}</p>
+                          <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-center flex-shrink-0">
+                        {isOwner ? (
+                          <div className="text-xs font-semibold text-muted-foreground h-8 flex items-center px-3">
+                            Owner
+                          </div>
+                        ) : (
+                          <>
+                            {isMobile ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={!canChangeRole}>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {!isAdmin && (
+                                    <DropdownMenuItem onSelect={() => handleRoleChange(member.uid, 'admin')}>
+                                      <ShieldCheck className="h-4 w-4 mr-2" />
+                                      Make Admin
+                                    </DropdownMenuItem>
+                                  )}
+                                  {isAdmin && (
+                                    <DropdownMenuItem onSelect={() => handleRoleChange(member.uid, 'member')}>
+                                      <Shield className="h-4 w-4 mr-2" />
+                                      Make Member
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onSelect={() => handleRemoveUser(member.uid)}
+                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Remove User
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={isAdmin ? 'admin' : 'member'}
+                                  onValueChange={(value) => handleRoleChange(member.uid, value)}
+                                  disabled={!canChangeRole}
+                                >
+                                  <SelectTrigger className="w-32 h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="member">
+                                      <div className="flex items-center gap-2">
+                                        <Shield className="h-4 w-4" /> Member
+                                      </div>
+                                    </SelectItem>
+                                    <SelectItem value="admin">
+                                      <div className="flex items-center gap-2">
+                                        <ShieldCheck className="h-4 w-4 text-primary" /> Admin
+                                      </div>
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                {canChangeRole && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleRemoveUser(member.uid)}
+                                  >
+                                    <X className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
-                    {project.ownerId === member.uid ? (
-                      <span className="text-xs text-muted-foreground font-semibold">OWNER</span>
-                    ) : (
-                      isOwner && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveUser(member.uid)}
-                          className="flex-shrink-0"
-                        >
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              {isOwner && pendingMembers.length > 0 && (
+              {isCurrentUserAdmin && pendingMembers.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-medium text-sm">Pending Invitations ({pendingMembers.length})</h4>
                   {pendingMembers.map((invite) => (
@@ -760,7 +857,7 @@ export default function ProjectConfigPage() {
             </CardContent>
           </Card>
 
-          {isOwner && (
+          {isCurrentUserAdmin && (
             <Card className="border-destructive">
               <CardHeader>
                 <CardTitle className="text-destructive">Danger Zone</CardTitle>
