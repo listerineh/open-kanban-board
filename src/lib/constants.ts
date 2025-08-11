@@ -1,3 +1,6 @@
+export const APP_NAME = 'OpenKanban';
+export const APP_VERSION = 'alpha';
+
 export const THEME_ACCENT_COLORS = {
   default: 'hsl(173 64% 48%)',
   zinc: 'hsl(220 9% 46%)',
@@ -129,8 +132,8 @@ export const AUTO_ARCHIVE_OPTIONS = [
 ];
 
 export const APP_METADATA = {
-  NAME: 'OpenKanban',
-  SHORT_NAME: 'OpenKanban',
+  NAME: APP_NAME,
+  SHORT_NAME: APP_NAME,
   DESCRIPTION: 'A modern, open-source Kanban board to streamline your workflow.',
   START_URL: '/',
   DISPLAY: 'standalone',

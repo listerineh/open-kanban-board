@@ -183,6 +183,7 @@ export function TaskDetailsDialog({
   const handleSave = async () => {
     if (!task || !status || isSaving) return;
 
+    onClose();
     setIsSaving(true);
 
     let finalDeadline = deadline;
@@ -224,7 +225,6 @@ export function TaskDetailsDialog({
     }
 
     setIsSaving(false);
-    onClose();
   };
 
   const handleDelete = async () => {
