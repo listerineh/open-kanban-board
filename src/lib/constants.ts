@@ -1,3 +1,6 @@
+export const APP_NAME = 'OpenKanban';
+export const APP_VERSION = 'alpha';
+
 export const THEME_ACCENT_COLORS = {
   default: 'hsl(173 64% 48%)',
   zinc: 'hsl(220 9% 46%)',
@@ -33,6 +36,15 @@ export const COLOR_SWATCHES = [
   '#f43f5e',
   '#78716c',
   '#64748b',
+];
+
+export const CHART_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--muted-foreground))',
 ];
 
 export const TASK_PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'] as const;
@@ -129,8 +141,8 @@ export const AUTO_ARCHIVE_OPTIONS = [
 ];
 
 export const APP_METADATA = {
-  NAME: 'OpenKanban',
-  SHORT_NAME: 'OpenKanban',
+  NAME: APP_NAME,
+  SHORT_NAME: APP_NAME,
   DESCRIPTION: 'A modern, open-source Kanban board to streamline your workflow.',
   START_URL: '/',
   DISPLAY: 'standalone',

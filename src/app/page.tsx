@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNewProjectDialog } from '@/hooks/use-new-project-dialog';
 import { Notifications } from '@/components/notifications/Notifications';
 import { AppIcon } from '@/components/common/AppIcon';
-import { STORAGE_KEYS } from '@/lib/constants';
+import { APP_NAME, APP_VERSION, STORAGE_KEYS } from '@/lib/constants';
 import { selectTasksByProject } from '@/hooks/use-kanban-store';
 
 export default function RootPage() {
@@ -74,13 +74,13 @@ export default function RootPage() {
         <div className="relative">
           <Link href="/" className="flex items-center gap-3" onClick={handleHomeClick}>
             <AppIcon className="h-6 w-6" />
-            <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
+            <h1 className="text-xl font-headline font-bold">{APP_NAME}</h1>
           </Link>
           <Badge
             variant="secondary"
             className="absolute -right-8 -bottom-2 text-[10px] scale-90 px-1.5 py-0.5 pointer-events-none"
           >
-            alpha
+            {APP_VERSION}
           </Badge>
         </div>
         <div className="flex items-center gap-0 md:gap-2">

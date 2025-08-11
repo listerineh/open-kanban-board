@@ -66,6 +66,7 @@ export interface Project {
   columns: Omit<Column, 'tasks'>[];
   ownerId: string;
   description?: string;
+  admins: string[];
   members: string[];
   pendingMembers?: Invitation[];
   createdAt: string;

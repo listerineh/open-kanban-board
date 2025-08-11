@@ -123,12 +123,12 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
   };
 
   const allParticipantIds = useMemo(() => {
-    const ids = new Set(task.assigneeIds || (task.assignee ? [task.assignee] : []));
+    const ids = new Set(task.assigneeIds);
     subtasks.forEach((st) => {
-      (st.assigneeIds || (st.assignee ? [st.assignee] : [])).forEach((id) => ids.add(id));
+      (st.assigneeIds || []).forEach((id) => ids.add(id));
     });
     return Array.from(ids);
-  }, [task.assigneeIds, task.assignee, subtasks]);
+  }, [task.assigneeIds, subtasks]);
 
   const participants = useMemo(() => {
     return allParticipantIds.map((id) => members.find((m) => m.uid === id)).filter(Boolean) as KanbanUser[];

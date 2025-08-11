@@ -40,7 +40,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { STORAGE_KEYS } from '@/lib/constants';
+import { APP_NAME, APP_VERSION, STORAGE_KEYS } from '@/lib/constants';
 import { LiveCursors } from '@/components/kanban/LiveCursors';
 
 function ProjectPageContent() {
@@ -246,13 +246,13 @@ function ProjectPageContent() {
                 onClick={handleHomeClick}
               >
                 <AppIcon className="h-6 w-6" />
-                <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
+                <h1 className="text-xl font-headline font-bold">{APP_NAME}</h1>
               </Link>
               <Badge
                 variant="secondary"
                 className="absolute -right-8 -bottom-2 text-[10px] scale-90 px-1.5 py-0.5 pointer-events-none"
               >
-                alpha
+                {APP_VERSION}
               </Badge>
             </div>
           </div>
@@ -331,13 +331,13 @@ function ProjectPageContent() {
                   onClick={handleHomeClick}
                 >
                   <AppIcon className="h-6 w-6" />
-                  <h1 className="text-xl font-headline font-bold">OpenKanban</h1>
+                  <h1 className="text-xl font-headline font-bold">{APP_NAME}</h1>
                 </Link>
                 <Badge
                   variant="secondary"
                   className="absolute -right-4 -bottom-2 text-[10px] scale-90 px-1.5 py-0.5 pointer-events-none"
                 >
-                  alpha
+                  {APP_VERSION}
                 </Badge>
               </div>
               <div className="flex items-center gap-1">

@@ -4,20 +4,12 @@ import { useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { Project, Task } from '@/types/kanban';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CHART_COLORS } from '@/lib/constants';
 
 type TaskStatusChartProps = {
   project: Project;
   tasks: Task[];
 };
-
-const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(var(--muted-foreground))',
-];
 
 export function TaskStatusChart({ project, tasks }: TaskStatusChartProps) {
   const chartData = useMemo(() => {
@@ -49,7 +41,7 @@ export function TaskStatusChart({ project, tasks }: TaskStatusChartProps) {
                 nameKey="name"
               >
                 {chartData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
