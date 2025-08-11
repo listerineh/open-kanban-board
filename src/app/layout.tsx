@@ -2,14 +2,15 @@ import type { Metadata } from 'next';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider } from '@/hooks/use-auth';
-import './globals.css';
 import { NewProjectDialogProvider } from '@/hooks/use-new-project-dialog';
 import { ThemeProvider } from '@/hooks/use-theme';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { APP_NAME } from '@/lib/constants';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'OpenKanban',
+  title: `${APP_NAME}`,
   description:
     'Manage your projects with this free-to-use Kanban Board. Create, edit, and delete projects, as well as add, move, and delete tasks.',
   keywords: ['Kanban', 'Project Management', 'Task Management', 'Free Kanban Board', 'Open Source Kanban'],
@@ -24,24 +25,24 @@ export const metadata: Metadata = {
     },
   ],
   openGraph: {
-    title: 'OpenKanban Board',
+    title: `${APP_NAME} Board`,
     description:
       'Manage your projects with this free-to-use Kanban Board. Create, edit, and delete projects, as well as add, move, and delete tasks.',
     url: 'https://open-kanban.vercel.app',
-    siteName: 'OpenKanban Board',
+    siteName: '${APP_NAME} Board',
     images: [
       {
         url: '/images/website_screenshot.webp',
         width: 1200,
         height: 630,
-        alt: 'OpenKanban Board Preview',
+        alt: `${APP_NAME} Board Preview`,
       },
     ],
     locale: 'en_US',
     type: 'website',
   },
   twitter: {
-    title: 'OpenKanban Board',
+    title: `${APP_NAME} Board`,
     description:
       'Manage your projects with this free-to-use Kanban Board. Create, edit, and delete projects, as well as add, move, and delete tasks.',
     images: [
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
         url: '/images/website_screenshot.webp',
         width: 1200,
         height: 630,
-        alt: 'OpenKanban Board Preview',
+        alt: `${APP_NAME} Board Preview`,
       },
     ],
     card: 'summary_large_image',

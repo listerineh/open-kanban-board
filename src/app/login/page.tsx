@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { FullPageLoader } from '@/components/common/loader';
 import { cn } from '@/lib/utils';
 import { AppIcon } from '@/components/common/AppIcon';
+import { APP_NAME } from '@/lib/constants';
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
@@ -54,7 +55,7 @@ export default function LoginPage() {
         <CardHeader className="text-center p-8">
           <div className="mx-auto flex items-center justify-center gap-3 mb-2">
             <AppIcon className="h-8 w-8" />
-            <h1 className="text-4xl font-bold font-headline">OpenKanban</h1>
+            <h1 className="text-4xl font-bold font-headline">{APP_NAME}</h1>
           </div>
           <CardTitle className="text-xl font-medium text-muted-foreground">Streamline Your Workflow</CardTitle>
           <CardDescription className="pt-2 max-w-sm mx-auto">

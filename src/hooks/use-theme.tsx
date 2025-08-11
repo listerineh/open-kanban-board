@@ -1,5 +1,6 @@
 'use client';
 
+import { APP_NAME } from '@/lib/constants';
 import { createContext, useContext, useEffect, useState, type ReactNode, useCallback } from 'react';
 
 type Mode = 'light' | 'dark' | 'black';
@@ -134,8 +135,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
 
       const manifest = {
-        name: 'OpenKanban',
-        short_name: 'OpenKanban',
+        name: APP_NAME,
+        short_name: APP_NAME,
         description: 'A modern, open-source Kanban board to streamline your workflow.',
         start_url: '/',
         display: 'standalone',

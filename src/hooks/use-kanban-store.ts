@@ -384,6 +384,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
             updatedTaskData.completedAt = null;
           }
 
+          const updatedTasks = tasks.map((t) => (t.id === taskId ? { ...t, columnId: toColumnId } : t));
+          set({ tasks: updatedTasks });
+
           transaction.update(taskRef, updatedTaskData);
 
           const tasksInToColumn = tasks
@@ -413,6 +416,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           variant: 'default',
         });
       } catch (error) {
+        set({ tasks });
         console.error('Error moving task:', error);
         toast({
           title: 'Error Moving Task',
@@ -486,6 +490,12 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       const project = projects.find((p) => p.id === projectId);
       if (!project) return;
 
+      const oldTask = tasks.find((t) => t.id === taskId);
+      if (!oldTask) return;
+
+      const optimisticTasks = tasks.map((t) => (t.id === taskId ? { ...t, ...updatedData } : t));
+      set({ tasks: optimisticTasks });
+
       const cleanUpdatedData = { ...updatedData };
       Object.keys(cleanUpdatedData).forEach((key) => {
         if (cleanUpdatedData[key as keyof typeof cleanUpdatedData] === undefined) {
@@ -500,26 +510,26 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           const taskDoc = await transaction.get(taskRef);
           if (!taskDoc.exists()) throw 'Task does not exist';
 
-          const oldTask = taskDoc.data() as Task;
+          const currentTask = taskDoc.data() as Task;
           let finalUpdatedData = { ...updatedData };
 
           const allMembers = await actions.getProjectMembers(projectId);
 
           let activityText: string | null = null;
 
-          if (finalUpdatedData.title && finalUpdatedData.title !== oldTask.title) {
-            activityText = `changed the title from <b>${oldTask.title}</b> to <b>${finalUpdatedData.title}</b>`;
+          if (finalUpdatedData.title && finalUpdatedData.title !== currentTask.title) {
+            activityText = `changed the title from <b>${currentTask.title}</b> to <b>${finalUpdatedData.title}</b>`;
           }
           if (
             finalUpdatedData.description !== undefined &&
-            finalUpdatedData.description !== (oldTask.description || '')
+            finalUpdatedData.description !== (currentTask.description || '')
           ) {
             activityText = `updated the description`;
           }
           if (finalUpdatedData.assigneeIds) {
-            const oldAssigneeIds = oldTask.assigneeIds || [];
-            if (JSON.stringify(finalUpdatedData.assigneeIds.sort()) !== JSON.stringify(oldAssigneeIds.sort())) {
-              const oldNames = oldAssigneeIds
+            const currentAssigneeIds = currentTask.assigneeIds || [];
+            if (JSON.stringify(finalUpdatedData.assigneeIds.sort()) !== JSON.stringify(currentAssigneeIds.sort())) {
+              const oldNames = currentAssigneeIds
                 .map((id) => allMembers.find((m) => m.uid === id)?.displayName || 'Unassigned')
                 .join(', ');
               const newNames = finalUpdatedData.assigneeIds
@@ -527,12 +537,12 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
                 .join(', ');
               activityText = `changed assignees from <b>${oldNames || 'none'}</b> to <b>${newNames || 'none'}</b>`;
 
-              const addedAssignees = finalUpdatedData.assigneeIds.filter((id) => !oldAssigneeIds.includes(id));
+              const addedAssignees = finalUpdatedData.assigneeIds.filter((id) => !currentAssigneeIds.includes(id));
               addedAssignees.forEach((assigneeId) => {
                 const notificationRef = doc(collection(db, 'notifications'));
                 transaction.set(notificationRef, {
                   userId: assigneeId,
-                  text: `You were assigned to the task <b>${oldTask.title}</b> in project <b>${project.name}</b>`,
+                  text: `You were assigned to the task <b>${currentTask.title}</b> in project <b>${project.name}</b>`,
                   link: `/p/${projectId}?taskId=${taskId}`,
                   read: false,
                   createdAt: new Date().toISOString(),
@@ -540,16 +550,19 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
               });
             }
           }
-          if (finalUpdatedData.priority && finalUpdatedData.priority !== oldTask.priority) {
-            activityText = `changed priority from <b>${oldTask.priority ?? 'Medium'}</b> to <b>${finalUpdatedData.priority}</b>`;
+          if (finalUpdatedData.priority && finalUpdatedData.priority !== currentTask.priority) {
+            activityText = `changed priority from <b>${currentTask.priority ?? 'Medium'}</b> to <b>${finalUpdatedData.priority}</b>`;
           }
-          if (finalUpdatedData.deadline !== oldTask.deadline) {
+          if (finalUpdatedData.deadline !== currentTask.deadline) {
             const newDeadline = finalUpdatedData.deadline
               ? new Date(finalUpdatedData.deadline).toLocaleDateString()
               : 'no deadline';
             activityText = `set the deadline to <b>${newDeadline}</b>`;
           }
-          if (finalUpdatedData.hasOwnProperty('completedAt') && finalUpdatedData.completedAt !== oldTask.completedAt) {
+          if (
+            finalUpdatedData.hasOwnProperty('completedAt') &&
+            finalUpdatedData.completedAt !== currentTask.completedAt
+          ) {
             activityText = finalUpdatedData.completedAt
               ? 'marked this as <b>complete</b>'
               : 'marked this as <b>incomplete</b>';
@@ -559,34 +572,34 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           }
 
           if (project.enableLabels && updatedData.labelIds) {
-            const oldLabels = oldTask.labelIds || [];
+            const currentLabels = currentTask.labelIds || [];
             const newLabels = updatedData.labelIds;
-            const added = newLabels.filter((l) => !oldLabels.includes(l));
-            const removed = oldLabels.filter((l) => !newLabels.includes(l));
+            const added = newLabels.filter((l) => !currentLabels.includes(l));
+            const removed = currentLabels.filter((l) => !newLabels.includes(l));
 
             if (added.length > 0 || removed.length > 0) {
-              activityText = 'updated labels'; // simplified for transaction
+              activityText = 'updated labels';
             }
           }
 
           if (activityText) {
-            finalUpdatedData.activity = addActivity(oldTask, activityText, user.uid);
+            finalUpdatedData.activity = addActivity(currentTask, activityText, user.uid);
           }
 
           transaction.update(taskRef, finalUpdatedData);
 
-          if (oldTask.parentId && finalUpdatedData.hasOwnProperty('completedAt')) {
-            const parentTaskRef = doc(db, 'tasks', oldTask.parentId);
+          if (currentTask.parentId && finalUpdatedData.hasOwnProperty('completedAt')) {
+            const parentTaskRef = doc(db, 'tasks', currentTask.parentId);
             const parentTaskDoc = await transaction.get(parentTaskRef);
             if (parentTaskDoc.exists()) {
               const parentTask = parentTaskDoc.data() as Task;
               const parentActivityText = finalUpdatedData.completedAt
-                ? `completed a sub-task: <b>${meta?.subtaskTitle || oldTask.title}</b>`
-                : `marked a sub-task as incomplete: <b>${meta?.subtaskTitle || oldTask.title}</b>`;
+                ? `completed a sub-task: <b>${meta?.subtaskTitle || currentTask.title}</b>`
+                : `marked a sub-task as incomplete: <b>${meta?.subtaskTitle || currentTask.title}</b>`;
               transaction.update(parentTaskRef, { activity: addActivity(parentTask, parentActivityText, user.uid) });
             }
           }
-          if (!oldTask.parentId && finalUpdatedData.assigneeIds) {
+          if (!currentTask.parentId && finalUpdatedData.assigneeIds) {
             const subtasksToUpdate = tasks.filter((t) => t.parentId === taskId);
             subtasksToUpdate.forEach((st) => {
               transaction.update(doc(db, 'tasks', st.id), { assigneeIds: finalUpdatedData.assigneeIds });
@@ -611,6 +624,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           }
         }
       } catch (error) {
+        set({ tasks });
         console.error('Error updating task:', error);
         toast({
           title: 'Error Updating Task',
