@@ -486,10 +486,18 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       if (!project) return;
 
       const columns = [...project.columns];
+      const maxColumnIndex = columns.length - 1;
       const draggedIndex = columns.findIndex((c) => c.id === draggedColumnId);
       const targetIndex = columns.findIndex((c) => c.id === targetColumnId);
 
-      if (draggedIndex === -1 || targetIndex === -1) return;
+      if (draggedIndex === maxColumnIndex || targetIndex === maxColumnIndex) {
+        toast({
+          variant: 'warning',
+          title: 'Cannot Move Column',
+          description: 'The final column cannot be moved.',
+        });
+        return;
+      }
 
       const [draggedColumn] = columns.splice(draggedIndex, 1);
       columns.splice(targetIndex, 0, draggedColumn);
