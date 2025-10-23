@@ -178,11 +178,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           const migrationPromises = userProjects.map((project) => {
             const promises = [];
             if (project.columns.length > 0 && 'tasks' in project.columns[0]) {
-              console.log(`Migrating tasks for project: ${project.name} (${project.id})`);
               promises.push(get().actions.migrateProjectToSeparateTasks(project));
             }
             if (!project.admins) {
-              console.log(`Migrating admins for project: ${project.name} (${project.id})`);
               promises.push(get().actions.updateProject(project.id, { admins: [project.ownerId] }));
             }
             return Promise.all(promises);
