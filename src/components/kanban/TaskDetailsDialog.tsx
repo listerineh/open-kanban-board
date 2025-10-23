@@ -23,6 +23,7 @@ import {
   ArrowDown,
   ArrowUp,
   Calendar as CalendarIcon,
+  Check,
   Plus,
   Trash2,
   ListTodo,
@@ -30,22 +31,18 @@ import {
   Tag,
   History,
   Send,
+  Upload,
+  GripVertical,
+  File as FileIcon,
+  X,
   Users,
-  Check,
 } from 'lucide-react';
-import type { Task, Column, KanbanUser, Project } from '@/types/kanban';
+import type { Task, Column, KanbanUser, Project, Label as LabelType, Activity, Attachment } from '@/types/kanban';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format, setHours, setMinutes, isPast, isAfter, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar } from '../ui/calendar';
 import { Checkbox } from '../ui/checkbox';
-import {
-  MAX_COMMENT_LENGTH,
-  MAX_DESC_LENGTH,
-  MAX_SUBTASK_TITLE_LENGTH,
-  MAX_TITLE_LENGTH,
-  TIME_OPTIONS,
-} from '@/lib/constants';
 import { Progress } from '../ui/progress';
 import { Separator } from '../ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -53,7 +50,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '../ui/badge';
 import { useAuth } from '@/hooks/use-auth';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
+import { Loader } from '../common/loader';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import {
+  MAX_COMMENT_LENGTH,
+  MAX_DESC_LENGTH,
+  MAX_SUBTASK_TITLE_LENGTH,
+  MAX_TITLE_LENGTH,
+  TIME_OPTIONS,
+} from '@/lib/constants';
 
 type TaskDetailsDialogProps = {
   isOpen: boolean;
@@ -89,6 +95,10 @@ export function TaskDetailsDialog({
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newComment, setNewComment] = useState('');
   const [isCommenting, setIsCommenting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<Attachment | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState('details');
@@ -99,29 +109,31 @@ export function TaskDetailsDialog({
   const [showMentionPopover, setShowMentionPopover] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const updatedTask = allProjectTasks.find((t) => t.id === initialTask?.id) ?? null;
+    const updatedTask = allProjectTasks.find((t: Task) => t.id === initialTask?.id) ?? null;
     setTask(updatedTask);
   }, [initialTask, allProjectTasks]);
 
   const subtasks = useMemo(() => {
     if (!task) return [];
     return allProjectTasks
-      .filter((t) => t.parentId === task.id)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      .filter((t: Task) => t.parentId === task.id)
+      .sort((a: Task, b: Task) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [allProjectTasks, task]);
 
   const parentTask = useMemo(() => {
     if (!task?.parentId) return null;
-    return allProjectTasks.find((t) => t.id === task.parentId) ?? null;
+    return allProjectTasks.find((t: Task) => t.id === task.parentId) ?? null;
   }, [allProjectTasks, task]);
 
-  const completedSubtasks = useMemo(() => subtasks.filter((st) => !!st.completedAt).length, [subtasks]);
+  const completedSubtasks = useMemo(() => subtasks.filter((st: Task) => !!st.completedAt).length, [subtasks]);
   const subtaskProgress = useMemo(
     () => (subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0),
     [subtasks, completedSubtasks],
   );
+  const attachments = useMemo(() => task?.attachments ?? [], [task]);
 
   const projectLabels = useMemo(() => project.labels ?? [], [project.labels]);
   const enableSubtasks = useMemo(() => project.enableSubtasks ?? true, [project.enableSubtasks]);
@@ -220,7 +232,7 @@ export function TaskDetailsDialog({
 
     if (status !== task.columnId && !task.parentId) {
       const destinationColumn = project.columns.find((c) => c.id === status);
-      const toIndex = destinationColumn ? allProjectTasks.filter((t) => t.columnId === status).length : 0;
+      const toIndex = destinationColumn ? allProjectTasks.filter((t: Task) => t.columnId === status).length : 0;
       actions.moveTask(project.id, task.id, task.columnId, status, toIndex);
     }
 
@@ -246,17 +258,14 @@ export function TaskDetailsDialog({
       priority: 'Medium',
       assigneeIds: parentAssigneeIds,
     };
-     // @ts-ignore
+    // @ts-ignore
     await actions.addTask(project.id, task.columnId, subtaskData);
     setNewSubtaskTitle('');
   };
 
   const handleSubtaskCheck = async (subtask: Task, isChecked: boolean) => {
     if (!task) return;
-    const updatedData = {
-      completedAt: isChecked ? new Date().toISOString() : null,
-    };
-    await actions.updateTask(project.id, subtask.id, updatedData, { subtaskTitle: subtask.title });
+    actions.toggleSubtaskCompletion(project.id, subtask.id, !!isChecked);
   };
 
   const handleSubtaskClick = (subtask: Task) => {
@@ -306,6 +315,31 @@ export function TaskDetailsDialog({
     setIsCommenting(false);
   };
 
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0 || !task) return;
+    const file = event.target.files[0];
+
+    event.target.value = '';
+
+    setIsUploading(true);
+    await actions.addAttachment(project.id, task.id, file);
+    setIsUploading(false);
+  };
+
+  const handleConfirmDeleteAttachment = async () => {
+    if (!attachmentToDelete || !task) return;
+    await actions.deleteAttachment(project.id, task.id, attachmentToDelete.id);
+    setAttachmentToDelete(null);
+  };
+
+  const handleAttachmentClick = (attachment: Attachment) => {
+    if (attachment.type.startsWith('image/')) {
+      setFullScreenImage(attachment.url);
+    } else {
+      window.open(attachment.url, '_blank');
+    }
+  };
+
   const mentionableMembers = (members || []).filter(
     (m) =>
       m.displayName?.toLowerCase().includes(mentionQuery.toLowerCase()) ||
@@ -321,7 +355,7 @@ export function TaskDetailsDialog({
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="sm:max-w-lg flex flex-col max-h-[90vh] p-0"
+          className="sm:max-w-2xl flex flex-col max-h-[90vh] p-0"
         >
           <DialogHeader className="p-6 pb-4 flex-shrink-0">
             <DialogTitle>{task.parentId ? 'Edit Sub-task' : 'Edit Task'}</DialogTitle>
@@ -517,13 +551,7 @@ export function TaskDetailsDialog({
                               onClick={() => handleLabelToggle(label.id)}
                             >
                               <Checkbox checked={labelIds.includes(label.id)} />
-                              <Badge
-                                variant="secondary"
-                                style={{
-                                  backgroundColor: label.color,
-                                  color: 'white',
-                                }}
-                              >
+                              <Badge variant="secondary" style={{ backgroundColor: label.color, color: 'white' }}>
                                 {label.name}
                               </Badge>
                             </div>
@@ -613,53 +641,75 @@ export function TaskDetailsDialog({
                       </div>
                     )}
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                      {subtasks.map((subtask) => (
-                        <div key={subtask.id} className="flex items-center gap-2 p-2 rounded-md md:hover:bg-muted/50">
+                      {subtasks.map((subtask: Task) => (
+                        <div
+                          key={subtask.id}
+                          className={cn(
+                            'flex items-center gap-2 p-2 rounded-md border transition-colors',
+                            subtask.completedAt ? 'bg-muted/50' : 'bg-card',
+                          )}
+                        >
                           <Checkbox
                             id={`subtask-${subtask.id}`}
                             checked={!!subtask.completedAt}
                             onCheckedChange={(checked) => handleSubtaskCheck(subtask, !!checked)}
+                            className="flex-shrink-0"
                           />
-                          <div className="flex-grow cursor-pointer" onClick={() => handleSubtaskClick(subtask)}>
-                            <label
-                              htmlFor={`subtask-${subtask.id}`}
-                              className={cn(
-                                'text-sm flex-grow',
-                                subtask.completedAt && 'line-through text-muted-foreground',
-                              )}
+                          <div
+                            className="flex-grow flex items-center justify-between cursor-pointer gap-2"
+                            onClick={() => handleSubtaskClick(subtask)}
+                          >
+                            <span
+                              className={cn('text-sm', subtask.completedAt && 'line-through text-muted-foreground')}
                             >
                               {subtask.title}
-                            </label>
-                            {subtask.deadline && enableDeadlines && (
-                              <p
-                                className={cn(
-                                  'text-xs',
-                                  subtask.completedAt
-                                    ? 'text-muted-foreground/80'
-                                    : isPast(new Date(subtask.deadline))
-                                      ? 'text-destructive'
-                                      : 'text-muted-foreground',
-                                )}
-                              >
-                                {format(new Date(subtask.deadline), 'MMM d')}
-                              </p>
-                            )}
-                          </div>
-                          {subtask.assigneeIds && subtask.assigneeIds.length > 0 && (
-                            <div className="flex items-center -space-x-1">
-                              {subtask.assigneeIds.map((id) => {
-                                const member = members.find((m) => m.uid === id);
-                                return member ? (
-                                  <Avatar key={id} className="h-6 w-6">
-                                    <AvatarImage src={member.photoURL ?? ''} />
-                                    <AvatarFallback>
-                                      {member.displayName?.charAt(0).toUpperCase() ?? 'U'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                ) : null;
-                              })}
+                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {subtask.deadline && enableDeadlines && (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <p
+                                      className={cn(
+                                        'text-xs',
+                                        subtask.completedAt
+                                          ? 'text-muted-foreground/80'
+                                          : isPast(new Date(subtask.deadline))
+                                            ? 'text-destructive'
+                                            : 'text-muted-foreground',
+                                      )}
+                                    >
+                                      {format(new Date(subtask.deadline), 'MMM d')}
+                                    </p>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Deadline: {format(new Date(subtask.deadline), 'PPP')}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              {subtask.assigneeIds && subtask.assigneeIds.length > 0 && (
+                                <div className="flex items-center -space-x-1">
+                                  {subtask.assigneeIds.map((id) => {
+                                    const member = members.find((m) => m.uid === id);
+                                    return member ? (
+                                      <Tooltip key={id}>
+                                        <TooltipTrigger>
+                                          <Avatar className="h-6 w-6 border-background border">
+                                            <AvatarImage src={member.photoURL ?? ''} />
+                                            <AvatarFallback>
+                                              {member.displayName?.charAt(0).toUpperCase() ?? 'U'}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>{member.displayName}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    ) : null;
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -680,6 +730,73 @@ export function TaskDetailsDialog({
                         <Plus className="h-4 w-4 mr-1" /> Add
                       </Button>
                     </div>
+                  </div>
+                </div>
+              )}
+              {!task.parentId && (
+                <div className="space-y-4 pt-2">
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <ListTodo className="h-4 w-4" /> Attachments
+                    </Label>
+                    <div className="space-y-2">
+                      {attachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="flex items-center gap-3 p-2 rounded-md border md:hover:bg-muted/50"
+                        >
+                          <div
+                            className="flex-shrink-0 h-10 w-10 bg-muted rounded-md flex items-center justify-center cursor-pointer"
+                            onClick={() => handleAttachmentClick(attachment)}
+                          >
+                            {attachment.type.startsWith('image/') ? (
+                              <img
+                                src={attachment.url}
+                                alt={attachment.name}
+                                className="h-full w-full object-cover rounded-md"
+                              />
+                            ) : (
+                              <FileIcon className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex-grow min-w-0">
+                            <p className="text-sm font-medium truncate">{attachment.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(attachment.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => setAttachmentToDelete(attachment)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      accept="image/*"
+                    />
+                    {isUploading ? (
+                      <Loader text="Uploading..." />
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mt-2"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Image
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -799,9 +916,7 @@ export function TaskDetailsDialog({
                           />
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(act.timestamp), {
-                            addSuffix: true,
-                          })}
+                          {formatDistanceToNow(new Date(act.timestamp), { addSuffix: true })}
                         </p>
                       </div>
                     </div>
@@ -851,6 +966,41 @@ export function TaskDetailsDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={!!attachmentToDelete} onOpenChange={(isOpen) => !isOpen && setAttachmentToDelete(null)}>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Attachment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the file "{attachmentToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setAttachmentToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteAttachment}
+              className="bg-destructive hover:bg-destructive/90 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {fullScreenImage && (
+        <Dialog open={!!fullScreenImage} onOpenChange={(isOpen) => !isOpen && setFullScreenImage(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] p-2 bg-transparent border-0 shadow-none">
+            <DialogTitle className="sr-only">Image Attachment Preview</DialogTitle>
+            <img src={fullScreenImage} alt="Full screen preview" className="w-full h-full object-contain" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/80 hover:text-white"
+              onClick={() => setFullScreenImage(null)}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

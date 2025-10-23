@@ -1,15 +1,26 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertTriangle, ArrowDown, ArrowUp, Calendar as CalendarIcon, Minus, Tag, Users, Check } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  Calendar as CalendarIcon,
+  Minus,
+  Tag,
+  Users,
+  Check,
+  Upload,
+  X,
+} from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import type { KanbanUser, Task, Label as LabelType, Project } from '@/types/kanban';
+import type { KanbanUser, Task, Project, Attachment } from '@/types/kanban';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format, setHours, setMinutes } from 'date-fns';
@@ -19,6 +30,7 @@ import { Checkbox } from '../ui/checkbox';
 import { MAX_DESC_LENGTH, MAX_TITLE_LENGTH, TIME_OPTIONS } from '@/lib/constants';
 import { useKanbanStore } from '@/hooks/use-kanban-store';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
+import { Loader } from '../common/loader';
 
 type NewTaskDialogProps = {
   isOpen: boolean;
@@ -26,6 +38,43 @@ type NewTaskDialogProps = {
   project: Project;
   columnId: string;
   members: KanbanUser[];
+};
+
+const resizeImage = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject('Could not get canvas context');
+
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/webp', quality));
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
 };
 
 export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: NewTaskDialogProps) {
@@ -37,6 +86,10 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
   const [labelIds, setLabelIds] = useState<string[]>([]);
   const [time, setTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const addTask = useKanbanStore((state) => state.actions.addTask);
 
   const hours = TIME_OPTIONS.HOURS;
@@ -54,6 +107,7 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
     setDeadline(undefined);
     setTime('');
     setLabelIds([]);
+    setAttachments([]);
   };
 
   const handleAddTask = async () => {
@@ -68,8 +122,7 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
         finalDeadline.setHours(0, 0, 0, 0);
       }
 
-       // @ts-ignore
-      const taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'> = {
+      const taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt'>> = {
         title: title.trim(),
         priority,
       };
@@ -78,8 +131,13 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
       if (assigneeIds.length > 0) taskData.assigneeIds = assigneeIds;
       if (finalDeadline && enableDeadlines) taskData.deadline = finalDeadline.toISOString();
       if (labelIds.length > 0 && enableLabels) taskData.labelIds = labelIds;
+      if (attachments.length > 0) taskData.attachments = attachments;
 
-      await addTask(project.id, columnId, taskData);
+      await addTask(
+        project.id,
+        columnId,
+        taskData as Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'activity' | 'projectId'>,
+      );
       setIsSubmitting(false);
       resetForm();
       onClose();
@@ -103,6 +161,34 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
     );
   };
 
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) return;
+    const file = event.target.files[0];
+
+    event.target.value = '';
+
+    setIsUploading(true);
+    try {
+      const dataUrl = await resizeImage(file, 800, 800, 0.8);
+      const newAttachment: Attachment = {
+        id: `att-${Date.now()}-${file.name}`,
+        name: file.name,
+        url: dataUrl,
+        type: 'image/webp',
+        createdAt: new Date().toISOString(),
+      };
+      setAttachments((prev) => [...prev, newAttachment]);
+    } catch (error) {
+      console.error('Error processing image:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveAttachment = (attachmentId: string) => {
+    setAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
+  };
+
   const [currentHour, currentMinute] = time.split(':');
 
   const handleHourChange = (newHour: string) => {
@@ -113,15 +199,22 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
     setTime(`${currentHour || '00'}:${newMinute}`);
   };
 
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   return (
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open) resetForm();
-        onClose();
+        if (!open) handleClose();
       }}
     >
-      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="sm:max-w-md flex flex-col max-h-[90vh] p-0">
+      <DialogContent
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="sm:max-w-2xl flex flex-col max-h-[90vh] p-0"
+      >
         <DialogHeader className="p-6 pb-4 flex-shrink-0">
           <DialogTitle>Add New Task</DialogTitle>
         </DialogHeader>
@@ -314,13 +407,7 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
                         onClick={() => handleLabelToggle(label.id)}
                       >
                         <Checkbox checked={labelIds.includes(label.id)} />
-                        <Badge
-                          variant="secondary"
-                          style={{
-                            backgroundColor: label.color,
-                            color: 'white',
-                          }}
-                        >
+                        <Badge variant="secondary" style={{ backgroundColor: label.color, color: 'white' }}>
                           {label.name}
                         </Badge>
                       </div>
@@ -330,9 +417,42 @@ export function NewTaskDialog({ isOpen, onClose, members, project, columnId }: N
               </Popover>
             </div>
           )}
+          <div className="space-y-2">
+            <Label>Attachments (optional)</Label>
+            <div className="space-y-2">
+              {attachments.map((attachment) => (
+                <div key={attachment.id} className="flex items-center gap-3 p-2 rounded-md border">
+                  <div className="flex-shrink-0 h-10 w-10 bg-muted rounded-md flex items-center justify-center">
+                    <img src={attachment.url} alt={attachment.name} className="h-full w-full object-cover rounded-md" />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <p className="text-sm font-medium truncate">{attachment.name}</p>
+                    <p className="text-xs text-muted-foreground">Image will be attached on creation</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => handleRemoveAttachment(attachment.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
+            {isUploading ? (
+              <Loader text="Processing image..." />
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="mt-2">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Image
+              </Button>
+            )}
+          </div>
         </div>
         <DialogFooter className="p-6 border-t flex-shrink-0">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
           <Button type="submit" onClick={handleAddTask} disabled={!title.trim() || isSubmitting}>

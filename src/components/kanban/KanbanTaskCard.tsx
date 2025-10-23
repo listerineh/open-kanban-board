@@ -2,7 +2,7 @@
 
 import type { KanbanUser, Task, Label } from '@/types/kanban';
 import { Card, CardContent } from '@/components/ui/card';
-import { GripVertical, Calendar, CheckCircle2, ListTodo } from 'lucide-react';
+import { GripVertical, Calendar, CheckCircle2, ListTodo, Paperclip } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo, memo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -34,7 +34,6 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
   onClick,
 }: KanbanTaskCardProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [isOverdue, setIsOverdue] = useState(false);
   const [deadlineText, setDeadlineText] = useState('');
 
@@ -50,14 +49,12 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
 
   useEffect(() => {
     if (task.completedAt) {
-      setProgress(100);
       setDeadlineText('');
       setIsOverdue(false);
       return;
     }
 
     if (!task.deadline || !enableDeadlines) {
-      setProgress(0);
       setIsOverdue(false);
       setDeadlineText('');
       return;
@@ -67,46 +64,15 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
 
     const updateDeadlineInfo = () => {
       const now = new Date();
-
       setIsOverdue(now > deadlineDate);
       setDeadlineText(formatDistanceToNow(deadlineDate, { addSuffix: true }));
-
-      const startMs = new Date(task.createdAt).getTime();
-      const endMs = deadlineDate.getTime();
-      const nowMs = now.getTime();
-
-      if (isNaN(startMs) || isNaN(endMs)) {
-        setProgress(0);
-        return;
-      }
-
-      if (nowMs >= endMs) {
-        setProgress(100);
-        return;
-      }
-
-      if (nowMs < startMs) {
-        setProgress(0);
-        return;
-      }
-
-      const totalDuration = endMs - startMs;
-      if (totalDuration <= 0) {
-        setProgress(100);
-        return;
-      }
-
-      const elapsedDuration = nowMs - startMs;
-      const calculatedProgress = (elapsedDuration / totalDuration) * 100;
-
-      setProgress(calculatedProgress);
     };
 
     updateDeadlineInfo();
     const intervalId = setInterval(updateDeadlineInfo, 60000);
 
     return () => clearInterval(intervalId);
-  }, [task.createdAt, task.deadline, task.completedAt, enableDeadlines]);
+  }, [task.deadline, task.completedAt, enableDeadlines]);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     if (task.parentId) {
@@ -123,12 +89,12 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
   };
 
   const allParticipantIds = useMemo(() => {
-    const ids = new Set(task.assigneeIds);
+    const ids = new Set(task.assigneeIds || (task.assignee ? [task.assignee] : []));
     subtasks.forEach((st) => {
-      (st.assigneeIds || []).forEach((id) => ids.add(id));
+      (st.assigneeIds || (st.assignee ? [st.assignee] : [])).forEach((id) => ids.add(id));
     });
     return Array.from(ids);
-  }, [task.assigneeIds, subtasks]);
+  }, [task.assigneeIds, task.assignee, subtasks]);
 
   const participants = useMemo(() => {
     return allParticipantIds.map((id) => members.find((m) => m.uid === id)).filter(Boolean) as KanbanUser[];
@@ -137,9 +103,10 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
   const priority = task.priority ?? 'Medium';
   const borderClass = PRIORITY_STYLES[priority];
 
+  const hasIcons = (task.attachments?.length ?? 0) > 0;
   const hasAvatars = participants.length > 0;
   const hasLabels = enableLabels && taskLabels.length > 0;
-  const hasFooter = hasAvatars || hasLabels;
+  const hasFooter = hasIcons || hasAvatars || hasLabels;
 
   return (
     <Card
@@ -163,51 +130,31 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
             {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
           </div>
 
-          {task.completedAt && (
-            <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium pt-1">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Completed</span>
-            </div>
-          )}
-
-          <div className="flex flex-row justify-between gap-2">
-            {task.completedAt === null && subtasks.length > 0 && enableDeadlines && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                <ListTodo className="h-3.5 w-3.5" />
+          {subtasks.length > 0 && !task.completedAt && (
+            <div className="space-y-1 pt-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+                <span>Sub-tasks</span>
                 <span>
-                  {completedSubtasks}/{subtasks.length}
+                  {completedSubtasks} of {subtasks.length} done
                 </span>
               </div>
-            )}
-
-            {task.completedAt === null && task.deadline && enableDeadlines && (
-              <div
-                className={cn(
-                  'flex items-center gap-1.5 text-xs pt-1',
-                  isOverdue ? 'text-destructive' : 'text-muted-foreground',
-                )}
-              >
-                <Calendar className="h-3.5 w-3.5" />
-                <span>{deadlineText}</span>
-              </div>
-            )}
-          </div>
-
-          {task.deadline && task.createdAt && !task.completedAt && subtasks.length === 0 && enableDeadlines && (
-            <div className="pt-1">
-              <Progress value={progress} className={cn('h-1.5', isOverdue && '[&>div]:bg-destructive')} />
-            </div>
-          )}
-
-          {subtasks.length > 0 && !task.completedAt && (
-            <div className="pt-1">
-              <Progress value={subtaskProgress} className="h-1.5" />
+              <Progress value={subtaskProgress} className="h-2" />
             </div>
           )}
 
           {hasFooter && (
-            <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
+            <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 pt-1">
               <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
+                {hasIcons && (
+                  <div className="flex items-center gap-3">
+                    {(task.attachments?.length ?? 0) > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                        <Paperclip className="h-3.5 w-3.5" />
+                        <span>{task.attachments?.length}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {hasLabels && (
                   <div className="flex flex-wrap gap-1">
                     {taskLabels.map((label) => (
@@ -257,6 +204,31 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({
               )}
             </div>
           )}
+
+          {(() => {
+            if (task.completedAt) {
+              return (
+                <div className="flex items-center gap-1.5 text-xs text-green-500 font-medium pt-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Completed</span>
+                </div>
+              );
+            }
+            if (task.deadline && enableDeadlines) {
+              return (
+                <div
+                  className={cn(
+                    'flex items-center gap-1.5 text-xs pt-1',
+                    isOverdue ? 'text-destructive' : 'text-muted-foreground',
+                  )}
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>{deadlineText}</span>
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
       </CardContent>
     </Card>
