@@ -388,7 +388,7 @@ export function TaskDetailsDialog({
                 </TabsTrigger>
               </div>
             </TabsList>
-            <TabsContent value="details" className="grid gap-4 px-6 pb-4 flex-grow overflow-y-auto mt-4">
+            <TabsContent value="details" className="grid gap-4 px-6 pb-4 flex-grow overflow-y-auto overflow-x-hidden mt-4">
               <div className="space-y-2">
                 <Label htmlFor="task-title">Title</Label>
                 <Input
@@ -713,7 +713,7 @@ export function TaskDetailsDialog({
                         </div>
                       ))}
                     </div>
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-start gap-2 pt-2">
                       <div className="flex-grow space-y-1">
                         <Input
                           placeholder="Add a new sub-task..."
