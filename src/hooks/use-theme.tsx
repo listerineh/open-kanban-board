@@ -92,13 +92,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = window.document.documentElement;
 
-    // Clear all theme-related classes
     root.classList.remove('light', 'dark', 'theme-black');
     Object.keys(accentColorMap).forEach((key) => {
       root.classList.remove(`theme-${key}`);
     });
 
-    // Apply mode and accent classes
     if (mode === 'light') {
       root.classList.add('light');
     } else {
@@ -114,7 +112,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.classList.add('theme-default');
     }
 
-    // Update dynamic assets
     const updateDynamicAssets = () => {
       const primaryColor = accentColorMap[accent];
       const iconPath = `/icons/${accent}.svg`;

@@ -1,3 +1,11 @@
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  createdAt: string;
+}
+
 export interface Notification {
   id: string;
   userId: string;
@@ -27,6 +35,7 @@ export interface Task {
   order: number;
   title: string;
   description?: string;
+  assignee?: string;
   assigneeIds?: string[];
   priority?: 'Urgent' | 'High' | 'Medium' | 'Low';
   createdAt: string;
@@ -37,6 +46,7 @@ export interface Task {
   labelIds?: string[];
   activity?: Activity[];
   isArchived?: boolean;
+  attachments?: Attachment[];
 }
 
 export interface Activity {
