@@ -113,11 +113,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     const updateDynamicAssets = () => {
-      // TODO: Fix the dynamic accent & color maps for manifest.
-      // const primaryColor = accentColorMap[accent];
-      // const iconPath = `/icons/${accent}.svg`;
-      const primaryColor = accentColorMap['default'];
-      const iconPath = `/icons/default.svg`;
+      const primaryColor = accentColorMap[accent];
+      const iconPath = `/icons/${accent}.svg`;
 
       const themeColorMeta: HTMLMetaElement | null = document.querySelector("meta[name='theme-color']");
       if (themeColorMeta) {
